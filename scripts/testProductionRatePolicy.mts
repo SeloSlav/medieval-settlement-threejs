@@ -74,10 +74,11 @@ const rendered = withBuildingProductionRate(view, normalBuilding).supplementalPa
 assert.match(rendered, /type="range" data-production-rate-slider/);
 assert.match(rendered, /min="0" max="100"/);
 assert.match(rendered, /value="50"/);
-assert.match(rendered, /Ironwork upkeep:/);
-assert.match(rendered, /2× pace \/ 4× upkeep/);
-assert.match(rendered, /pace squared/);
-assert.match(rendered, /\/year maximum at current roster/);
+assert.match(rendered, /Ironwork required/);
+assert.match(rendered, /Production effectiveness/);
+assert.match(rendered, /data-production-rate-value>100%<\/strong>/);
+assert.match(rendered, /data-production-rate-maintenance>≤ \d+\.\d \/ year<\/strong>/);
+assert.doesNotMatch(rendered, /× pace|× upkeep|pace squared|worker-year|range-hints/);
 
 const table = readFileSync(new URL('../server/src/tables.rs', import.meta.url), 'utf8');
 const reducer = readFileSync(new URL('../server/src/reducers/buildings.rs', import.meta.url), 'utf8');

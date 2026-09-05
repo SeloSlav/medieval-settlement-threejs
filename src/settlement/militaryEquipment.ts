@@ -108,6 +108,10 @@ const UPRIGHT_RIGHT_HAND = [-0.145608, -0.102947, -0.976031, 0.124758] as const;
 const FORWARD_RIGHT_HAND = [-0.014743, -0.762952, -0.617363, 0.191177] as const;
 const FORWARD_LEFT_HAND = [0.176702, -0.13146, -0.962764, -0.156782] as const;
 const NATURAL_RIGHT_HAND = [0, 0, 0, 1] as const;
+// Pelvis-local +X is the wearer's right. Hang the quiver below the belt,
+// with its mouth tilted forward and its base clear of the moving thigh.
+const QUIVER_HIP_BONES = ['Pelvis', 'Hips'] as const;
+const QUIVER_HIP_ROTATION = [-0.35, 0, 0.08] as const;
 
 export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
   const materials = createMilitaryEquipmentMaterials();
@@ -131,10 +135,10 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     crossbow: source('crossbow', crossbowAssembly, FORWARD_RIGHT_HAND, [
       mount(
         createCrossbowQuiver(materials, ammunitionMaterial),
-        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
+        QUIVER_HIP_BONES,
         0.54,
-        [0.065, 0.02, 0.085],
-        [0.08, 0.12, -0.18],
+        [0.15, -0.16, 0.055],
+        QUIVER_HIP_ROTATION,
       ),
       mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], TARGET_LENGTHS.crossbow, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
@@ -150,10 +154,10 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     bow: source('bow', bowAssembly, FORWARD_LEFT_HAND, [
       mount(
         createQuiver(materials, 8, 0.78, ammunitionMaterial),
-        ['Spine02', 'Spine2', 'Spine01', 'Spine'],
+        QUIVER_HIP_BONES,
         0.86,
-        [0.065, 0.02, 0.085],
-        [0.04, -0.18, -0.18],
+        [0.15, -0.2, 0.075],
+        QUIVER_HIP_ROTATION,
       ),
       mount(bowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),

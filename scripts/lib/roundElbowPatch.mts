@@ -1,41 +1,10 @@
 import * as THREE from 'three';
 
-type CarryElbowKind = 'shield' | 'bow-carry';
-export type CarryElbowSurface = { mesh: THREE.SkinnedMesh; source: THREE.BufferGeometry; originalVertices: number; kind: CarryElbowKind };
-const roundedSurfaces: Record<CarryElbowKind, WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>> = {
-  shield: new WeakMap(), 'bow-carry': new WeakMap(),
-};
-
-/** The repaired worker has a flat skin closure between the cuff and bracer.
- * Keep the shared model immutable; only the specified carry uses this surface. */
-export function bindCarryElbowSurfaces(root: THREE.Group, kind: CarryElbowKind): CarryElbowSurface[] {
-  const surfaces: CarryElbowSurface[] = [];
-  root.traverse(mesh => {
-    if (!(mesh instanceof THREE.SkinnedMesh)) return;
-    const originalVertices = mesh.userData.elbowRepair?.originalVertices;
-    if (Number.isInteger(originalVertices)) surfaces.push({ mesh, source: mesh.geometry, originalVertices, kind });
-  });
-  return surfaces;
-}
-
-export function setCarryElbowVolume(surfaces: CarryElbowSurface[], enabled: boolean): void {
-  for (const surface of surfaces) {
-    let geometry = surface.source;
-    if (enabled) {
-      let rounded = roundedSurfaces[surface.kind].get(geometry);
-      if (!rounded) {
-        rounded = roundElbowPatch(surface);
-        roundedSurfaces[surface.kind].set(geometry, rounded);
-        const generated = rounded;
-        geometry.addEventListener('dispose', () => generated.dispose());
-      }
-      geometry = rounded;
-    }
-    surface.mesh.geometry = geometry;
-  }
-}
-
-function roundElbowPatch({ mesh, source, originalVertices, kind }: CarryElbowSurface): THREE.BufferGeometry {
+/** Bake the fuller left elbow into the source mesh. Inflate in a relaxed
+ * carrying pose, then return every vertex to bind space through its original
+ * skin influences. This changes geometry only, never the rig or animations. */
+export function roundElbowPatch(mesh: THREE.SkinnedMesh, originalVertices: number): THREE.BufferGeometry {
+  const source = mesh.geometry;
   const positions = source.getAttribute('position');
   const index = source.index!;
   const faces: number[][] = [], retained: number[] = [];
@@ -77,6 +46,13 @@ function roundElbowPatch({ mesh, source, originalVertices, kind }: CarryElbowSur
   const depth = mesh.worldToLocal(elbow.getWorldPosition(new THREE.Vector3()))
     .distanceTo(mesh.worldToLocal(wrist.getWorldPosition(new THREE.Vector3()))) * .045;
   function vertex(face: number[], bary: number[]): number {
+    // Keep the original 25 rim edges intact: no T-junctions against the
+    // neighboring sleeve/bracer triangles and no new boundary skin weights.
+    for (let c = 0; c < 3; c++) if (bary[c] === 0) {
+      const a = (c + 1) % 3, b = (c + 2) % 3;
+      const edge = edges.get([key(point(face[a]!)), key(point(face[b]!))].sort().join('/'));
+      if (edge?.count === 1) { const nearest = bary[a]! >= bary[b]! ? a : b; bary = [0, 0, 0]; bary[nearest] = 1; break; }
+    }
     const p = new THREE.Vector3(), direction = new THREE.Vector3();
     const influence = new Map<number, number>();
     for (let c = 0; c < 3; c++) {
@@ -115,8 +91,12 @@ function roundElbowPatch({ mesh, source, originalVertices, kind }: CarryElbowSur
   for (const face of faces) {
     const at = (i: number, j: number) => vertex(face, [1 - (i + j) / subdivisions, i / subdivisions, j / subdivisions]);
     for (let i = 0; i < subdivisions; i++) for (let j = 0; j < subdivisions - i; j++) {
-      added.push([at(i, j), at(i + 1, j), at(i, j + 1)]);
-      if (i + j < subdivisions - 1) added.push([at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)]);
+      const first = [at(i, j), at(i + 1, j), at(i, j + 1)];
+      if (new Set(first).size === 3) added.push(first);
+      if (i + j < subdivisions - 1) {
+        const second = [at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
+        if (new Set(second).size === 3) added.push(second);
+      }
     }
   }
   const byId = new Map(generated.map(v => [v.id, v]));
@@ -136,6 +116,6 @@ function roundElbowPatch({ mesh, source, originalVertices, kind }: CarryElbowSur
   }
   geometry.setIndex([...retained, ...added.flat()]);
   geometry.computeBoundingBox(); geometry.computeBoundingSphere();
-  geometry.userData.carryElbowVolume = { kind, originalVertices: positions.count, addedVertices: generated.length, sourceTriangles: faces.length, roundedTriangles: added.length, depth };
+  geometry.userData.elbowVolume = { firstVertex: positions.count, addedVertices: generated.length, sourceTriangles: faces.length, roundedTriangles: added.length, depth };
   return geometry;
 }

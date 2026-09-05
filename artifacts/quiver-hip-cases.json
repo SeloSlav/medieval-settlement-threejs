@@ -1,0 +1,16 @@
+[
+  {"name":"quiver-hip-bow-idle-front","weapon":"bow","variant":"man","mode":"idle","view":"front","seed":431},
+  {"name":"quiver-hip-bow-idle-side","weapon":"bow","variant":"man","mode":"idle","view":"side","seed":431},
+  {"name":"quiver-hip-bow-run","weapon":"bow","variant":"man","mode":"run","time":0.65,"view":"back","seed":431},
+  {"name":"quiver-hip-bow-attack","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"front","seed":431},
+  {"name":"quiver-hip-bow-raider","weapon":"bow","variant":"raider","mode":"attack","phase":0.8,"view":"front","seed":9821},
+  {"name":"quiver-hip-bow-fallback","weapon":"bow","variant":"raider","mode":"fallback","phase":0.5,"view":"back","seed":9821},
+  {"name":"quiver-hip-crossbow-idle-front","weapon":"crossbow","variant":"man","mode":"idle","view":"front","seed":431},
+  {"name":"quiver-hip-crossbow-idle-side","weapon":"crossbow","variant":"man","mode":"idle","view":"side","seed":431},
+  {"name":"quiver-hip-crossbow-run","weapon":"crossbow","variant":"man","mode":"run","time":0.65,"view":"back","seed":431},
+  {"name":"quiver-hip-crossbow-attack","weapon":"crossbow","variant":"man","mode":"attack","phase":0.8,"view":"front","seed":431},
+  {"name":"quiver-hip-crossbow-raider","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.8,"view":"front","seed":9821},
+  {"name":"quiver-hip-crossbow-fallback","weapon":"crossbow","variant":"raider","mode":"fallback","phase":0.5,"view":"back","seed":9821},
+  {"name":"quiver-hip-mounted-bow","unit":"mounted-archers","weapon":"bow","variant":"man","mode":"attack","phase":0.8,"view":"front","seed":431},
+  {"name":"quiver-hip-mounted-bow-side","unit":"mounted-archers","weapon":"bow","variant":"man","mode":"walk","view":"side","seed":431}
+]

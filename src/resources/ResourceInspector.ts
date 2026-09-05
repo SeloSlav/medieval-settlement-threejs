@@ -83,6 +83,7 @@ import {
   maintenanceRateMultiplier,
   productionRateMultiplier,
 } from '../economy/productionRatePolicy.ts';
+import { formatProductionIronworkPerYear } from './inspector/buildingProductionRateRenderer.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
 import { windWeatherThroughputMultiplier } from '../wind/windField.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
@@ -1790,18 +1791,15 @@ export class ResourceInspector {
       const percent = Math.max(0, Math.min(100, Math.round(Number(input.value))));
       const multiplier = productionRateMultiplier(percent);
       const maintenanceMultiplier = maintenanceRateMultiplier(percent);
-      const value = input.closest<HTMLElement>('.inspector-action-panel')
-        ?.querySelector<HTMLElement>('[data-production-rate-value]');
-      const maintenance = input.closest<HTMLElement>('.inspector-action-panel')
-        ?.querySelector<HTMLElement>('[data-production-rate-maintenance]');
+      const panel = input.closest<HTMLElement>('.inspector-action-panel');
+      const value = panel?.querySelector<HTMLElement>('[data-production-rate-value]');
+      const maintenance = panel?.querySelector<HTMLElement>('[data-production-rate-maintenance]');
       const normalAnnual = Math.max(0, Number(input.dataset.ironworkPerYearAtNormal));
-      if (value) {
-        value.textContent = multiplier <= 1e-9
-          ? `${percent}% · Paused · 0× upkeep`
-          : `${percent}% · ${multiplier.toFixed(multiplier % 1 === 0 ? 0 : 1)}× pace · ${maintenanceMultiplier.toFixed(maintenanceMultiplier % 1 === 0 ? 0 : 2)}× upkeep`;
-      }
+      const effectiveness = `${Math.round(multiplier * 100)}%`;
+      input.setAttribute('aria-valuetext', `${effectiveness} production effectiveness`);
+      if (value) value.textContent = effectiveness;
       if (maintenance) {
-        maintenance.textContent = `Ironwork upkeep: ${(normalAnnual * maintenanceMultiplier).toFixed(1)}/year maximum at current roster. Upkeep scales with pace squared; actual consumption follows completed work.`;
+        maintenance.textContent = formatProductionIronworkPerYear(normalAnnual * maintenanceMultiplier);
       }
     } else if (input.matches('[data-harvest-reserve-slider]')) {
       const reserve = Math.max(0, Math.round(Number(input.value)));

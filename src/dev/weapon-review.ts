@@ -40,6 +40,7 @@ let standaloneProjectile:CombatProjectileRenderer|null=null;
 let frame=0,clock=0,last=performance.now();const errors:string[]=[];
 window.addEventListener('error',e=>errors.push(e.message));
 const temp=new THREE.Vector3(),temp2=new THREE.Vector3(),cameraOffset=new THREE.Vector3();
+const mountedBounds=new THREE.Box3();
 const orbitTarget=new THREE.Vector3(0,1.06,.12);
 let cameraInitialized=false,cameraUserAdjusted=false;
 const cameraController=new CameraController({
@@ -61,7 +62,7 @@ function agent():CrowdRenderAgent{
  const presentation=resolveCombatWeaponPresentation(tool!,distance);
  const duration=presentation?.attackSeconds??1;
  const mounted=REVIEW_UNITS[state.unit].horse!==null&&state.mode!=='fall';
- return{id:'review',slot:0,x:0,y:mounted?.02+CAVALRY_SADDLE_HEIGHT-seatedVillagerContactHeight('man',state.seed):.02,z:0,yaw:0,appearanceSeed:state.seed,mounted,
+ return{id:'review',slot:0,x:0,y:mounted ? .02+CAVALRY_SADDLE_HEIGHT-seatedVillagerContactHeight('man',state.seed) : .02,z:0,yaw:0,appearanceSeed:state.seed,mounted,
   variant:'man',presentation:state.variant==='raider'?'raider':'common',
   mode:state.mode==='attack'||state.mode==='fallback'?'fight':state.mode==='hit'?'hurt':state.mode as CrowdRenderAgent['mode'],
   tool,movementSpeed:state.mode==='run'||state.mode==='flee'?2.15:1.2,animationRateScale:1,
@@ -79,12 +80,14 @@ function poseHorse(a:CrowdRenderAgent,frozen:boolean,dt:number){
   id:'review-horse',x:a.x,y:.02,z:a.z,yaw:a.yaw,moveSpeed:moving?a.movementSpeed??0:0,
   activity:moving?'walking':'standing',presentation,appearanceSeed:state.seed,
  }]:[];
+ if(horseRig()&&horseRig().appearanceSeed!==state.seed)horses.sync([],view,0);
  horses.sync(poses,view,dt);
  const visual=horseRig();
  if(frozen&&visual){
   visual.mixer.stopAllAction();
   const action=visual.actions[visual.mode];action.reset().setEffectiveWeight(1).play();
-  visual.mixer.setTime(state.time*action.getClip().duration/Math.max(.001,action.getEffectiveTimeScale()));
+  action.time=state.time*action.getClip().duration;
+  visual.mixer.update(0);
   horses.sync(poses,view,0);
  }
 }
@@ -97,8 +100,9 @@ function pose(frozen=false,dt=0){
   visual.mixer.stopAllAction();
   const action=visual.actions[visual.actionMode];action.reset().setEffectiveWeight(1).play();
   const seatedTime=villagerStaticSeatedPoseTime(visual.actionMode,state.seed,action.getClip().duration);
-  visual.mixer.setTime((seatedTime??state.time*action.getClip().duration)/(a.mounted?Math.max(.001,action.getEffectiveTimeScale()):1));
-  if(seatedTime!==null)action.paused=true;
+  if(seatedTime!==null){
+   action.time=seatedTime;action.paused=true;visual.mixer.update(0);
+  }else visual.mixer.setTime(state.time*action.getClip().duration);
   crowd.syncAgents([a],view,0);
  }
 }
@@ -117,9 +121,13 @@ function cameraFocus(out:THREE.Vector3){
   hand.getWorldPosition(out);out.add(temp2.set(0,.01,.03));
  }else if(state.view==='weapon'||state.view==='projectile'){
   new THREE.Box3().setFromObject(standalone).getCenter(out);
+ }else if(agent().mounted){
+  mountedBounds.setFromObject(visual.model,true);
+  const horse=horseRig();if(horse)mountedBounds.expandByObject(horse.model,true);
+  mountedBounds.getCenter(out);
  }else{
   const pelvis=visual.model.getObjectByName('Pelvis')??visual.model;
-  pelvis.getWorldPosition(out);out.y=agent().mounted?1.25:1.06;out.z+=.12;
+  pelvis.getWorldPosition(out);out.y=1.06;out.z+=.12;
  }
 }
 function applyCameraPreset(){
@@ -136,7 +144,11 @@ function applyCameraPreset(){
   cameraOffset.set(size.y*.28,size.y*.12,Math.max(size.y,size.x)*1.8);
  }else{
   cameraOffset.copy(state.view==='side'?temp2.set(-3.3,.35,.15):state.view==='back'?temp2.set(-2.5,.4,-2.9):state.view==='left-back'?temp2.set(2.5,.4,-2.9):state.view==='left-front'?temp2.set(1.25,.55,3.3):state.view==='far'?temp2.set(4,6,8):temp2.set(-1.25,.55,3.3));
-  if(agent().mounted&&state.view!=='far')cameraOffset.multiplyScalar(1.6);
+  if(agent().mounted){
+   const halfFov=Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.min(1,camera.aspect));
+   const radius=mountedBounds.getSize(temp2).length()/2;
+   cameraOffset.setLength(Math.max(cameraOffset.length(),radius/Math.sin(halfFov)*1.12));
+  }
  }
  orbitTarget.y=temp.y;
  const distance=Math.max(.08,cameraOffset.length());

@@ -257,7 +257,6 @@ export type AuthoredCrowdDiagnostic = {
   submittedInstances: number;
   proxyAgents: 0;
   batches: Readonly<Record<VillagerSourceKey, AuthoredSkinnedInstanceBatchDiagnostic>>;
-  carryElbowBatches: Readonly<Record<string, AuthoredSkinnedInstanceBatchDiagnostic>>;
   attachments: ExactMountedAttachmentBatchDiagnostic;
   standards: CompanyStandardDiagnostic;
   performance: {
@@ -407,7 +406,6 @@ export class SettlementCrowdRenderer {
   private sources: Record<VillagerSourceKey, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
   private authoredBatches: Record<VillagerSourceKey, AuthoredSkinnedInstanceBatch> | null = null;
-  private readonly carryElbowBatches = new Map<string, AuthoredSkinnedInstanceBatch>();
   private readonly authoredBatchList: AuthoredSkinnedInstanceBatch[] = [];
   private readonly authoredBatchRequired = new Map<AuthoredSkinnedInstanceBatch, number>();
   private readonly authoredBatchNextSlot = new Map<AuthoredSkinnedInstanceBatch, number>();
@@ -537,7 +535,7 @@ export class SettlementCrowdRenderer {
       count: number;
     }> = [];
     if (!this.authoredBatches) return { objects: [], restore: () => {} };
-    for (const batch of this.authoredBatchList) {
+    for (const batch of uniqueAuthoredBatches(this.authoredBatches)) {
       batch.group.traverse((object) => {
         const mesh = object as THREE.InstancedMesh;
         if (!mesh.isInstancedMesh || mesh.count > 0) return;
@@ -660,7 +658,7 @@ export class SettlementCrowdRenderer {
   getRenderedBodyHeight(id: string): number | null {
     const visual = this.animated.get(id);
     if (!this.group.visible || !visual?.root.visible || !this.sources
-      || !this.authoredBatches || !this.authoredBatchForVisual(visual).count) return null;
+      || !this.authoredBatches?.[visual.sourceKey].count) return null;
     return this.sources[visual.sourceKey].sourceHeight * visual.model.scale.y;
   }
 
@@ -684,7 +682,6 @@ export class SettlementCrowdRenderer {
       ),
       proxyAgents: 0,
       batches: diagnostics,
-      carryElbowBatches: Object.fromEntries([...this.carryElbowBatches].map(([key, batch]) => [key, batch.diagnostics()])),
       attachments: this.mountedAttachments.diagnostics(),
       standards: this.companyStandards.diagnostics(),
       performance: {
@@ -715,10 +712,9 @@ export class SettlementCrowdRenderer {
     this.idlePooledVisualCount = 0;
 
     if (this.authoredBatches) {
-      for (const batch of this.authoredBatchList) batch.dispose();
+      for (const batch of uniqueAuthoredBatches(this.authoredBatches)) batch.dispose();
       this.authoredBatches = null;
     }
-    this.carryElbowBatches.clear();
     this.authoredBatchList.length = 0;
     this.authoredBatchRequired.clear();
     this.authoredBatchNextSlot.clear();
@@ -1271,33 +1267,6 @@ export class SettlementCrowdRenderer {
     });
   }
 
-  /** Rounded carry elbows have separate shared geometry batches. Other
-   * poses continue to submit the exact original source, including bow firing,
-   * crossbows, civilians, falls and company standards. */
-  private authoredBatchForVisual(visual: AnimatedVillager): AuthoredSkinnedInstanceBatch {
-    const surfaces = visual.combatRig?.carryElbowSurfaces.filter(s => s.mesh.geometry !== s.source);
-    if (!surfaces?.length) return this.authoredBatches![visual.sourceKey];
-    const key = `${visual.sourceKey}:${surfaces[0]!.kind}`;
-    let batch = this.carryElbowBatches.get(key);
-    if (!batch) {
-      const source = this.sources![visual.sourceKey];
-      const scene = cloneSkinned(source.scene) as THREE.Group;
-      scene.traverse(mesh => {
-        if (!(mesh instanceof THREE.SkinnedMesh)) return;
-        const surface = surfaces.find(s => s.source === mesh.geometry);
-        if (surface) mesh.geometry = surface.mesh.geometry;
-      });
-      batch = this.createAuthoredBatch(visual.sourceKey, { ...source, scene });
-      batch.group.name += ` ${surfaces[0]!.kind} elbow`;
-      this.carryElbowBatches.set(key, batch);
-      this.authoredBatchList.push(batch);
-      this.authoredBatchRequired.set(batch, 0);
-      this.authoredBatchNextSlot.set(batch, 0);
-      this.authoredSlotAppearances.set(batch, []);
-    }
-    return batch;
-  }
-
   private updateAuthoredBatches(
     agents: readonly CrowdRenderAgent[],
   ): void {
@@ -1310,9 +1279,8 @@ export class SettlementCrowdRenderer {
     const required = this.authoredBatchRequired;
     for (const batch of this.authoredBatchList) required.set(batch, 0);
     for (const agent of agents) {
-      const visual = this.animated.get(agent.id);
-      if (!visual) continue;
-      const batch = this.authoredBatchForVisual(visual);
+      if (!this.animated.has(agent.id)) continue;
+      const batch = batches[sourceKeyForAgent(agent)];
       required.set(batch, (required.get(batch) ?? 0) + 1);
     }
     for (const [batch, count] of required) {
@@ -1325,7 +1293,7 @@ export class SettlementCrowdRenderer {
     for (const agent of agents) {
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
-      const batch = this.authoredBatchForVisual(visual);
+      const batch = batches[sourceKeyForAgent(agent)];
       const slot = nextSlot.get(batch) ?? 0;
       nextSlot.set(batch, slot + 1);
 
