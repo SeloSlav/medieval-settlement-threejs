@@ -18,18 +18,29 @@ try {
   assert.deepEqual(await page.getByRole('combobox', { name: 'Army unit', exact: true }).locator('option').allTextContents(),
     ['On foot', 'Hussars', 'Armored Lancers', 'Mounted Archers']);
   await mkdir('artifacts/mounted-unit-preview', { recursive: true });
+  const seated = await set({ unit: 'on-foot', mode: 'sit' });
+  const kneeWidth = (result: any) => result.rider.legs.L_Calf[0] - result.rider.legs.R_Calf[0];
+  const footWidth = (result: any) => result.rider.legs.L_Foot[0] - result.rider.legs.R_Foot[0];
 
-  for (const [unit, weapon, presentation] of [
-    ['hussars', 'spear-shield', 'hussar'],
-    ['armored-lancers', 'spear', 'lancer'],
-    ['mounted-archers', 'bow', 'archer'],
+  for (const [unit, weapon, presentation, sidearm] of [
+    ['hussars', 'spear-shield', 'hussar', 'sidearm-shield'],
+    ['armored-lancers', 'spear', 'lancer', 'sidearm'],
+    ['mounted-archers', 'bow', 'archer', 'sidearm'],
   ]) {
     await page.getByRole('combobox', { name: 'Army unit', exact: true }).selectOption(unit);
+    await set({ mode: 'walk', paused: true });
     let result = await stats();
     assert.equal(result.state.weapon, weapon);
     assert.equal(result.state.variant, 'man');
+    assert.deepEqual(await page.locator('select[data-key="weapon"] option').allTextContents(), [weapon, sidearm]);
+    await page.getByRole('combobox', { name: 'weapon', exact: true }).selectOption(sidearm);
+    assert.equal((await stats()).state.unit, unit, 'selecting an issued sidearm keeps the rider mounted');
+    assert.equal((await stats()).mounted, true);
+    await page.getByRole('combobox', { name: 'weapon', exact: true }).selectOption(weapon);
     await set({ mode: 'walk', paused: true, view: 'side' });
     await page.screenshot({ path: `artifacts/mounted-unit-preview/${unit}.png` });
+    await set({ view: 'front' });
+    await page.screenshot({ path: `artifacts/mounted-unit-preview/${unit}-front.png` });
     for (const mode of ['idle', 'walk', 'run', 'flee', 'attack', 'fallback', 'hurt', 'hit']) {
       result = await set({ mode, time: .25, phase: .25, paused: true });
       assert.equal(result.mounted, true, `${unit}/${mode}: rider is mounted`);
@@ -38,6 +49,8 @@ try {
       assert.equal(result.horse.mode, ['walk', 'run', 'flee'].includes(mode) ? 'walk' : 'idle');
       assert.deepEqual(result.horse.position, [0, .02, 0]);
       assert.ok(result.rider.y > .02 && result.rider.y < 1.1, 'rider root is lifted to the saddle');
+      assert.ok(kneeWidth(result) > kneeWidth(seated) + .12, `${unit}/${mode}: knees clear the horse`);
+      assert.ok(footWidth(result) > footWidth(seated) + .18, `${unit}/${mode}: boots hang outside the barrel`);
       assert.ok(Object.values(result.bones).every((point: any) => point.every(Number.isFinite)));
     }
 
@@ -55,6 +68,7 @@ try {
     const advanced = await stats();
     assert.notEqual(playing.horse.time, advanced.horse.time, 'horse walking animation advances');
     assert.equal(playing.rider.time, advanced.rider.time, 'riding pose stays seated during playback');
+    assert.deepEqual(playing.rider.legs, advanced.rider.legs, 'leg widening does not accumulate while playing');
     const paused = await set({ paused: true, view: 'side' });
     await page.waitForFunction(frame => (window as any).weaponReview.stats().frame > frame + 3, paused.frame);
     assert.equal((await stats()).horse.time, paused.horse.time, 'pause freezes the horse');
@@ -73,7 +87,14 @@ try {
   assert.equal((await stats()).horse, null, 'returning to infantry removes the horse');
   assert.equal((await stats()).rider.y, .02);
   await set({ unit: 'hussars' });
-  assert.equal((await set({ weapon: 'halberd' })).state.unit, 'on-foot', 'custom equipment leaves the unit preset');
+  assert.equal(await page.evaluate(() => {
+    try { (window as any).weaponReview.set({ weapon: 'halberd' }); return false; }
+    catch { return true; }
+  }), true, 'the API rejects weapons the mounted unit does not carry');
+  assert.equal((await stats()).state.unit, 'hussars');
+  const restored = await set({ unit: 'on-foot', mode: 'sit' });
+  assert.deepEqual(restored.rider.legs, seated.rider.legs, 'civilian sitting does not inherit the mounted leg spread');
+  assert.ok((await page.locator('select[data-key="weapon"] option').allTextContents()).includes('halberd'));
   await set({ unit: 'hussars' });
   assert.equal((await set({ variant: 'raider' })).state.unit, 'on-foot', 'raiders leave player cavalry presets');
   assert.deepEqual(errors, []);

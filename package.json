@@ -84,6 +84,7 @@
     "test:company-standard-bearers": "npx tsx scripts/testCompanyStandardBearers.mts",
     "test:combat-presentation": "npx tsx scripts/testCombatWeaponPresentation.mts",
     "test:combat-role-presentation": "npx tsx scripts/testCombatRolePresentation.mts",
+    "test:mounted-unit-preview": "node --experimental-strip-types scripts/testMountedUnitPreview.mts",
     "test:custom-weapon-attacks": "npx tsx scripts/testCustomWeaponAttacks.mts",
     "test:military-hand-grip": "npx tsx scripts/testMilitaryHandGrip.mts",
     "test:bow-hand-grip": "npx tsx scripts/testBowHandGrip.mts",

@@ -7,20 +7,23 @@ import { resetCombatWeaponRig, resolveCombatWeaponPresentation } from '../settle
 import { CameraController } from '../camera/CameraController.ts';
 import { CombatProjectileRenderer } from '../settlement/CombatProjectileRenderer.ts';
 import { CavalryHorseRenderer, CAVALRY_SADDLE_HEIGHT, type CavalryHorsePose } from '../settlement/CavalryHorseRenderer.ts';
+import { restoreMountedRidingPose } from '../settlement/mountedRidingPose.ts';
 
 const REVIEW_VARIANTS=['man','raider'] as const;
 const REVIEW_UNITS={
- 'on-foot':{label:'On foot',weapon:'sidearm',horse:null},
- hussars:{label:'Hussars',weapon:'spear-shield',horse:'hussar'},
- 'armored-lancers':{label:'Armored Lancers',weapon:'spear',horse:'lancer'},
- 'mounted-archers':{label:'Mounted Archers',weapon:'bow',horse:'archer'},
+ 'on-foot':{label:'On foot',weapons:MILITARY_EQUIPMENT_KINDS,horse:null},
+ hussars:{label:'Hussars',weapons:['spear-shield','sidearm-shield'],horse:'hussar'},
+ 'armored-lancers':{label:'Armored Lancers',weapons:['spear','sidearm'],horse:'lancer'},
+ 'mounted-archers':{label:'Mounted Archers',weapons:['bow','sidearm'],horse:'archer'},
 } as const;
 type ReviewUnit=keyof typeof REVIEW_UNITS;
 type ReviewState={unit:ReviewUnit;weapon:string;variant:typeof REVIEW_VARIANTS[number];mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean};
 const params=new URLSearchParams(location.search);
 const requestedUnit=params.get('unit')??'on-foot';
 const initialUnit:ReviewUnit=Object.hasOwn(REVIEW_UNITS,requestedUnit)?requestedUnit as ReviewUnit:'on-foot';
-const state:ReviewState={unit:initialUnit,weapon:initialUnit==='on-foot'?params.get('weapon')??'sidearm':REVIEW_UNITS[initialUnit].weapon,variant:initialUnit==='on-foot'&&params.get('variant')==='raider'?'raider':'man',mode:params.get('mode')??'walk',phase:Number(params.get('phase')??.5),time:Number(params.get('time')??.35),view:params.get('view')??'front',seed:Number(params.get('seed')??431),paused:params.get('play')!=='1',standard:params.has('standard')};
+const initialWeapons:readonly string[]=REVIEW_UNITS[initialUnit].weapons;
+const requestedWeapon=params.get('weapon')??(initialUnit==='on-foot'?'sidearm':initialWeapons[0]!);
+const state:ReviewState={unit:initialUnit,weapon:initialWeapons.includes(requestedWeapon)?requestedWeapon:initialWeapons[0]!,variant:initialUnit==='on-foot'&&params.get('variant')==='raider'?'raider':'man',mode:params.get('mode')??'walk',phase:Number(params.get('phase')??.5),time:Number(params.get('time')??.35),view:params.get('view')??'front',seed:Number(params.get('seed')??431),paused:params.get('play')!=='1',standard:params.has('standard')};
 const scene=new THREE.Scene();scene.background=new THREE.Color('#b8c2ca');
 const renderer=new WebGPURenderer({antialias:true});renderer.setPixelRatio(1);renderer.setSize(innerWidth,innerHeight);document.body.append(renderer.domElement);await renderer.init();
 const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.02,100);
@@ -97,6 +100,7 @@ function pose(frozen=false,dt=0){
  const visual=rig();
  if(frozen&&visual){
   if(visual.combatRig)resetCombatWeaponRig(visual.combatRig);
+  restoreMountedRidingPose(visual.mountedRig);
   visual.mixer.stopAllAction();
   const action=visual.actions[visual.actionMode];action.reset().setEffectiveWeight(1).play();
   const seatedTime=villagerStaticSeatedPoseTime(visual.actionMode,state.seed,action.getClip().duration);
@@ -163,7 +167,8 @@ function stats(){
  const visual=rig();const r=visual?.combatRig;
  const horse=horseRig();
  const bones=r?Object.fromEntries(Object.entries(r.armBones).map(([name,b])=>[name,(b as THREE.Bone).getWorldPosition(new THREE.Vector3()).toArray()])):{};
- return {ready:true,state:{...state},frame,errors:[...errors],bones,mounted:agent().mounted,rider:{action:visual?.actionMode,y:visual?.root.position.y,time:visual?.actions[visual.actionMode].time},horse:horse?{mode:horse.mode,time:horse.actions[horse.mode].time,position:horse.root.position.toArray(),presentation:REVIEW_UNITS[state.unit].horse}:null,backend:renderer.backend.constructor.name,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:renderer.info.memory,camera:{position:camera.position.toArray(),target:cameraController.getTargetPosition().toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted}};
+ const legs=visual?Object.fromEntries(['L_Calf','R_Calf','L_Foot','R_Foot'].map(name=>[name,visual.model.getObjectByName(name)?.getWorldPosition(new THREE.Vector3()).toArray()])):{};
+ return {ready:true,state:{...state},frame,errors:[...errors],bones,mounted:agent().mounted,rider:{action:visual?.actionMode,y:visual?.root.position.y,time:visual?.actions[visual.actionMode].time,legs},horse:horse?{mode:horse.mode,time:horse.actions[horse.mode].time,position:horse.root.position.toArray(),presentation:REVIEW_UNITS[state.unit].horse}:null,backend:renderer.backend.constructor.name,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:renderer.info.memory,camera:{position:camera.position.toArray(),target:cameraController.getTargetPosition().toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted}};
 }
 function render(){renderer.render(scene,camera);frame++;document.body.dataset.weaponReviewCamera=JSON.stringify({position:camera.position.toArray(),target:orbitTarget.toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted});document.querySelector('#status')!.textContent=`${REVIEW_UNITS[state.unit].label} · ${state.weapon} · ${state.variant} · ${state.mode}\nphase ${state.phase.toFixed(2)} · clip ${state.time.toFixed(2)} · ${state.view}\n${errors.join('\n')}`;}
 function set(patch:Partial<ReviewState>){
@@ -171,10 +176,18 @@ function set(patch:Partial<ReviewState>){
  if(patch.unit!==undefined&&!Object.hasOwn(REVIEW_UNITS,patch.unit))throw new Error('Unknown army unit preview.');
  patch={...patch};
  if(patch.unit!==undefined&&patch.unit!=='on-foot'){
-  patch.weapon=REVIEW_UNITS[patch.unit].weapon;patch.variant='man';
- }else if(patch.unit===undefined&&(patch.weapon!==undefined||patch.variant==='raider'))patch.unit='on-foot';
+  patch.weapon??=REVIEW_UNITS[patch.unit].weapons[0];patch.variant='man';
+ }else if(patch.unit===undefined&&patch.variant==='raider')patch.unit='on-foot';
+ const unit=patch.unit??state.unit;
+ const weapons:readonly string[]=REVIEW_UNITS[unit].weapons;
+ if(patch.weapon!==undefined&&!weapons.includes(patch.weapon))throw new Error(`${REVIEW_UNITS[unit].label} cannot equip ${patch.weapon}.`);
  const resetCamera=!cameraInitialized||['unit','weapon','variant','mode','view','standard'].some(key=>Object.hasOwn(patch,key));
  Object.assign(state,patch);clock=state.phase;
+ const weaponSelect=document.querySelector<HTMLSelectElement>('select[data-key="weapon"]')!;
+ if(weaponSelect.dataset.unit!==state.unit){
+  weaponSelect.replaceChildren(...weapons.map(weapon=>new Option(weapon,weapon)));
+  weaponSelect.dataset.unit=state.unit;
+ }
  for(const el of document.querySelectorAll<HTMLSelectElement>('select[data-key]'))el.value=String(state[el.dataset.key as keyof ReviewState]);
  phase.value=String(state.phase);
  pose(true);

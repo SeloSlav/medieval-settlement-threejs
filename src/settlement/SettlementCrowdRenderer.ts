@@ -57,6 +57,7 @@ import {
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 import { locomotionAnimationTimeScale } from './locomotionAnimation.ts';
 import { installMilitaryHandGrip } from './militaryHandGrip.ts';
+import { applyMountedRidingPose, bindMountedRidingRig, restoreMountedRidingPose, type MountedRidingRig } from './mountedRidingPose.ts';
 import type {
   ClericAnimationMode,
   ClericAuthoredAnimationName,
@@ -141,6 +142,7 @@ type AnimatedVillager = {
   mode: VillagerRenderMode;
   actionMode: VillagerRenderMode;
   combatRig: CombatWeaponRig | null;
+  mountedRig: MountedRidingRig | null;
   skeleton: THREE.Skeleton;
   /** Last locomotion speed already published to the three authored leg cycles. */
   movementSpeed: number;
@@ -844,6 +846,7 @@ export class SettlementCrowdRenderer {
       visual.root.position.set(agent.x, agent.y, agent.z);
       visual.root.rotation.y = agent.yaw + MODEL_YAW_OFFSET;
       if (visual.combatRig) restoreCombatWeaponPose(visual.combatRig);
+      restoreMountedRidingPose(visual.mountedRig);
       const nextActionMode = combatBaseActionMode(agent);
       if (visual.mode !== agent.mode || visual.actionMode !== nextActionMode) {
         this.transition(visual, agent.mode, nextActionMode, agent.appearanceSeed);
@@ -871,6 +874,7 @@ export class SettlementCrowdRenderer {
         this.lastMixerUpdates += 1;
       }
       this.applyCombatPresentation(visual, agent, dt);
+      if (agent.mounted && visual.actionMode === 'sit') applyMountedRidingPose(visual.mountedRig);
       if (visual.tool) {
         setWorkerToolDropped(visual.tool, Boolean(agent.battlefieldWeaponDrop));
       }
@@ -1046,6 +1050,7 @@ export class SettlementCrowdRenderer {
       mode: agent.mode,
       actionMode,
       combatRig,
+      mountedRig: agent.variant === 'man' ? bindMountedRidingRig(model) : null,
       skeleton,
       movementSpeed: agent.movementSpeed,
       animationRateScale,
@@ -1085,6 +1090,7 @@ export class SettlementCrowdRenderer {
       agent.appearanceSeed,
     );
     if (visual.combatRig) resetCombatWeaponRig(visual.combatRig);
+    restoreMountedRidingPose(visual.mountedRig);
     visual.root.name = `${sourceKey === 'cleric' ? 'Cleric' : sourceKey === 'raider' ? 'Ottoman raider' : agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
     visual.root.userData.villagerId = agent.id;
     visual.root.userData.villagerGender = agent.variant;
