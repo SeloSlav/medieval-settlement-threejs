@@ -1,13 +1,14 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'vite';
+import { createInterface } from 'node:readline';
 
 const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`;
 const large = process.argv.includes('--large');
 mkdirSync(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
 await server.listen();
-const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
+const browser = await chromium.launchPersistentContext('artifacts/city-performance/world-browser-cache', { channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'], viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const cdp = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
 await page.exposeFunction('__cityProfileStart', async () => { if(cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');} });
@@ -102,6 +103,14 @@ try {
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
+  if (process.argv.includes('--keep')) {
+    console.log('CITY_LAB_READY');
+    for await (const line of createInterface({ input: process.stdin, terminal: false })) {
+      if(line==='quit')break;
+      try { console.log('LAB_RESULT',JSON.stringify(await page.evaluate(line))); }
+      catch(error){console.log('LAB_ERROR',String(error));}
+    }
+  }
 } finally {
   await browser.close();
   await server.close();
