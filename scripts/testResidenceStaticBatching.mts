@@ -522,21 +522,25 @@ function assertResidenceBatchState(
 ): void {
   type TestEntry = {
     record: { mesh: THREE.BatchedMesh };
+    shared: { instanced: { mesh: THREE.InstancedMesh } | null };
     instanceId: number;
   };
   const state = (
     manager as unknown as {
-      residenceStates: Map<string, { entries: TestEntry[] }>;
+      batches: { buildingStates: Map<string, { entries: TestEntry[] }> };
     }
-  ).residenceStates.get(residenceId);
+  ).batches.buildingStates.get(residenceId);
   const entries = state?.entries;
   assert.ok(entries && entries.length > 0, 'residence must retain cross-batch entries');
   marker.updateMatrix();
   const actual = new THREE.Matrix4();
-  for (const { record, instanceId } of entries) {
-    record.mesh.getMatrixAt(instanceId, actual);
+  for (const { record, instanceId, shared } of entries) {
+    const mesh = shared.instanced?.mesh ?? record.mesh;
+    mesh.getMatrixAt(instanceId, actual);
     const actualElements = actual.toArray();
-    const expectedElements = marker.matrix.toArray();
+    const expectedElements = shared.instanced && !visible
+      ? new THREE.Matrix4().makeScale(0, 0, 0).toArray()
+      : marker.matrix.toArray();
     for (let index = 0; index < actualElements.length; index += 1) {
       assert.ok(
         Math.abs(actualElements[index]! - expectedElements[index]!) <= 1e-6,
@@ -544,7 +548,7 @@ function assertResidenceBatchState(
       );
     }
     assert.equal(
-      record.mesh.getVisibleAt(instanceId),
+      shared.instanced ? actual.determinant() !== 0 : record.mesh.getVisibleAt(instanceId),
       visible,
       'cross-batch instance must retain residence visibility',
     );
@@ -561,6 +565,8 @@ function crossResidenceMatrixTextureVersions(
     };
     if (batched.isBatchedMesh) {
       versions.push(batched._matricesTexture?.version ?? -1);
+    } else if ((object as THREE.InstancedMesh).isInstancedMesh) {
+      versions.push((object as THREE.InstancedMesh).instanceMatrix.version);
     }
   });
   return versions;

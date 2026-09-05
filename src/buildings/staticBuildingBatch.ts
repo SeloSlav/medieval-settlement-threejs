@@ -125,6 +125,7 @@ export function batchStaticOpaqueMeshes(
   batchGroup.name = options.groupName;
   batchGroup.userData[options.groupFlag] = true;
   const detachedGeometries = new Set<THREE.BufferGeometry>();
+  const emptiedParents = new Set<THREE.Object3D>();
   let sourceDraws = 0;
   let batchedDraws = 0;
   let batchIndex = 0;
@@ -163,6 +164,7 @@ export function batchStaticOpaqueMeshes(
     batchGroup.add(batch);
     for (const { mesh } of entries) {
       detachedGeometries.add(mesh.geometry);
+      if (mesh.parent) emptiedParents.add(mesh.parent);
       mesh.removeFromParent();
     }
     sourceDraws += entries.length;
@@ -171,6 +173,17 @@ export function batchStaticOpaqueMeshes(
   }
 
   if (batchGroup.children.length > 0) sourceRoot.add(batchGroup);
+  // Structural groups left empty by moving their geometry have no remaining
+  // render work. Retain pre-existing empty anchors and all runtime boundaries.
+  for (const parent of emptiedParents) {
+    let node: THREE.Object3D | null = parent;
+    while (node && node !== sourceRoot && node.children.length === 0
+      && (node as THREE.Group).isGroup && !options.isDynamicBoundary(node)) {
+      const ancestor: THREE.Object3D | null = node.parent;
+      node.removeFromParent();
+      node = ancestor;
+    }
+  }
   disposeUnreferencedDetachedGeometries(sourceRoot, detachedGeometries);
   sourceRoot.userData[options.rootStatsKey] = {
     sourceDraws,

@@ -10,12 +10,3 @@ export function resizeBatchedMeshInstances(mesh: THREE.BatchedMesh, capacity: nu
     material.needsUpdate = true;
   }
 }
-
-export function resizeBatchedMeshGeometry(mesh: THREE.BatchedMesh, vertices: number, indices: number): void {
-  mesh.setGeometrySize(vertices, indices);
-  // A replacement geometry must get fresh render bindings on its first draw.
-  // dispose releases renderer-side material state, never its maps or values.
-  for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-    material.dispose();
-  }
-}

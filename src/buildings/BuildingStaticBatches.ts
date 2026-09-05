@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { resizeBatchedMeshGeometry, resizeBatchedMeshInstances } from '../scene/resizeBatchedMesh.ts';
+import { resizeBatchedMeshInstances } from '../scene/resizeBatchedMesh.ts';
 
 const COLLAPSED_INSTANCE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -66,7 +66,12 @@ export class BuildingStaticBatches {
   private dirtyCapacity = false;
   private dirtyInstanceBounds = false;
 
-  constructor(parent: THREE.Group) {
+  private readonly sourceGroupName: string;
+  private readonly collisionProxyFlag: string;
+
+  constructor(parent: THREE.Group, options: { sourceGroupName?: string; collisionProxyFlag?: string } = {}) {
+    this.sourceGroupName = options.sourceGroupName ?? 'Completed building static batches';
+    this.collisionProxyFlag = options.collisionProxyFlag ?? 'buildingStaticCollisionProxy';
     this.group.name = 'Cross-building static batches';
     this.group.userData.crossBuildingStaticBatches = true;
     parent.add(this.group);
@@ -77,7 +82,7 @@ export class BuildingStaticBatches {
 
   registerBuilding(buildingId: string, marker: THREE.Group): void {
     this.removeBuilding(buildingId);
-    const localBatchGroup = marker.getObjectByName('Completed building static batches');
+    const localBatchGroup = marker.getObjectByName(this.sourceGroupName);
     if (!(localBatchGroup instanceof THREE.Group)) return;
     const sourceMeshes = localBatchGroup.children.filter(
       (child): child is THREE.Mesh<THREE.BufferGeometry, THREE.Material> => (
@@ -96,6 +101,7 @@ export class BuildingStaticBatches {
       this.collisionProxyGeometry,
       this.collisionProxyMaterial,
     );
+    if (collisionProxy) collisionProxy.userData[this.collisionProxyFlag] = true;
     marker.updateMatrix();
     const entries: BuildingBatchEntry[] = [];
     for (const source of sourceMeshes) {
@@ -247,7 +253,7 @@ export class BuildingStaticBatches {
           usedVertices !== record.vertexCapacity
           || (record.indexed && usedIndices !== record.indexCapacity)
         ) {
-          resizeBatchedMeshGeometry(record.mesh, usedVertices, usedIndices);
+          record.mesh.setGeometrySize(usedVertices, usedIndices);
           record.vertexCapacity = usedVertices;
           record.indexCapacity = usedIndices;
         }
@@ -440,7 +446,7 @@ export class BuildingStaticBatches {
       || indexCapacity !== record.indexCapacity
     ) {
       record.mesh.optimize();
-      resizeBatchedMeshGeometry(record.mesh, vertexCapacity, indexCapacity);
+      record.mesh.setGeometrySize(vertexCapacity, indexCapacity);
       record.vertexCapacity = vertexCapacity;
       record.indexCapacity = indexCapacity;
     }
