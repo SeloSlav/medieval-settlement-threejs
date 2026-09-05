@@ -43,7 +43,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(element?.isContentEditable);
 }
 
-/** One-click terrain authoring mode for lumber-mill and reforester circles. */
+/** Shared terrain work-area picker for logging camps, woodcutters, and foresters. */
 export class ForestryWorkAreaTool {
   private readonly options: ForestryWorkAreaToolOptions;
   private readonly overlay: ForestryWorkAreaOverlay;

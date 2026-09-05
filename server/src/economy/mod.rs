@@ -75,10 +75,10 @@ pub(crate) use storage::{
     available_unreserved_building_stone, available_unreserved_building_timber,
 };
 pub use storage::{
-    building_storage_caps, building_water_storage_cap, construction_treasury_reservation,
+    construction_treasury_reservation,
     construction_treasury_reservation_excluding_building, credit_treasury_gold,
     credit_treasury_gold_for_settlement, credit_treasury_stone, credit_treasury_timber,
-    deposit_building, residence_firewood_capacity, residence_food_capacity,
+    residence_firewood_capacity, residence_food_capacity,
     residence_water_capacity, spend_treasury_gold, total_ironwork,
     total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,

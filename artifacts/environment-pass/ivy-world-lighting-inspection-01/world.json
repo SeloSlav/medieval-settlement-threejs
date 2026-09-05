@@ -1,0 +1,214 @@
+{
+  "placement": {
+    "x": 197.57177734375,
+    "z": -36.76902770996094,
+    "leaf": 17449
+  },
+  "evidence": {
+    "original": {
+      "backend": "webgpu",
+      "frames": 672,
+      "calls": 129,
+      "renderPasses": 15,
+      "triangles": 21006352,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 668,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "gentler": {
+      "backend": "webgpu",
+      "frames": 682,
+      "calls": 129,
+      "renderPasses": 15,
+      "triangles": 21006352,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 678,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "neutral": {
+      "backend": "webgpu",
+      "frames": 692,
+      "calls": 129,
+      "renderPasses": 15,
+      "triangles": 21006352,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 688,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "original-no-ao": {
+      "backend": "webgpu",
+      "frames": 702,
+      "calls": 128,
+      "renderPasses": 14,
+      "triangles": 21006351,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 698,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "gentler-no-ao": {
+      "backend": "webgpu",
+      "frames": 712,
+      "calls": 128,
+      "renderPasses": 14,
+      "triangles": 21006351,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 708,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "original-lighting": {
+      "backend": "webgpu",
+      "frames": 722,
+      "calls": 116,
+      "renderPasses": 2,
+      "triangles": 21006339,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 718,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "normal": {
+      "backend": "webgpu",
+      "frames": 732,
+      "calls": 116,
+      "renderPasses": 2,
+      "triangles": 21006339,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 728,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "ao": {
+      "backend": "webgpu",
+      "frames": 742,
+      "calls": 117,
+      "renderPasses": 3,
+      "triangles": 21006340,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 738,
+        "lastRefreshFrame": 305,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    }
+  },
+  "receiveShadow": false,
+  "castShadow": false,
+  "shadowPolicy": "terrain-projected",
+  "residents": 23680,
+  "textureColorSpace": "srgb"
+}

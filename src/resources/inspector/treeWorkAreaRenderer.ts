@@ -32,7 +32,7 @@ export function renderForestryWorkAreaPanel(
   const active = area !== null;
   const pending = options.pending === true && !active;
   const state = active ? 'active' : pending ? 'pending' : 'default';
-  const defaultRadius = Math.round(effectiveTreeWorkArea(building).radius);
+  const defaultRadius = Math.round(effectiveTreeWorkArea({ ...building, treeWorkArea: undefined }).radius);
   const workerRule = building.kind === 'reforester'
     ? 'Foresters plant and tend trees only inside the chosen circle.'
     : 'Laborers fell trees and process fallen logs inside this circle. Overlapping logging and woodcutting areas share the same finite wood.';

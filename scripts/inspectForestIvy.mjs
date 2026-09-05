@@ -10,12 +10,13 @@ try {
   await page.route('**/favicon.ico', route => route.fulfill({ status: 204 }));
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(`${message.text()} ${message.location().url}`); });
+  page.on('console', message => { if (message.text().startsWith('[ivy-review]')) console.log(message.text()); });
   const cohort = await fetch('http://127.0.0.1:5187/__environment_cohort').then(r => r.json());
   writeFileSync(`${out}/source-cohort.json`, JSON.stringify(cohort, null, 2));
   if (process.argv.includes('--world')) {
     await page.goto('http://127.0.0.1:5187/environment-lineup.html', { timeout: 120000 });
     await page.waitForFunction(() => window.__ENVIRONMENT_GAUNTLET__, {}, { timeout: 300000 });
-    const result = await page.evaluate(async () => {
+    const result = await page.evaluate(async ({ normalTrial, profile, installed }) => {
       const manager = window.__ENVIRONMENT_GAUNTLET__.manager;
       const ivy = manager.getForestManager().forestFloorIvy;
       await window.__ENVIRONMENT_GAUNTLET__.capture({view:'ground', sampleCount:1});
@@ -31,8 +32,9 @@ try {
         if(distance<nearest) { nearest=distance; placement={x,z,leaf:i}; }
       }
       if (!placement) throw new Error('No resident forest ivy leaf for inspection');
+      let orbitDistance = 12;
       const renderFrames = async (count, dt = 0) => {
-        for (let i=0; i<count; i++) { await new Promise(requestAnimationFrame); manager.render(dt, 12); }
+        for (let i=0; i<count; i++) { await new Promise(requestAnimationFrame); manager.render(dt, orbitDistance); }
       };
       manager.cameraTarget.set(placement.x, manager.terrain.getHeightAt(placement.x,placement.z)+.16, placement.z);
       manager.camera.position.copy(manager.cameraTarget).add(manager.camera.position.clone().set(3.5,7.5,8.7));
@@ -43,22 +45,133 @@ try {
       if(!manager.grassField.isStreamSettled()) throw new Error('Grass stream did not settle for ivy inspection');
       const tint = ivy.mesh.geometry.getAttribute('aTint');
       const original = new Uint8Array(tint.array);
+      const originalNormal = ivy.mesh.material.normalNode;
+      const installedVertexPrograms = [...manager.renderer._pipelines.programs.vertex]
+        .filter(([,program])=>program.name?.includes('ivy')).map(([code])=>code);
+      const hasNormalFix = installedVertexPrograms.some(code=>code.includes('vIvyHingeNormal'));
+      if(normalTrial && hasNormalFix) throw new Error('A/B requires an archived source cohort from before the ivy normal fix');
+      if(installed && !hasNormalFix) throw new Error('Installed ivy normal fix is absent from the rendered shader');
+      const vertexNormal = normalTrial ? originalNormal.toVarying('vIvyInspectionNormal').normalize() : originalNormal;
       const images = {};
       const evidence = {};
+      const shaders = {};
+      const profiles = [];
+      let gpuEvidence;
       try {
-        for (const [name, lift] of [['original',0], ['gentler',.22], ['neutral',1]]) {
+        const arms = installed ? [
+          ['installed',0,'final'], ['installed-lighting',0,'lighting'], ['installed-normal',0,'normal'],
+        ] : normalTrial ? [
+          ['original',0,'final',false], ['vertex-normal',0,'final',true],
+          ['vertex-normal-no-ao',0,'no-ao',true], ['vertex-normal-lighting',0,'lighting',true],
+          ['vertex-normal-diagnostic',0,'normal',true], ['original-normal-diagnostic',0,'normal',false],
+        ] : [
+          ['original',0,'final'], ['gentler',.22,'final'], ['neutral',1,'final'],
+          ['original-no-ao',0,'no-ao'], ['gentler-no-ao',.22,'no-ao'],
+          ['original-lighting',0,'lighting'], ['normal',0,'normal'], ['ao',0,'ao'],
+        ];
+        for (const [name, lift, diagnostic, useVertexNormal] of arms) {
+          const nextNormal = useVertexNormal ? vertexNormal : originalNormal;
+          if (ivy.mesh.material.normalNode !== nextNormal) {
+            ivy.mesh.material.normalNode = nextNormal;
+            ivy.mesh.material.needsUpdate = true;
+          }
+          manager.setLightingDiagnostic(diagnostic);
           for (let i=0;i<original.length;i++) tint.array[i] = Math.round(original[i]+(255-original[i])*lift);
           tint.needsUpdate = true;
           await renderFrames(10);
           await manager.waitForSubmittedWork();
           images[name] = manager.renderer.domElement.toDataURL('image/png');
           evidence[name] = manager.getPerformanceStats();
+          if ((normalTrial || installed) && diagnostic === 'final') {
+            // Read the existing production-pass shaders without compiling a
+            // different canvas/MRT variant merely for diagnostics.
+            shaders[name] = Object.fromEntries(['vertex','fragment'].map(stage => [stage,
+              [...manager.renderer._pipelines.programs[stage]].filter(([,program]) =>
+                program.name?.includes('ivy')).map(([code,program]) => ({ name:program.name, code }))]));
+          }
         }
-      } finally { tint.array.set(original); tint.needsUpdate = true; }
-      return { placement, images, evidence, receiveShadow: ivy.mesh.receiveShadow,
+        if (profile) {
+          const { createVisualGpuTimestampProfiler } = await import('/src/e2e/webGpuTimestampProfiler.ts');
+          const gpu = createVisualGpuTimestampProfiler({ kind: manager.rendererBackend, renderer: manager.renderer });
+          const direction = manager.camera.position.clone().sub(manager.cameraTarget).normalize();
+          manager.setLightingDiagnostic('final');
+          const summarize = values => {
+            const sorted = values.filter(Number.isFinite).sort((a,b)=>a-b);
+            return { count:sorted.length, median:sorted[Math.floor(sorted.length*.5)], p95:sorted[Math.floor(sorted.length*.95)] };
+          };
+          try {
+            for (const distance of [12,42]) {
+              orbitDistance = distance;
+              manager.camera.position.copy(manager.cameraTarget).addScaledVector(direction,distance);
+              manager.camera.lookAt(manager.cameraTarget);
+              manager.camera.updateMatrixWorld(true);
+              await renderFrames(360,1/60);
+              for(let attempt=0;attempt<12 && !manager.grassField.isStreamSettled();attempt++) await renderFrames(60,1/60);
+              if(!manager.grassField.isStreamSettled()) throw new Error('Unsettled ivy profile grass stream');
+              for(let arm=0;arm<6;arm++) {
+                const corrected=arm%2===1;
+                ivy.mesh.material.normalNode=corrected?vertexNormal:originalNormal;
+                ivy.mesh.material.needsUpdate=true;
+                await renderFrames(60);
+                const samples=[];
+                let last;
+                for(let frame=0;frame<360;frame++) {
+                  const time=await new Promise(requestAnimationFrame);
+                  const start=performance.now();
+                  const handle=gpu.beginFrame(time);
+                  manager.render(0,orbitDistance);
+                  gpu.endFrame(handle);
+                  if(last!==undefined) samples.push({time,frameMs:time-last,cpuMs:performance.now()-start});
+                  last=time;
+                }
+                await manager.waitForSubmittedWork();
+                await new Promise(requestAnimationFrame);
+                for(const sample of samples) sample.gpuMs=gpu.getFrameTiming(sample.time).durationMs;
+                const result={distance,arm,corrected,samples,gpuMs:summarize(samples.map(s=>s.gpuMs)),
+                  frameMs:summarize(samples.map(s=>s.frameMs)),cpuMs:summarize(samples.map(s=>s.cpuMs)),
+                  renderer:manager.getPerformanceStats(),residents:ivy.mesh.count};
+                profiles.push(result);
+                images[`distance-${distance}-${corrected?'corrected':'original'}`]=manager.renderer.domElement.toDataURL('image/png');
+                console.log('[ivy-review]',JSON.stringify({distance,arm,corrected,gpuMs:result.gpuMs,renderer:result.renderer}));
+              }
+            }
+            gpuEvidence=gpu.getEvidence();
+          } finally { gpu.dispose(); }
+          ivy.mesh.material.normalNode=vertexNormal;
+          ivy.mesh.material.needsUpdate=true;
+          orbitDistance=12;
+          manager.camera.position.copy(manager.cameraTarget).addScaledVector(direction,orbitDistance);
+          manager.camera.lookAt(manager.cameraTarget);
+          manager.camera.updateMatrixWorld(true);
+          // The existing fixture owns weather, snow, clock and wind settings.
+          for(const preset of ['rain','winter','daylight']) {
+            await window.__ENVIRONMENT_GAUNTLET__.setConditions(preset);
+            await renderFrames(180,1/60);
+            await manager.waitForSubmittedWork();
+            images[`corrected-${preset}`]=manager.renderer.domElement.toDataURL('image/png');
+          }
+          // Maximum authored wind: capture multiple phases without changing
+          // roots, hinge amplitudes, streaming or distance fades.
+          const { windStrength } = await import('/vendor/seedthree/src/core/wind.js');
+          windStrength.value=1;
+          try {
+            for(let phase=0;phase<4;phase++) {
+              await renderFrames(30,1/60);
+              await manager.waitForSubmittedWork();
+              images[`corrected-wind-${phase}`]=manager.renderer.domElement.toDataURL('image/png');
+            }
+          } finally { windStrength.value=0; }
+        }
+      } finally {
+        tint.array.set(original); tint.needsUpdate = true;
+        ivy.mesh.material.normalNode = originalNormal;
+        ivy.mesh.material.needsUpdate = true;
+        manager.setLightingDiagnostic('final');
+      }
+      return { placement, images, evidence, shaders, profiles, gpuEvidence, adapter:manager.getRendererAdapterEvidence(), receiveShadow: ivy.mesh.receiveShadow,
         castShadow: ivy.mesh.castShadow, shadowPolicy: ivy.mesh.userData.groundCoverShadowPolicy,
         residents: ivy.mesh.count, textureColorSpace: ivy.textures.albedo.colorSpace };
-    });
+    }, { normalTrial: process.argv.includes('--normal'), profile: process.argv.includes('--profile'), installed:process.argv.includes('--installed') });
     for (const [name,png] of Object.entries(result.images)) writeFileSync(`${out}/world-${name}.png`, Buffer.from(png.split(',')[1],'base64'));
     delete result.images;
     writeFileSync(`${out}/world.json`, JSON.stringify(result,null,2));

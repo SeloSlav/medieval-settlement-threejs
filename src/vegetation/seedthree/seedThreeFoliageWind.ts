@@ -54,6 +54,7 @@ type IvyTslNode = {
   dot: (value: unknown) => IvyTslNode;
   length: () => IvyTslNode;
   normalize: () => IvyTslNode;
+  toVarying: (name: string) => IvyTslNode;
   x: IvyTslNode;
   y: IvyTslNode;
   z: IvyTslNode;
@@ -291,7 +292,12 @@ export function createIvyLeafHingeWindNodes(): IvyLeafHingeWindNodes {
 
   return {
     positionNode: rotatedPosition,
-    normalNode: ivyTsl.transformNormalToView(rotatedNormal).normalize(),
+    // normalLocal receives the leaf's instance basis in the vertex stage.
+    // Evaluating this expression in the fragment stage instead reads the
+    // prototype's +Z normal, shading upward leaves as vertical surfaces.
+    // Carry the hinged, instanced normal across and normalize interpolation.
+    normalNode: ivyTsl.transformNormalToView(rotatedNormal).normalize()
+      .toVarying('vIvyHingeNormal').normalize(),
   };
 }
 

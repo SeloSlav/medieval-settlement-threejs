@@ -20,10 +20,11 @@ _tmp/
 __pycache__/
 *.py[cod]
 
-# Rust build artifacts
-server/target/
-server/target-*/
-/.codex-target/
+# Rust build artifacts, including custom audit/test caches at any depth
+target/
+target-*/
+.codex-target/
+.codex-target-*/
 /.codex-tmp/bindings-target/
 
 # Playwright

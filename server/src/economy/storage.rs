@@ -1,33 +1,14 @@
 use spacetimedb::ReducerContext;
 
-use crate::building_defs::building_def;
 use crate::constants::{
     RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FOOD_CAPACITY, RESIDENCE_WATER_CAPACITY,
 };
 use crate::db::*;
 use crate::residence_upgrade_policy::residence_project_active;
-use crate::resource_units::{whole_cost, whole_room, whole_transfer, whole_units};
+use crate::resource_units::{whole_cost, whole_transfer, whole_units};
 use crate::tables::{Building, Residence};
 
-use super::commodities::{building_shared_storage_room, CommodityKind};
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct StorageCaps {
-    pub timber: f64,
-    pub firewood: f64,
-    pub stone: f64,
-}
-
-pub fn building_storage_caps(kind: &str) -> StorageCaps {
-    let Some(def) = building_def(kind) else {
-        return StorageCaps::default();
-    };
-    StorageCaps {
-        timber: def.storage_timber,
-        firewood: def.storage_firewood,
-        stone: def.storage_stone,
-    }
-}
+use super::commodities::CommodityKind;
 
 pub fn residence_firewood_capacity() -> f64 {
     RESIDENCE_FIREWOOD_CAPACITY
@@ -319,32 +300,6 @@ where
         .sum()
 }
 
-pub fn deposit_building(
-    building: &Building,
-    caps: StorageCaps,
-    timber: f64,
-    firewood: f64,
-    stone: f64,
-) -> (f64, f64, f64, Building) {
-    let mut next = building.clone();
-    next.timber = whole_units(next.timber);
-    next.firewood = whole_units(next.firewood);
-    next.stone = whole_units(next.stone);
-    let timber_room = whole_room(caps.timber, next.timber).min(building_shared_storage_room(&next));
-    let timber_deposited = whole_units(timber).min(timber_room);
-    next.timber += timber_deposited;
-
-    let firewood_room =
-        whole_room(caps.firewood, next.firewood).min(building_shared_storage_room(&next));
-    let firewood_deposited = whole_units(firewood).min(firewood_room);
-    next.firewood += firewood_deposited;
-
-    let stone_room = whole_room(caps.stone, next.stone).min(building_shared_storage_room(&next));
-    let stone_deposited = whole_units(stone).min(stone_room);
-    next.stone += stone_deposited;
-    (timber_deposited, firewood_deposited, stone_deposited, next)
-}
-
 pub fn withdraw_building(
     building: &Building,
     timber: f64,
@@ -370,12 +325,6 @@ pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Buildi
     let withdrawn = whole_transfer(next.water, amount);
     next.water -= withdrawn;
     (withdrawn, next)
-}
-
-pub fn building_water_storage_cap(kind: &str) -> f64 {
-    building_def(kind)
-        .map(|def| def.storage_water)
-        .unwrap_or(0.0)
 }
 
 pub fn credit_treasury_timber(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {

@@ -37,6 +37,7 @@ const refreshable = new Set([
   'src/terrain/TerrainGrassMaterial.ts',
   'src/vegetation/seedthree/gorskiKotarPresets.ts',
   'src/vegetation/seedthree/seedThreeGrass.ts',
+  'src/vegetation/seedthree/seedThreeFoliageWind.ts',
 ]);
 for (const path of (process.env.ENVIRONMENT_SOURCE_REFRESH ?? '').split(',').filter(Boolean)) {
   if (!refreshable.has(path)) throw new Error(`Environment review cannot refresh unrelated source: ${path}`);
