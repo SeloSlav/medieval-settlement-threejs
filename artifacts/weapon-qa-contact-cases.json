@@ -1,0 +1,110 @@
+[
+  {
+    "name": "contact-05-spear-grip",
+    "weapon": "spear",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-spear-grip-inside",
+    "weapon": "spear",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip-inside",
+    "standard": false
+  },
+  {
+    "name": "contact-05-sidearm-grip",
+    "weapon": "sidearm",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-sidearm-grip-inside",
+    "weapon": "sidearm",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip-inside",
+    "standard": false
+  },
+  {
+    "name": "contact-05-halberd-grip",
+    "weapon": "halberd",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-halberd-grip-inside",
+    "weapon": "halberd",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip-inside",
+    "standard": false
+  },
+  {
+    "name": "contact-05-bow-grip",
+    "weapon": "bow",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-bow-grip-inside",
+    "weapon": "bow",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip-inside",
+    "standard": false
+  },
+  {
+    "name": "contact-05-crossbow-grip",
+    "weapon": "crossbow",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-crossbow-grip-inside",
+    "weapon": "crossbow",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 1,
+    "view": "grip-inside",
+    "standard": false
+  },
+  {
+    "name": "contact-05-spear-carry",
+    "weapon": "spear",
+    "variant": "man",
+    "mode": "walk",
+    "phase": 0.5,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "contact-05-sword-carry",
+    "weapon": "sidearm",
+    "variant": "man",
+    "mode": "walk",
+    "phase": 0.5,
+    "view": "grip",
+    "standard": false
+  }
+]

@@ -55,15 +55,15 @@ for (const source of Object.values(sources)) {
 }
 assert.equal(
   defaultVisibleBatchKeys.size,
-  71,
-  'default full equipment catalog must collapse exact shared parts to 71 mesh draws',
+  70,
+  'the rebuilt default equipment catalog must collapse exact shared parts to 70 mesh draws',
 );
 
 for (const source of Object.values(sources)) disposeMilitaryEquipmentSource(source);
 
 console.log(
   'Military equipment exact geometry sharing passed '
-  + '(84 logical visible meshes -> 71 identity batches; no visual substitutions).',
+  + '(70 identity batches; no visual substitutions).',
 );
 
 function assertSameRenderableIdentity(

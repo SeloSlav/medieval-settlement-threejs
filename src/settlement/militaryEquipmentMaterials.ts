@@ -169,7 +169,7 @@ const MATERIAL_PROFILES = {
     name: 'Blued forged steel',
     family: 'steel',
     baseColor: 0x545b5d,
-    albedoVariation: 0.08,
+    albedoVariation: 0.12,
     roughness: 0.58,
     metalness: 0.84,
     normalScale: 0.045,

@@ -2,259 +2,840 @@
   "errors": [],
   "captures": [
     {
-      "file": "mesh-01-sword.png",
+      "file": "contact-05-spear-grip.png",
       "ready": true,
       "state": {
-        "weapon": "sidearm",
+        "weapon": "spear",
         "variant": "man",
-        "mode": "walk",
-        "phase": 0.5,
+        "mode": "attack",
+        "phase": 1,
         "time": 0.35,
-        "view": "weapon",
+        "view": "grip",
         "seed": 431,
         "paused": true,
         "standard": false
       },
-      "frame": 3,
+      "frame": 4,
       "errors": [],
       "bones": {
         "leftClavicle": [
-          0.04103661449925049,
-          1.2921303859018733,
-          0.01747095447721634
+          0.07326144106748791,
+          1.30968435444639,
+          0.08304112775802905
         ],
         "leftUpperArm": [
-          0.1870223438207197,
-          1.3317105361420003,
-          0.02536289159570722
+          0.1787317732342756,
+          1.3370120958461187,
+          0.1882546230633212
         ],
         "leftForearm": [
-          0.24810077489170557,
-          1.0598157334328207,
-          -0.047041818424258364
+          0.2675009828596323,
+          1.1885855157822451,
+          0.41844891671819917
         ],
         "leftHand": [
-          0.2789192598063831,
-          0.8509159204210727,
-          -0.07324420366574062
+          0.12122897620712478,
+          1.1602132520736343,
+          0.570353880877963
         ],
         "rightClavicle": [
-          -0.024782026291348964,
-          1.290996430829782,
-          0.02311147220373222
+          0.020664483074765854,
+          1.3140736725798816,
+          0.04329833635647657
         ],
         "rightUpperArm": [
-          -0.1716647032652778,
-          1.2990089665229514,
-          0.016102196344600604
+          -0.08291281508799862,
+          1.334252284015431,
+          -0.05942655332530949
         ],
         "rightForearm": [
-          -0.19883617927357747,
-          1.005114924083138,
-          0.07031031978766417
+          -0.12295417336720484,
+          1.1843635587306,
+          0.1974400228640254
         ],
         "rightHand": [
-          -0.21095909307549118,
-          0.8151970105169443,
-          0.05294070323783017
+          0.005660535971994909,
+          1.1545198008507367,
+          0.33558893090518394
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 6,
-      "triangles": 12435,
+      "drawCalls": 8,
+      "triangles": 22488,
       "memory": {
-        "attributes": 131,
-        "attributesSize": 4304708,
-        "geometries": 43,
-        "indexAttributes": 8,
-        "indexAttributesSize": 503352,
-        "indirectStorageAttributes": 0,
-        "indirectStorageAttributesSize": 0,
-        "programs": 59,
-        "programsSize": 282367,
-        "readbackBuffers": 0,
-        "readbackBuffersSize": 0,
-        "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 33,
-        "texturesSize": 107088474,
-        "uniformBuffers": 106,
-        "uniformBuffersSize": 816160,
-        "total": 115944181
-      }
-    },
-    {
-      "file": "mesh-01-crossbow.png",
-      "ready": true,
-      "state": {
-        "weapon": "crossbow",
-        "variant": "man",
-        "mode": "walk",
-        "phase": 0.5,
-        "time": 0.35,
-        "view": "weapon",
-        "seed": 431,
-        "paused": true,
-        "standard": false
-      },
-      "frame": 18,
-      "errors": [],
-      "bones": {
-        "leftClavicle": [
-          0.04103661449925049,
-          1.2921303859018733,
-          0.01747095447721634
-        ],
-        "leftUpperArm": [
-          0.18702235027325148,
-          1.3317105188099334,
-          0.025362955802662717
-        ],
-        "leftForearm": [
-          0.15283411098553543,
-          1.1220608964600274,
-          0.21972871040858544
-        ],
-        "leftHand": [
-          0.09377700901959252,
-          1.165165793172642,
-          0.41955313049924076
-        ],
-        "rightClavicle": [
-          -0.024782026291348964,
-          1.290996430829782,
-          0.02311147220373222
-        ],
-        "rightUpperArm": [
-          -0.1716647032652778,
-          1.2990089665229514,
-          0.016102196344600604
-        ],
-        "rightForearm": [
-          -0.1780998755710259,
-          1.0006361793264476,
-          0.04745156388434592
-        ],
-        "rightHand": [
-          -0.09798771860089343,
-          1.0779779746818448,
-          0.20275060326970246
-        ]
-      },
-      "backend": "WebGPUBackend",
-      "drawCalls": 36,
-      "triangles": 3510,
-      "memory": {
-        "attributes": 147,
-        "attributesSize": 4523240,
-        "geometries": 49,
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
         "indexAttributes": 8,
         "indexAttributesSize": 503352,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
         "programs": 61,
-        "programsSize": 284545,
+        "programsSize": 273595,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
         "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 39,
-        "texturesSize": 107612628,
-        "uniformBuffers": 113,
-        "uniformBuffersSize": 817968,
-        "total": 116690853
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 110,
+        "uniformBuffersSize": 881696,
+        "total": 116167225
       }
     },
     {
-      "file": "mesh-01-crossbow-carry.png",
+      "file": "contact-05-spear-grip-inside.png",
       "ready": true,
       "state": {
-        "weapon": "crossbow",
+        "weapon": "spear",
         "variant": "man",
-        "mode": "walk",
-        "phase": 0.5,
+        "mode": "attack",
+        "phase": 1,
         "time": 0.35,
-        "view": "front",
+        "view": "grip-inside",
         "seed": 431,
         "paused": true,
         "standard": false
       },
-      "frame": 31,
+      "frame": 43,
       "errors": [],
       "bones": {
         "leftClavicle": [
-          0.04103661449925049,
-          1.2921303859018733,
-          0.01747095447721634
+          0.07326144106748791,
+          1.30968435444639,
+          0.08304112775802905
         ],
         "leftUpperArm": [
-          0.18702235027325148,
-          1.3317105188099334,
-          0.025362955802662717
+          0.1787317732342756,
+          1.3370120958461187,
+          0.1882546230633212
         ],
         "leftForearm": [
-          0.15283411098553543,
-          1.1220608964600274,
-          0.21972871040858544
+          0.2675009828596323,
+          1.1885855157822451,
+          0.41844891671819917
         ],
         "leftHand": [
-          0.09377700901959252,
-          1.165165793172642,
-          0.41955313049924076
+          0.12122897620712478,
+          1.1602132520736343,
+          0.570353880877963
         ],
         "rightClavicle": [
-          -0.024782026291348964,
-          1.290996430829782,
-          0.02311147220373222
+          0.020664483074765854,
+          1.3140736725798816,
+          0.04329833635647657
         ],
         "rightUpperArm": [
-          -0.1716647032652778,
-          1.2990089665229514,
-          0.016102196344600604
+          -0.08291281508799862,
+          1.334252284015431,
+          -0.05942655332530949
         ],
         "rightForearm": [
-          -0.1780998755710259,
-          1.0006361793264476,
-          0.04745156388434592
+          -0.12295417336720484,
+          1.1843635587306,
+          0.1974400228640254
         ],
         "rightHand": [
-          -0.09798771860089343,
-          1.0779779746818448,
-          0.20275060326970246
+          0.005660535971994909,
+          1.1545198008507367,
+          0.33558893090518394
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 62,
-      "triangles": 18407,
+      "drawCalls": 86,
+      "triangles": 22568,
       "memory": {
-        "attributes": 186,
-        "attributesSize": 4905572,
-        "geometries": 64,
-        "indexAttributes": 10,
-        "indexAttributesSize": 503832,
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
+        "indexAttributes": 8,
+        "indexAttributesSize": 503352,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 78,
-        "programsSize": 362124,
+        "programs": 61,
+        "programsSize": 273595,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
         "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 42,
-        "texturesSize": 107874705,
-        "uniformBuffers": 149,
-        "uniformBuffersSize": 1085712,
-        "total": 117681065
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 110,
+        "uniformBuffersSize": 881696,
+        "total": 116167225
       }
     },
     {
-      "file": "grip-02-sword.png",
+      "file": "contact-05-sidearm-grip.png",
       "ready": true,
       "state": {
         "weapon": "sidearm",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 74,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06376510454661946,
+          1.3129016769305775,
+          0.050908559413586456
+        ],
+        "leftUpperArm": [
+          0.20908251970076022,
+          1.3532203743175004,
+          0.036839596359049494
+        ],
+        "leftForearm": [
+          0.20170170798922832,
+          1.0698773883428179,
+          0.08745723923218246
+        ],
+        "leftHand": [
+          0.16902626455175243,
+          0.8600268867899199,
+          0.07439238963546724
+        ],
+        "rightClavicle": [
+          -0.00041085042263389743,
+          1.3113337022324696,
+          0.06653499927375763
+        ],
+        "rightUpperArm": [
+          -0.1466671967961393,
+          1.3185892944478212,
+          0.08216464037981382
+        ],
+        "rightForearm": [
+          -0.03125614819360978,
+          1.0800178058648187,
+          0.22292812585112698
+        ],
+        "rightHand": [
+          0.055856514439631966,
+          1.116863083305216,
+          0.38897424846741646
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 148,
+      "triangles": 22488,
+      "memory": {
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
+        "indexAttributes": 8,
+        "indexAttributesSize": 503352,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 61,
+        "programsSize": 273595,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 110,
+        "uniformBuffersSize": 881696,
+        "total": 116167225
+      }
+    },
+    {
+      "file": "contact-05-sidearm-grip-inside.png",
+      "ready": true,
+      "state": {
+        "weapon": "sidearm",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 105,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06376510454661946,
+          1.3129016769305775,
+          0.050908559413586456
+        ],
+        "leftUpperArm": [
+          0.20908251970076022,
+          1.3532203743175004,
+          0.036839596359049494
+        ],
+        "leftForearm": [
+          0.20170170798922832,
+          1.0698773883428179,
+          0.08745723923218246
+        ],
+        "leftHand": [
+          0.16902626455175243,
+          0.8600268867899199,
+          0.07439238963546724
+        ],
+        "rightClavicle": [
+          -0.00041085042263389743,
+          1.3113337022324696,
+          0.06653499927375763
+        ],
+        "rightUpperArm": [
+          -0.1466671967961393,
+          1.3185892944478212,
+          0.08216464037981382
+        ],
+        "rightForearm": [
+          -0.03125614819360978,
+          1.0800178058648187,
+          0.22292812585112698
+        ],
+        "rightHand": [
+          0.055856514439631966,
+          1.116863083305216,
+          0.38897424846741646
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 210,
+      "triangles": 22408,
+      "memory": {
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
+        "indexAttributes": 8,
+        "indexAttributesSize": 503352,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 61,
+        "programsSize": 273595,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 110,
+        "uniformBuffersSize": 881696,
+        "total": 116167225
+      }
+    },
+    {
+      "file": "contact-05-halberd-grip.png",
+      "ready": true,
+      "state": {
+        "weapon": "halberd",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 135,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0705349818285843,
+          1.3116764122215487,
+          0.06646353120466487
+        ],
+        "leftUpperArm": [
+          0.21354436272563976,
+          1.3463434657505193,
+          0.10234102424557506
+        ],
+        "leftForearm": [
+          0.29317601199835863,
+          1.2280931361717229,
+          0.35249196848020226
+        ],
+        "leftHand": [
+          0.12667869387439323,
+          1.2324138022921274,
+          0.48491396612568327
+        ],
+        "rightClavicle": [
+          0.0047954181712207,
+          1.3124659284748261,
+          0.059914985472305594
+        ],
+        "rightUpperArm": [
+          -0.13803311009914515,
+          1.3253480163749531,
+          0.02642008961076816
+        ],
+        "rightForearm": [
+          -0.17856975235958444,
+          1.1705859256248816,
+          0.28030169021276635
+        ],
+        "rightHand": [
+          0.012249982170683349,
+          1.1708637560946322,
+          0.2700409839810032
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 270,
+      "triangles": 22772,
+      "memory": {
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
+        "indexAttributes": 8,
+        "indexAttributesSize": 503352,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 66,
+        "programsSize": 291330,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 120,
+        "uniformBuffersSize": 965216,
+        "total": 116268480
+      }
+    },
+    {
+      "file": "contact-05-halberd-grip-inside.png",
+      "ready": true,
+      "state": {
+        "weapon": "halberd",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 173,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0705349818285843,
+          1.3116764122215487,
+          0.06646353120466487
+        ],
+        "leftUpperArm": [
+          0.21354436272563976,
+          1.3463434657505193,
+          0.10234102424557506
+        ],
+        "leftForearm": [
+          0.29317601199835863,
+          1.2280931361717229,
+          0.35249196848020226
+        ],
+        "leftHand": [
+          0.12667869387439323,
+          1.2324138022921274,
+          0.48491396612568327
+        ],
+        "rightClavicle": [
+          0.0047954181712207,
+          1.3124659284748261,
+          0.059914985472305594
+        ],
+        "rightUpperArm": [
+          -0.13803311009914515,
+          1.3253480163749531,
+          0.02642008961076816
+        ],
+        "rightForearm": [
+          -0.17856975235958444,
+          1.1705859256248816,
+          0.28030169021276635
+        ],
+        "rightHand": [
+          0.012249982170683349,
+          1.1708637560946322,
+          0.2700409839810032
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 346,
+      "triangles": 23136,
+      "memory": {
+        "attributes": 119,
+        "attributesSize": 4186820,
+        "geometries": 39,
+        "indexAttributes": 8,
+        "indexAttributesSize": 503352,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 66,
+        "programsSize": 291330,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 120,
+        "uniformBuffersSize": 965216,
+        "total": 116268480
+      }
+    },
+    {
+      "file": "contact-05-bow-grip.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 208,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07043663541830396,
+          1.3115501925909079,
+          0.06275795952737709
+        ],
+        "leftUpperArm": [
+          0.14117804802141495,
+          1.351543066815926,
+          0.19057382516046467
+        ],
+        "leftForearm": [
+          0.22958293114209669,
+          1.4100768093034273,
+          0.45826428906915206
+        ],
+        "leftHand": [
+          0.037386148998453134,
+          1.4056908159769512,
+          0.5494606413573568
+        ],
+        "rightClavicle": [
+          0.032005057330180206,
+          1.3110126724687323,
+          0.009018591999143656
+        ],
+        "rightUpperArm": [
+          -0.03611767012207745,
+          1.318489249680589,
+          -0.12133180867460047
+        ],
+        "rightForearm": [
+          -0.27747972002720844,
+          1.423669529016167,
+          0.022654072790988578
+        ],
+        "rightHand": [
+          -0.1443840025023655,
+          1.4842962416285166,
+          0.1456477773022353
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 416,
+      "triangles": 28320,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 85,
+        "programsSize": 385526,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 155,
+        "uniformBuffersSize": 1216464,
+        "total": 117352617
+      }
+    },
+    {
+      "file": "contact-05-bow-grip-inside.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 239,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07043663541830396,
+          1.3115501925909079,
+          0.06275795952737709
+        ],
+        "leftUpperArm": [
+          0.14117804802141495,
+          1.351543066815926,
+          0.19057382516046467
+        ],
+        "leftForearm": [
+          0.22958293114209669,
+          1.4100768093034273,
+          0.45826428906915206
+        ],
+        "leftHand": [
+          0.037386148998453134,
+          1.4056908159769512,
+          0.5494606413573568
+        ],
+        "rightClavicle": [
+          0.032005057330180206,
+          1.3110126724687323,
+          0.009018591999143656
+        ],
+        "rightUpperArm": [
+          -0.03611767012207745,
+          1.318489249680589,
+          -0.12133180867460047
+        ],
+        "rightForearm": [
+          -0.27747972002720844,
+          1.423669529016167,
+          0.022654072790988578
+        ],
+        "rightHand": [
+          -0.1443840025023655,
+          1.4842962416285166,
+          0.1456477773022353
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 478,
+      "triangles": 33504,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 85,
+        "programsSize": 385526,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 155,
+        "uniformBuffersSize": 1216464,
+        "total": 117352617
+      }
+    },
+    {
+      "file": "contact-05-crossbow-grip.png",
+      "ready": true,
+      "state": {
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 264,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07323553213116102,
+          1.3113614924171424,
+          0.043405238274381364
+        ],
+        "leftUpperArm": [
+          0.2019787175585568,
+          1.3507699263078161,
+          0.11277991866330878
+        ],
+        "leftForearm": [
+          -0.035645048026291426,
+          1.4259384397377164,
+          0.2569484022106801
+        ],
+        "leftHand": [
+          -0.004104652878284112,
+          1.415961139765573,
+          0.46714172203185267
+        ],
+        "rightClavicle": [
+          0.011879002793423618,
+          1.3111163260420127,
+          0.01889988168108871
+        ],
+        "rightUpperArm": [
+          -0.11577100514980966,
+          1.3191664689800389,
+          -0.05409676767768322
+        ],
+        "rightForearm": [
+          0.1266202638107416,
+          1.30068670707873,
+          0.1218446854187548
+        ],
+        "rightHand": [
+          0.034468210019377776,
+          1.4067119067851763,
+          0.2513984744708722
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 528,
+      "triangles": 32880,
+      "memory": {
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
+      }
+    },
+    {
+      "file": "contact-05-crossbow-grip-inside.png",
+      "ready": true,
+      "state": {
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 300,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07323553213116102,
+          1.3113614924171424,
+          0.043405238274381364
+        ],
+        "leftUpperArm": [
+          0.2019787175585568,
+          1.3507699263078161,
+          0.11277991866330878
+        ],
+        "leftForearm": [
+          -0.035645048026291426,
+          1.4259384397377164,
+          0.2569484022106801
+        ],
+        "leftHand": [
+          -0.004104652878284112,
+          1.415961139765573,
+          0.46714172203185267
+        ],
+        "rightClavicle": [
+          0.011879002793423618,
+          1.3111163260420127,
+          0.01889988168108871
+        ],
+        "rightUpperArm": [
+          -0.11577100514980966,
+          1.3191664689800389,
+          -0.05409676767768322
+        ],
+        "rightForearm": [
+          0.1266202638107416,
+          1.30068670707873,
+          0.1218446854187548
+        ],
+        "rightHand": [
+          0.034468210019377776,
+          1.4067119067851763,
+          0.2513984744708722
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 600,
+      "triangles": 32256,
+      "memory": {
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
+      }
+    },
+    {
+      "file": "contact-05-spear-carry.png",
+      "ready": true,
+      "state": {
+        "weapon": "spear",
         "variant": "man",
         "mode": "walk",
         "phase": 0.5,
@@ -264,173 +845,7 @@
         "paused": true,
         "standard": false
       },
-      "frame": 46,
-      "errors": [],
-      "bones": {
-        "leftClavicle": [
-          0.04103661449925049,
-          1.2921303859018733,
-          0.01747095447721634
-        ],
-        "leftUpperArm": [
-          0.1870223438207197,
-          1.3317105361420003,
-          0.02536289159570722
-        ],
-        "leftForearm": [
-          0.24810077489170557,
-          1.0598157334328207,
-          -0.047041818424258364
-        ],
-        "leftHand": [
-          0.2789192598063831,
-          0.8509159204210727,
-          -0.07324420366574062
-        ],
-        "rightClavicle": [
-          -0.024782026291348964,
-          1.290996430829782,
-          0.02311147220373222
-        ],
-        "rightUpperArm": [
-          -0.1716647032652778,
-          1.2990089665229514,
-          0.016102196344600604
-        ],
-        "rightForearm": [
-          -0.19883617927357747,
-          1.005114924083138,
-          0.07031031978766417
-        ],
-        "rightHand": [
-          -0.21095909307549118,
-          0.8151970105169443,
-          0.05294070323783017
-        ]
-      },
-      "backend": "WebGPUBackend",
-      "drawCalls": 92,
-      "triangles": 27332,
-      "memory": {
-        "attributes": 186,
-        "attributesSize": 4905572,
-        "geometries": 64,
-        "indexAttributes": 10,
-        "indexAttributesSize": 503832,
-        "indirectStorageAttributes": 0,
-        "indirectStorageAttributesSize": 0,
-        "programs": 78,
-        "programsSize": 362124,
-        "readbackBuffers": 0,
-        "readbackBuffersSize": 0,
-        "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 42,
-        "texturesSize": 107874705,
-        "uniformBuffers": 149,
-        "uniformBuffersSize": 1085712,
-        "total": 117681065
-      }
-    },
-    {
-      "file": "grip-02-sword-inside.png",
-      "ready": true,
-      "state": {
-        "weapon": "sidearm",
-        "variant": "man",
-        "mode": "walk",
-        "phase": 0.5,
-        "time": 0.35,
-        "view": "grip-inside",
-        "seed": 431,
-        "paused": true,
-        "standard": false
-      },
-      "frame": 90,
-      "errors": [],
-      "bones": {
-        "leftClavicle": [
-          0.04103661449925049,
-          1.2921303859018733,
-          0.01747095447721634
-        ],
-        "leftUpperArm": [
-          0.1870223438207197,
-          1.3317105361420003,
-          0.02536289159570722
-        ],
-        "leftForearm": [
-          0.24810077489170557,
-          1.0598157334328207,
-          -0.047041818424258364
-        ],
-        "leftHand": [
-          0.2789192598063831,
-          0.8509159204210727,
-          -0.07324420366574062
-        ],
-        "rightClavicle": [
-          -0.024782026291348964,
-          1.290996430829782,
-          0.02311147220373222
-        ],
-        "rightUpperArm": [
-          -0.1716647032652778,
-          1.2990089665229514,
-          0.016102196344600604
-        ],
-        "rightForearm": [
-          -0.19883617927357747,
-          1.005114924083138,
-          0.07031031978766417
-        ],
-        "rightHand": [
-          -0.21095909307549118,
-          0.8151970105169443,
-          0.05294070323783017
-        ]
-      },
-      "backend": "WebGPUBackend",
-      "drawCalls": 180,
-      "triangles": 22408,
-      "memory": {
-        "attributes": 186,
-        "attributesSize": 4905572,
-        "geometries": 64,
-        "indexAttributes": 10,
-        "indexAttributesSize": 503832,
-        "indirectStorageAttributes": 0,
-        "indirectStorageAttributesSize": 0,
-        "programs": 78,
-        "programsSize": 362124,
-        "readbackBuffers": 0,
-        "readbackBuffersSize": 0,
-        "renderTargets": 1,
-        "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 42,
-        "texturesSize": 107874705,
-        "uniformBuffers": 149,
-        "uniformBuffersSize": 1085712,
-        "total": 117681065
-      }
-    },
-    {
-      "file": "grip-02-spear.png",
-      "ready": true,
-      "state": {
-        "weapon": "spear",
-        "variant": "man",
-        "mode": "walk",
-        "phase": 0.5,
-        "time": 0.35,
-        "view": "grip-inside",
-        "seed": 431,
-        "paused": true,
-        "standard": false
-      },
-      "frame": 130,
+      "frame": 334,
       "errors": [],
       "bones": {
         "leftClavicle": [
@@ -475,28 +890,111 @@
         ]
       },
       "backend": "WebGPUBackend",
-      "drawCalls": 260,
-      "triangles": 22488,
+      "drawCalls": 668,
+      "triangles": 27412,
       "memory": {
-        "attributes": 186,
-        "attributesSize": 4905572,
-        "geometries": 64,
-        "indexAttributes": 10,
-        "indexAttributesSize": 503832,
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
         "indirectStorageAttributes": 0,
         "indirectStorageAttributesSize": 0,
-        "programs": 82,
-        "programsSize": 376312,
+        "programs": 98,
+        "programsSize": 431637,
         "readbackBuffers": 0,
         "readbackBuffersSize": 0,
         "renderTargets": 1,
         "storageAttributes": 8,
-        "storageAttributesSize": 2949120,
-        "textures": 42,
-        "texturesSize": 107874705,
-        "uniformBuffers": 157,
-        "uniformBuffersSize": 1152528,
-        "total": 117762069
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
+      }
+    },
+    {
+      "file": "contact-05-sword-carry.png",
+      "ready": true,
+      "state": {
+        "weapon": "sidearm",
+        "variant": "man",
+        "mode": "walk",
+        "phase": 0.5,
+        "time": 0.35,
+        "view": "grip",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 363,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.04103661449925049,
+          1.2921303859018733,
+          0.01747095447721634
+        ],
+        "leftUpperArm": [
+          0.1870223438207197,
+          1.3317105361420003,
+          0.02536289159570722
+        ],
+        "leftForearm": [
+          0.24810077489170557,
+          1.0598157334328207,
+          -0.047041818424258364
+        ],
+        "leftHand": [
+          0.2789192598063831,
+          0.8509159204210727,
+          -0.07324420366574062
+        ],
+        "rightClavicle": [
+          -0.024782026291348964,
+          1.290996430829782,
+          0.02311147220373222
+        ],
+        "rightUpperArm": [
+          -0.1716647032652778,
+          1.2990089665229514,
+          0.016102196344600604
+        ],
+        "rightForearm": [
+          -0.19883617927357747,
+          1.005114924083138,
+          0.07031031978766417
+        ],
+        "rightHand": [
+          -0.21095909307549118,
+          0.8151970105169443,
+          0.05294070323783017
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 726,
+      "triangles": 22488,
+      "memory": {
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
       }
     }
   ]

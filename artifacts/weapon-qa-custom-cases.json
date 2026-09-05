@@ -1,0 +1,146 @@
+[
+  {
+    "name": "custom-02-spear-0.4-side",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-spear-0.82-side",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-spear-0.99-side",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-pike-kit-0.4-side",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-pike-kit-0.82-side",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-pike-kit-0.99-side",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-sidearm-0.4-side",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-sidearm-0.82-side",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-sidearm-0.99-side",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-halberd-0.4-side",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-halberd-0.82-side",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-halberd-0.99-side",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-bow-0.4-side",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-bow-0.82-side",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-bow-0.99-side",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-crossbow-0.4-side",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-crossbow-0.82-side",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "custom-02-crossbow-0.99-side",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.99,
+    "view": "side",
+    "variant": "man"
+  }
+]

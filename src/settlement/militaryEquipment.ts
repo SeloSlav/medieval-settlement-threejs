@@ -135,7 +135,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.08, 0.12, -0.18],
       ),
-      mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.74, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
+      mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.95, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
       mount(fallbackScabbardAssembly.clone(true), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held'),
@@ -343,14 +343,14 @@ function addRivet(
 
 function createSpear(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.018, 0.023, 1.84, 14), materials.ash, 'Spear · tapered ash shaft', [0, 0.46, 0]);
-  add(group, new THREE.CylinderGeometry(0.03, 0.025, 0.14, 14), materials.bluedSteel, 'Spear · forged conical socket', [0, 1.41, 0]);
-  add(group, new THREE.TorusGeometry(0.027, 0.005, 5, 12), materials.bluedSteel, 'Spear · socket collar', [0, 1.345, 0], [Math.PI / 2, 0, 0]);
-  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.008, 2, 0.002), materials.bluedSteel, 'Spear · front reinforcing langet', [0, 1.26, 0.021]);
-  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.008, 2, 0.002), materials.bluedSteel, 'Spear · rear reinforcing langet', [0, 1.26, -0.021]);
+  add(group, new THREE.CylinderGeometry(0.013, 0.017, 1.84, 14), materials.ash, 'Spear · tapered ash shaft', [0, 0.46, 0]);
+  add(group, new THREE.CylinderGeometry(0.021, 0.017, 0.14, 14), materials.bluedSteel, 'Spear · forged conical socket', [0, 1.41, 0]);
+  add(group, new THREE.TorusGeometry(0.016, 0.0025, 5, 12), materials.bluedSteel, 'Spear · socket collar', [0, 1.345, 0], [Math.PI / 2, 0, 0]);
+  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.004, 2, 0.001), materials.bluedSteel, 'Spear · front reinforcing langet', [0, 1.26, 0.014]);
+  add(group, new RoundedBoxGeometry(0.012, 0.24, 0.004, 2, 0.001), materials.bluedSteel, 'Spear · rear reinforcing langet', [0, 1.26, -0.014]);
   add(
     group,
-    shapeGeometry([[0, -0.14], [0.042, 0.03], [0.03, 0.13], [0, 0.25], [-0.03, 0.13], [-0.042, 0.03]], 0.022, 0.005),
+    shapeGeometry([[0, -0.14], [0.042, 0.03], [0.03, 0.13], [0, 0.25], [-0.03, 0.13], [-0.042, 0.03]], 0.006, 0.0015),
     materials.steel,
     'Spear · leaf-shaped forged head',
     [0, 1.52, 0],
@@ -360,12 +360,12 @@ function createSpear(materials: Materials): THREE.Group {
     shapeGeometry([[0, -0.105], [0.008, 0.03], [0.005, 0.16], [0, 0.225], [-0.005, 0.16], [-0.008, 0.03]], 0.006, 0.0015),
     materials.bluedSteel,
     'Spear · forged central blade ridge',
-    [0, 1.52, 0.014],
+    [0, 1.52, 0.004],
   );
   for (let index = 0; index < 3; index += 1) {
-    add(group, new THREE.TorusGeometry(0.0225, 0.003, 5, 10), materials.leather, 'Spear · socket binding', [0, 1.19 - index * 0.016, 0], [Math.PI / 2, 0, 0]);
+    add(group, new THREE.TorusGeometry(0.0155, 0.0017, 5, 10), materials.leather, 'Spear · socket binding', [0, 1.19 - index * 0.016, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.CylinderGeometry(0.021, 0.021, 0.04, 10), materials.bluedSteel, 'Spear · blunt iron ferrule', [0, -0.49, 0]);
+  add(group, new THREE.CylinderGeometry(0.0175, 0.0175, 0.05, 10), materials.bluedSteel, 'Spear · blunt iron ferrule', [0, -0.47, 0]);
   group.name = 'Procedural leaf spear';
   group.userData.equipmentIdentity = 'ordinary-leaf-spear';
   return group;
@@ -380,7 +380,7 @@ function createPike(materials: Materials): THREE.Group {
   add(group, new RoundedBoxGeometry(0.009, 0.44, 0.007, 2, 0.002), materials.bluedSteel, 'Pike · rear reinforcing langet', [0, 3.69, -0.017]);
   add(
     group,
-    shapeGeometry([[0, -0.1], [0.034, 0.03], [0.02, 0.14], [0, 0.26], [-0.02, 0.14], [-0.034, 0.03]], 0.018, 0.004),
+    shapeGeometry([[0, -0.1], [0.034, 0.03], [0.02, 0.14], [0, 0.26], [-0.02, 0.14], [-0.034, 0.03]], 0.006, 0.0015),
     materials.steel,
     'Pike · compact armor-piercing head',
     [0, 4.08, 0],
@@ -390,7 +390,7 @@ function createPike(materials: Materials): THREE.Group {
     shapeGeometry([[0, -0.07], [0.006, 0.04], [0.003, 0.18], [0, 0.245], [-0.003, 0.18], [-0.006, 0.04]], 0.005, 0.001),
     materials.bluedSteel,
     'Pike · forged head ridge',
-    [0, 4.08, 0.011],
+    [0, 4.08, 0.004],
   );
   for (let index = 0; index < 4; index += 1) {
     add(group, new THREE.TorusGeometry(0.0185, 0.003, 5, 10), materials.leather, 'Pike · lower-hand grip binding', [0, 0.18 + index * 0.022, 0], [Math.PI / 2, 0, 0]);
@@ -543,21 +543,21 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
 
 function createHalberd(materials: Materials): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.021, 0.026, 1.92, 14), materials.ash, 'Halberd · tapered ash haft', [0, 0.45, 0]);
-  add(group, new THREE.CylinderGeometry(0.03, 0.027, 0.42, 14), materials.bluedSteel, 'Halberd · long forged socket', [0, 1.29, 0]);
-  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.009, 2, 0.002), materials.bluedSteel, 'Halberd · front socket langet', [0, 1.05, 0.024]);
-  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.009, 2, 0.002), materials.bluedSteel, 'Halberd · rear socket langet', [0, 1.05, -0.024]);
-  add(group, shapeGeometry([[0, -0.08], [0.055, 0.08], [0, 0.31], [-0.055, 0.08]], 0.03, 0.007), materials.steel, 'Halberd · thrusting spike', [0, 1.49, 0]);
-  add(group, shapeGeometry([[0, -0.15], [0.15, -0.11], [0.34, 0.03], [0.31, 0.25], [0.12, 0.18], [0, 0.12]], 0.036, 0.009), materials.steel, 'Halberd · crescent axe blade', [0.015, 1.34, 0]);
-  add(group, shapeGeometry([[0, -0.06], [-0.3, 0.02], [-0.13, 0.12], [0, 0.1]], 0.032, 0.008), materials.bluedSteel, 'Halberd · armor-piercing rear hook', [-0.015, 1.34, 0]);
-  add(group, shapeGeometry([[0.08, -0.085], [0.15, -0.055], [0.315, 0.045], [0.296, 0.095], [0.14, 0.035]], 0.007, 0.002), materials.bluedSteel, 'Halberd · beveled axe cheek', [0.015, 1.34, 0.022]);
+  add(group, new THREE.CylinderGeometry(0.016, 0.019, 1.92, 14), materials.ash, 'Halberd · tapered ash haft', [0, 0.45, 0]);
+  add(group, new THREE.CylinderGeometry(0.025, 0.021, 0.42, 14), materials.bluedSteel, 'Halberd · long forged socket', [0, 1.29, 0]);
+  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.006, 2, 0.001), materials.bluedSteel, 'Halberd · front socket langet', [0, 1.05, 0.019]);
+  add(group, new RoundedBoxGeometry(0.014, 0.62, 0.006, 2, 0.001), materials.bluedSteel, 'Halberd · rear socket langet', [0, 1.05, -0.019]);
+  add(group, shapeGeometry([[0, -0.08], [0.055, 0.08], [0, 0.31], [-0.055, 0.08]], 0.008, 0.002), materials.steel, 'Halberd · thrusting spike', [0, 1.49, 0]);
+  add(group, shapeGeometry([[0, -0.15], [0.15, -0.11], [0.34, 0.03], [0.31, 0.25], [0.12, 0.18], [0, 0.12]], 0.008, 0.002), materials.steel, 'Halberd · crescent axe blade', [0.015, 1.34, 0]);
+  add(group, shapeGeometry([[0, -0.06], [-0.3, 0.02], [-0.13, 0.12], [0, 0.1]], 0.01, 0.002), materials.bluedSteel, 'Halberd · armor-piercing rear hook', [-0.015, 1.34, 0]);
+  add(group, shapeGeometry([[0.08, -0.085], [0.15, -0.055], [0.315, 0.045], [0.296, 0.095], [0.14, 0.035]], 0.007, 0.002), materials.bluedSteel, 'Halberd · beveled axe cheek', [0.015, 1.34, 0.005]);
   for (const x of [-0.023, 0.023]) {
-    addRivet(group, materials.brass, 'Halberd · peened head rivet', [x, 1.31, 0.033], 0.009);
+    addRivet(group, materials.brass, 'Halberd · peened head rivet', [x, 1.31, 0.029], 0.009);
   }
   for (let index = 0; index < 5; index += 1) {
-    add(group, new THREE.TorusGeometry(0.0245, 0.003, 5, 10), materials.leather, 'Halberd · lower-hand grip wrap', [0, 0.05 + index * 0.021, 0], [Math.PI / 2, 0, 0]);
+    add(group, new THREE.TorusGeometry(0.0183, 0.0017, 5, 10), materials.leather, 'Halberd · lower-hand grip wrap', [0, 0.05 + index * 0.021, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.CylinderGeometry(0.0265, 0.0265, 0.04, 10), materials.bluedSteel, 'Halberd · blunt iron ferrule', [0, -0.495, 0]);
+  add(group, new THREE.CylinderGeometry(0.0195, 0.0195, 0.04, 10), materials.bluedSteel, 'Halberd · blunt iron ferrule', [0, -0.495, 0]);
   group.name = 'Procedural Gorski Kotar halberd';
   group.userData.equipmentIdentity = 'armor-breaking-halberd';
   return group;
@@ -584,18 +584,21 @@ function createBow(materials: Materials): THREE.Group {
     materials.ash,
     'Self bow · tapered D-section stave',
   );
-  add(group, new RoundedBoxGeometry(0.052, 0.185, 0.036, 4, 0.012), materials.leather, 'Self bow · stitched leather grip', [0, 0, 0]);
-  for (const y of [-0.073, -0.036, 0, 0.036, 0.073]) {
+  add(group, new RoundedBoxGeometry(0.052, 0.125, 0.036, 4, 0.012), materials.leather, 'Self bow · stitched leather grip', [0, 0, 0]);
+  for (const y of [-0.045, -0.022, 0, 0.022, 0.045]) {
     add(group, new THREE.TorusGeometry(0.0255, 0.0028, 5, 10), materials.oxblood, 'Self bow · spiral grip binding', [0, y, 0], [Math.PI / 2, 0, 0]);
   }
   add(group, new THREE.CylinderGeometry(0.009, 0.014, 0.064, 8), materials.bone, 'Self bow · lower horn nock', [points[0]!.x, points[0]!.y, 0], [0, 0, 0.17]);
   add(group, new THREE.CylinderGeometry(0.014, 0.009, 0.064, 8), materials.bone, 'Self bow · upper horn nock', [points.at(-1)!.x, points.at(-1)!.y, 0], [0, 0, -0.17]);
   const string = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([points[0]!, new THREE.Vector3(-0.055, 0, 0), points.at(-1)!]),
+    new THREE.BufferGeometry().setFromPoints([points[0]!, new THREE.Vector3(0.135, 0, 0), points.at(-1)!]),
     materials.cord,
   );
   semantic(string, 'Self bow · hemp string');
   group.add(string);
+  // Bend and string lie in the shooting plane (+Z downrange).
+  const bowFrame = new THREE.Matrix4().makeRotationY(Math.PI / 2);
+  for (const part of group.children) part.applyMatrix4(bowFrame);
   group.name = 'Procedural Croatian self bow';
   group.userData.equipmentIdentity = 'rural-self-bow';
   return group;
@@ -663,12 +666,11 @@ function createFallbackDagger(materials: Materials): THREE.Group {
   const group = new THREE.Group();
   add(
     group,
-    shapeGeometry([[-0.018, 0], [-0.023, 0.22], [0, 0.32], [0.023, 0.22], [0.018, 0]], 0.014, 0.003),
+    shapeGeometry([[-0.018, 0], [-0.023, 0.22], [0, 0.32], [0.023, 0.22], [0.018, 0]], 0.004, 0.001),
     materials.steel,
     'Ranged fallback dagger · double-edged blade',
     [0, 0.1, 0],
   );
-  add(group, new RoundedBoxGeometry(0.012, 0.2, 0.004, 2, 0.001), materials.bluedSteel, 'Ranged fallback dagger · recessed fuller', [0, 0.24, 0.009]);
   add(group, new RoundedBoxGeometry(0.12, 0.02, 0.028, 2, 0.004), materials.bluedSteel, 'Ranged fallback dagger · iron guard', [0, 0.08, 0]);
   add(group, new RoundedBoxGeometry(0.05, 0.025, 0.032, 2, 0.006), materials.brass, 'Ranged fallback dagger · grip bolster', [0, 0.066, 0]);
   add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.12, 9), materials.leather, 'Ranged fallback dagger · leather grip', [0, 0.01, 0]);
@@ -831,9 +833,9 @@ function supportGripFor(
   role: MilitaryEquipmentCombatRole,
 ): readonly [number, number, number] | null {
   switch (kind) {
-    case 'spear': return [0, 0.42, 0];
-    case 'pike-kit': return [0, 0.5, 0];
-    case 'halberd': return [0, 0.46, 0];
+    case 'spear': return [0, 0.22, 0];
+    case 'pike-kit': return [0, 0.26, 0];
+    case 'halberd': return [0, 0.24, 0];
     case 'crossbow': return role === 'ranged-held' ? CROSSBOW_FRAME.support : null;
     default: return null;
   }

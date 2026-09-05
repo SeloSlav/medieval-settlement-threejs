@@ -1,0 +1,386 @@
+[
+  {
+    "name": "review-03-spear-0.18",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-0.4",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-0.7",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-0.84",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-0.92",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-1",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-0.18",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-0.4",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-0.7",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-0.84",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-0.92",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-pike-kit-1",
+    "weapon": "pike-kit",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-0.18",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-0.4",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-0.7",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-0.84",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-0.92",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-sidearm-1",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-0.18",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-0.4",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-0.7",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-0.84",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-0.92",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-halberd-1",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-0.18",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-0.4",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-0.7",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-0.84",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-0.92",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-bow-1",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-0.18",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.18,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-0.4",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-0.7",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.7,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-0.84",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.84,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-0.92",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-crossbow-1",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 1,
+    "view": "side",
+    "variant": "man"
+  },
+  {
+    "name": "review-03-spear-shield-man",
+    "weapon": "spear-shield",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-spear-shield-woman",
+    "weapon": "spear-shield",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-sidearm-shield-man",
+    "weapon": "sidearm-shield",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-sidearm-shield-woman",
+    "weapon": "sidearm-shield",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-sword-shield-man",
+    "weapon": "sword-shield",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-sword-shield-woman",
+    "weapon": "sword-shield",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.95,
+    "view": "front"
+  },
+  {
+    "name": "review-03-spear-woman",
+    "weapon": "spear",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  },
+  {
+    "name": "review-03-sidearm-woman",
+    "weapon": "sidearm",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  },
+  {
+    "name": "review-03-halberd-woman",
+    "weapon": "halberd",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  },
+  {
+    "name": "review-03-bow-woman",
+    "weapon": "bow",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  },
+  {
+    "name": "review-03-crossbow-woman",
+    "weapon": "crossbow",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  },
+  {
+    "name": "review-03-pike-kit-woman",
+    "weapon": "pike-kit",
+    "variant": "woman",
+    "mode": "attack",
+    "phase": 0.92,
+    "view": "front"
+  }
+]

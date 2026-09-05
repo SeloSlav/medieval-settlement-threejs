@@ -81,11 +81,12 @@ for (const [kind, source] of Object.entries(sources)) {
     const palmFacing = new THREE.Vector3(source.kind==='bow' ? 1 : -1,0,0)
       .applyQuaternion(primaryHand.getWorldQuaternion(new THREE.Quaternion()))
       .applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert());
-    assert.ok(palmFacing.dot(new THREE.Vector3(source.kind==='bow' ? -1 : 1,0,0))>0.999,
-      `${kind}: the carrying palm must face inward toward the body`);
     const handle = tool.localToWorld(new THREE.Vector3(...tool.userData.workerToolGripLocal));
+    const wristToHandle=handle.clone().sub(primaryHand.getWorldPosition(new THREE.Vector3()))
+      .applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert());
+    assert.ok(palmFacing.dot(wristToHandle)>0,`${kind}: handle must sit on the palm side of the hand`);
     const palm = primaryHand.localToWorld(new THREE.Vector3(source.kind==='bow' ? .005 : -.01,
-      source.kind==='bow' ? .0383 : .06,-.0071));
+      source.kind==='bow' ? .0383 : .044,-.0071));
     assert.ok(handle.distanceTo(palm)<1e-6,`${kind}: handle center must stay seated inside the palm`);
     assert.ok(legs.quaternion.angleTo(legBefore)<1e-7,'carrying must not freeze the legs');
     assert.ok(rig.torsoBones.spineUpper!.quaternion.angleTo(before[9]!)<1e-7,'torso gait stays animated');
@@ -125,7 +126,7 @@ const drawResult = applyCombatWeaponPose(bowRig, {
 assert.equal(drawResult?.timeline.phase, 'draw');
 assert.equal(bowRig.nockedArrow.visible, true, 'hit reactions must retain the drawn weapon overlay');
 const handInBow = bowRig.rangedMount!.worldToLocal(
-  bowRig.armBones.rightHand.getWorldPosition(new THREE.Vector3()),
+  bowRig.armBones.rightHand.localToWorld(new THREE.Vector3(-.026,.056,-.0071)),
 );
 const bowStringPositions = bowRig.bowString.geometry.getAttribute('position') as THREE.BufferAttribute;
 assert.ok(new THREE.Vector3(

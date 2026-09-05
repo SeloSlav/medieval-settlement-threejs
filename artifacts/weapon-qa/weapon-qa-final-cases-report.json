@@ -1,0 +1,1181 @@
+{
+  "errors": [],
+  "captures": [
+    {
+      "file": "final-06-bow-draw.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 4,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07043663541830396,
+          1.3115501925909079,
+          0.06275795952737709
+        ],
+        "leftUpperArm": [
+          0.14117804802141495,
+          1.351543066815926,
+          0.19057382516046467
+        ],
+        "leftForearm": [
+          0.22958293114209669,
+          1.4100768093034273,
+          0.45826428906915206
+        ],
+        "leftHand": [
+          0.037386148998453134,
+          1.4056908159769512,
+          0.5494606413573568
+        ],
+        "rightClavicle": [
+          0.032005057330180206,
+          1.3110126724687323,
+          0.009018591999143656
+        ],
+        "rightUpperArm": [
+          -0.03611767012207745,
+          1.318489249680589,
+          -0.12133180867460047
+        ],
+        "rightForearm": [
+          -0.27747972002720844,
+          1.423669529016167,
+          0.022654072790988578
+        ],
+        "rightHand": [
+          -0.1443840025023655,
+          1.4842962416285166,
+          0.1456477773022353
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 8,
+      "triangles": 27956,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 76,
+        "programsSize": 353603,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 137,
+        "uniformBuffersSize": 1066128,
+        "total": 117170358
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-bow-grip.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 20,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07043663541830396,
+          1.3115501925909079,
+          0.06275795952737709
+        ],
+        "leftUpperArm": [
+          0.14117804802141495,
+          1.351543066815926,
+          0.19057382516046467
+        ],
+        "leftForearm": [
+          0.22958293114209669,
+          1.4100768093034273,
+          0.45826428906915206
+        ],
+        "leftHand": [
+          0.037386148998453134,
+          1.4056908159769512,
+          0.5494606413573568
+        ],
+        "rightClavicle": [
+          0.032005057330180206,
+          1.3110126724687323,
+          0.009018591999143656
+        ],
+        "rightUpperArm": [
+          -0.03611767012207745,
+          1.318489249680589,
+          -0.12133180867460047
+        ],
+        "rightForearm": [
+          -0.27747972002720844,
+          1.423669529016167,
+          0.022654072790988578
+        ],
+        "rightHand": [
+          -0.1443840025023655,
+          1.4842962416285166,
+          0.1456477773022353
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 40,
+      "triangles": 33504,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 76,
+        "programsSize": 353603,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 137,
+        "uniformBuffersSize": 1066128,
+        "total": 117170358
+      },
+      "camera": {
+        "position": [
+          0.3573861489984532,
+          1.5156908159769513,
+          0.8594606413573569
+        ],
+        "target": [
+          0.037386148998453134,
+          1.4156908159769512,
+          0.5794606413573569
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-spear-thrust.png",
+      "ready": true,
+      "state": {
+        "weapon": "spear",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 50,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07326144106748791,
+          1.30968435444639,
+          0.08304112775802905
+        ],
+        "leftUpperArm": [
+          0.1787317732342756,
+          1.3370120958461187,
+          0.1882546230633212
+        ],
+        "leftForearm": [
+          0.2675009828596323,
+          1.1885855157822451,
+          0.41844891671819917
+        ],
+        "leftHand": [
+          0.12122897620712478,
+          1.1602132520736343,
+          0.570353880877963
+        ],
+        "rightClavicle": [
+          0.020664483074765854,
+          1.3140736725798816,
+          0.04329833635647657
+        ],
+        "rightUpperArm": [
+          -0.08291281508799862,
+          1.334252284015431,
+          -0.05942655332530949
+        ],
+        "rightForearm": [
+          -0.12295417336720484,
+          1.1843635587306,
+          0.1974400228640254
+        ],
+        "rightHand": [
+          0.005660535971994909,
+          1.1545198008507367,
+          0.33558893090518394
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 100,
+      "triangles": 28036,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 80,
+        "programsSize": 367791,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 145,
+        "uniformBuffersSize": 1132944,
+        "total": 117251362
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-spear-windup.png",
+      "ready": true,
+      "state": {
+        "weapon": "spear",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.84,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 64,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07264098541627334,
+          1.3115143485091205,
+          0.055044291738133015
+        ],
+        "leftUpperArm": [
+          0.1674435616405878,
+          1.3518966584707566,
+          0.1660506661183013
+        ],
+        "leftForearm": [
+          0.23234533704945623,
+          1.0749790623730577,
+          0.12128128328120047
+        ],
+        "leftHand": [
+          0.082250575893666,
+          1.0872082582751135,
+          0.2716063177604858
+        ],
+        "rightClavicle": [
+          0.024298578555512592,
+          1.31083873251466,
+          0.010013741122369704
+        ],
+        "rightUpperArm": [
+          -0.0683467167926953,
+          1.3179054203145315,
+          -0.10424362504125413
+        ],
+        "rightForearm": [
+          -0.15611352312247906,
+          1.0310539061700412,
+          -0.09626605906381845
+        ],
+        "rightHand": [
+          -0.024380521730152094,
+          1.0690847413478348,
+          0.03684137635860134
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 128,
+      "triangles": 22568,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 80,
+        "programsSize": 367791,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 145,
+        "uniformBuffersSize": 1132944,
+        "total": 117251362
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-sword-cut.png",
+      "ready": true,
+      "state": {
+        "weapon": "sidearm",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 79,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06376510454661946,
+          1.3129016769305775,
+          0.050908559413586456
+        ],
+        "leftUpperArm": [
+          0.20908251970076022,
+          1.3532203743175004,
+          0.036839596359049494
+        ],
+        "leftForearm": [
+          0.20170170798922832,
+          1.0698773883428179,
+          0.08745723923218246
+        ],
+        "leftHand": [
+          0.16902626455175243,
+          0.8600268867899199,
+          0.07439238963546724
+        ],
+        "rightClavicle": [
+          -0.00041085042263389743,
+          1.3113337022324696,
+          0.06653499927375763
+        ],
+        "rightUpperArm": [
+          -0.1466671967961393,
+          1.3185892944478212,
+          0.08216464037981382
+        ],
+        "rightForearm": [
+          -0.031256148193609945,
+          1.0800178058648187,
+          0.22292812585112687
+        ],
+        "rightHand": [
+          0.05585651443963183,
+          1.116863083305216,
+          0.38897424846741635
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 158,
+      "triangles": 22488,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 80,
+        "programsSize": 367791,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 145,
+        "uniformBuffersSize": 1132944,
+        "total": 117251362
+      },
+      "camera": {
+        "position": [
+          -1.232325605587796,
+          1.61,
+          3.4589745866107435
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-sword-grip.png",
+      "ready": true,
+      "state": {
+        "weapon": "sidearm",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 95,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06376510454661946,
+          1.3129016769305775,
+          0.050908559413586456
+        ],
+        "leftUpperArm": [
+          0.20908251970076022,
+          1.3532203743175004,
+          0.036839596359049494
+        ],
+        "leftForearm": [
+          0.20170170798922832,
+          1.0698773883428179,
+          0.08745723923218246
+        ],
+        "leftHand": [
+          0.16902626455175243,
+          0.8600268867899199,
+          0.07439238963546724
+        ],
+        "rightClavicle": [
+          -0.00041085042263389743,
+          1.3113337022324696,
+          0.06653499927375763
+        ],
+        "rightUpperArm": [
+          -0.1466671967961393,
+          1.3185892944478212,
+          0.08216464037981382
+        ],
+        "rightForearm": [
+          -0.031256148193609945,
+          1.0800178058648187,
+          0.22292812585112687
+        ],
+        "rightHand": [
+          0.05585651443963183,
+          1.116863083305216,
+          0.38897424846741635
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 190,
+      "triangles": 22408,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 80,
+        "programsSize": 367791,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 145,
+        "uniformBuffersSize": 1132944,
+        "total": 117251362
+      },
+      "camera": {
+        "position": [
+          0.37585651443963186,
+          1.226863083305216,
+          0.6989742484674164
+        ],
+        "target": [
+          0.05585651443963183,
+          1.126863083305216,
+          0.4189742484674164
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-halberd-strike.png",
+      "ready": true,
+      "state": {
+        "weapon": "halberd",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 131,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0705349818285843,
+          1.3116764122215487,
+          0.06646353120466487
+        ],
+        "leftUpperArm": [
+          0.21354436272563976,
+          1.3463434657505193,
+          0.10234102424557506
+        ],
+        "leftForearm": [
+          0.29317601199835863,
+          1.2280931361717229,
+          0.35249196848020226
+        ],
+        "leftHand": [
+          0.12667869387439323,
+          1.2324138022921274,
+          0.48491396612568327
+        ],
+        "rightClavicle": [
+          0.0047954181712207,
+          1.3124659284748261,
+          0.059914985472305594
+        ],
+        "rightUpperArm": [
+          -0.13803311009914515,
+          1.3253480163749531,
+          0.02642008961076816
+        ],
+        "rightForearm": [
+          -0.17856975235958444,
+          1.1705859256248816,
+          0.28030169021276635
+        ],
+        "rightHand": [
+          0.012249982170683349,
+          1.1708637560946322,
+          0.2700409839810032
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 262,
+      "triangles": 22772,
+      "memory": {
+        "attributes": 159,
+        "attributesSize": 4662860,
+        "geometries": 54,
+        "indexAttributes": 11,
+        "indexAttributesSize": 503928,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 85,
+        "programsSize": 385526,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 155,
+        "uniformBuffersSize": 1216464,
+        "total": 117352617
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-crossbow-aim.png",
+      "ready": true,
+      "state": {
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 145,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07323553213116102,
+          1.3113614924171424,
+          0.043405238274381364
+        ],
+        "leftUpperArm": [
+          0.2019787175585568,
+          1.3507699263078161,
+          0.11277991866330878
+        ],
+        "leftForearm": [
+          -0.035645048026291426,
+          1.4259384397377164,
+          0.2569484022106801
+        ],
+        "leftHand": [
+          -0.004104652878284112,
+          1.415961139765573,
+          0.46714172203185267
+        ],
+        "rightClavicle": [
+          0.011879002793423618,
+          1.3111163260420127,
+          0.01889988168108871
+        ],
+        "rightUpperArm": [
+          -0.11577100514980966,
+          1.3191664689800389,
+          -0.05409676767768322
+        ],
+        "rightForearm": [
+          0.1266202638107416,
+          1.30068670707873,
+          0.1218446854187548
+        ],
+        "rightHand": [
+          0.034468210019377776,
+          1.4067119067851763,
+          0.2513984744708722
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 290,
+      "triangles": 27696,
+      "memory": {
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-crossbow-span.png",
+      "ready": true,
+      "state": {
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.4,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 160,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          -0.02031921900459302,
+          1.1562718871971804,
+          0.17631160457051848
+        ],
+        "leftHand": [
+          0.0070092390910697945,
+          1.0722308984310964,
+          0.3698725373840803
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.06797542826145328,
+          1.1166185182719355,
+          0.167816533149882
+        ],
+        "rightHand": [
+          -0.03208843369042972,
+          1.1423801640184184,
+          0.3537357824695182
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 320,
+      "triangles": 32216,
+      "memory": {
+        "attributes": 188,
+        "attributesSize": 4960712,
+        "geometries": 65,
+        "indexAttributes": 13,
+        "indexAttributesSize": 504408,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 184,
+        "uniformBuffersSize": 1434016,
+        "total": 117914612
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-bow-woman.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "woman",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 178,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.0796566195178672,
+          1.268798168658876,
+          0.0630651354224307
+        ],
+        "leftUpperArm": [
+          0.15845039262561741,
+          1.290454245734546,
+          0.15655440283477487
+        ],
+        "leftForearm": [
+          0.20255598022483767,
+          1.3621776593811328,
+          0.4019827250626357
+        ],
+        "leftHand": [
+          0.0438883558150496,
+          1.35682333190851,
+          0.5194910510325687
+        ],
+        "rightClavicle": [
+          0.043012504303050196,
+          1.2682854567544861,
+          0.011825393134466573
+        ],
+        "rightUpperArm": [
+          -0.030956280124180786,
+          1.2880515232028888,
+          -0.0836861876864658
+        ],
+        "rightForearm": [
+          -0.26787242469879796,
+          1.381718207147658,
+          0.04488471642726602
+        ],
+        "rightHand": [
+          -0.12566546507255635,
+          1.4319583973465972,
+          0.15114468085959176
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 356,
+      "triangles": 32926,
+      "memory": {
+        "attributes": 194,
+        "attributesSize": 4962896,
+        "geometries": 68,
+        "indexAttributes": 16,
+        "indexAttributesSize": 504984,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 98,
+        "programsSize": 431637,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 28,
+        "texturesSize": 106651679,
+        "uniformBuffers": 187,
+        "uniformBuffersSize": 1434496,
+        "total": 117917852
+      },
+      "camera": {
+        "position": [
+          -1.2382956963276264,
+          1.61,
+          3.4662870611355916
+        ],
+        "target": [
+          0.011704303672373744,
+          1.06,
+          0.16628706113559177
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-sword-shield.png",
+      "ready": true,
+      "state": {
+        "weapon": "sword-shield",
+        "variant": "woman",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 196,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06644445506653807,
+          1.2712061152862775,
+          0.037247067453460146
+        ],
+        "leftUpperArm": [
+          0.18271817669404716,
+          1.2956488086910105,
+          0.001182344742983274
+        ],
+        "leftForearm": [
+          0.26184438803061527,
+          1.0719417726990508,
+          0.10615293104942794
+        ],
+        "leftHand": [
+          0.31067400631322384,
+          1.176832637234626,
+          0.2662337259663652
+        ],
+        "rightClavicle": [
+          0.005253541229691842,
+          1.2697108583978605,
+          0.05214678255364475
+        ],
+        "rightUpperArm": [
+          -0.1107197411534942,
+          1.287008285535241,
+          0.08729699642500835
+        ],
+        "rightForearm": [
+          -0.0817111236821132,
+          1.0212138799506547,
+          0.18702160490904923
+        ],
+        "rightHand": [
+          -0.03150987985159452,
+          1.0697477988586404,
+          0.3577915497937552
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 392,
+      "triangles": 30814,
+      "memory": {
+        "attributes": 212,
+        "attributesSize": 5220752,
+        "geometries": 74,
+        "indexAttributes": 16,
+        "indexAttributesSize": 504984,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 108,
+        "programsSize": 467107,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 31,
+        "texturesSize": 106913756,
+        "uniformBuffers": 207,
+        "uniformBuffersSize": 1601536,
+        "total": 118640295
+      },
+      "camera": {
+        "position": [
+          -1.2382956963276264,
+          1.61,
+          3.4662870611355916
+        ],
+        "target": [
+          0.011704303672373744,
+          1.06,
+          0.16628706113559177
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "final-06-spear-shield.png",
+      "ready": true,
+      "state": {
+        "weapon": "spear-shield",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 1,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 211,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07326144106748791,
+          1.30968435444639,
+          0.08304112775802905
+        ],
+        "leftUpperArm": [
+          0.1787317732342756,
+          1.3370120958461187,
+          0.1882546230633212
+        ],
+        "leftForearm": [
+          0.26754906680257656,
+          1.090670161188841,
+          0.30795015259417996
+        ],
+        "leftHand": [
+          0.31892882622985713,
+          1.2068290276952998,
+          0.4786627875816576
+        ],
+        "rightClavicle": [
+          0.020664483074765854,
+          1.3140736725798816,
+          0.04329833635647657
+        ],
+        "rightUpperArm": [
+          -0.08291281508799862,
+          1.334252284015431,
+          -0.05942655332530949
+        ],
+        "rightForearm": [
+          -0.2410867092019237,
+          1.3107759527981662,
+          0.19450315317854294
+        ],
+        "rightHand": [
+          -0.17543625099251733,
+          1.1998600548351293,
+          0.33558888639635986
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 422,
+      "triangles": 28938,
+      "memory": {
+        "attributes": 230,
+        "attributesSize": 5573840,
+        "geometries": 80,
+        "indexAttributes": 16,
+        "indexAttributesSize": 504984,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 114,
+        "programsSize": 488396,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3932160,
+        "textures": 31,
+        "texturesSize": 106913756,
+        "uniformBuffers": 219,
+        "uniformBuffersSize": 1701760,
+        "total": 119114896
+      },
+      "camera": {
+        "position": [
+          -1.232325605587796,
+          1.61,
+          3.4589745866107435
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+[
+  {
+    "name": "attack-01-spear-0.4",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-spear-0.8",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.8,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-spear-0.98",
+    "weapon": "spear",
+    "mode": "attack",
+    "phase": 0.98,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-sidearm-0.4",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-sidearm-0.8",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.8,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-sidearm-0.98",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.98,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-halberd-0.4",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-halberd-0.8",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.8,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-halberd-0.98",
+    "weapon": "halberd",
+    "mode": "attack",
+    "phase": 0.98,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-bow-0.4",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-bow-0.8",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.8,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-bow-0.98",
+    "weapon": "bow",
+    "mode": "attack",
+    "phase": 0.98,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-crossbow-0.4",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.4,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-crossbow-0.8",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.8,
+    "view": "front",
+    "variant": "man"
+  },
+  {
+    "name": "attack-01-crossbow-0.98",
+    "weapon": "crossbow",
+    "mode": "attack",
+    "phase": 0.98,
+    "view": "front",
+    "variant": "man"
+  }
+]

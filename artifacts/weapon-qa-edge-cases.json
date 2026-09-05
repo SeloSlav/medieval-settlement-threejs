@@ -1,0 +1,260 @@
+[
+  {
+    "name": "edge-04-spear-run",
+    "weapon": "spear",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-spear-hit",
+    "weapon": "spear",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-spear-fall",
+    "weapon": "spear",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-pike-kit-run",
+    "weapon": "pike-kit",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-pike-kit-hit",
+    "weapon": "pike-kit",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-pike-kit-fall",
+    "weapon": "pike-kit",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-sidearm-run",
+    "weapon": "sidearm",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-sidearm-hit",
+    "weapon": "sidearm",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-sidearm-fall",
+    "weapon": "sidearm",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-halberd-run",
+    "weapon": "halberd",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-halberd-hit",
+    "weapon": "halberd",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-halberd-fall",
+    "weapon": "halberd",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-run",
+    "weapon": "bow",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-hit",
+    "weapon": "bow",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-fall",
+    "weapon": "bow",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-run",
+    "weapon": "crossbow",
+    "variant": "raider",
+    "mode": "run",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-hit",
+    "weapon": "crossbow",
+    "variant": "raider",
+    "mode": "hit",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-fall",
+    "weapon": "crossbow",
+    "variant": "raider",
+    "mode": "fall",
+    "phase": 0.96,
+    "time": 0.6,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-fallback-0.3",
+    "weapon": "bow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 0.3,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-fallback-0.82",
+    "weapon": "bow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 0.82,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-bow-fallback-1",
+    "weapon": "bow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 1,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-fallback-0.3",
+    "weapon": "crossbow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 0.3,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-fallback-0.82",
+    "weapon": "crossbow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 0.82,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-crossbow-fallback-1",
+    "weapon": "crossbow",
+    "variant": "man",
+    "mode": "fallback",
+    "phase": 1,
+    "time": 0.35,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "edge-04-standard-walk",
+    "weapon": "sidearm",
+    "variant": "man",
+    "mode": "walk",
+    "phase": 0.5,
+    "view": "front",
+    "standard": true
+  },
+  {
+    "name": "edge-04-standard-attack",
+    "weapon": "sidearm",
+    "variant": "man",
+    "mode": "attack",
+    "phase": 0.93,
+    "view": "front",
+    "standard": true
+  }
+]

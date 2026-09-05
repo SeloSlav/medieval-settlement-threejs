@@ -1,0 +1,14 @@
+[
+  {"name":"final-06-bow-draw","weapon":"bow","variant":"man","mode":"attack","view":"side","phase":1},
+  {"name":"final-06-bow-grip","weapon":"bow","variant":"man","mode":"attack","view":"grip-inside","phase":1},
+  {"name":"final-06-spear-thrust","weapon":"spear","variant":"man","mode":"attack","view":"side","phase":1},
+  {"name":"final-06-spear-windup","weapon":"spear","variant":"man","mode":"attack","view":"side","phase":0.84},
+  {"name":"final-06-sword-cut","weapon":"sidearm","variant":"man","mode":"attack","view":"front","phase":1},
+  {"name":"final-06-sword-grip","weapon":"sidearm","variant":"man","mode":"attack","view":"grip-inside","phase":1},
+  {"name":"final-06-halberd-strike","weapon":"halberd","variant":"man","mode":"attack","view":"side","phase":1},
+  {"name":"final-06-crossbow-aim","weapon":"crossbow","variant":"man","mode":"attack","view":"side","phase":1},
+  {"name":"final-06-crossbow-span","weapon":"crossbow","variant":"man","mode":"attack","view":"side","phase":0.4},
+  {"name":"final-06-bow-woman","weapon":"bow","variant":"woman","mode":"attack","view":"front","phase":1},
+  {"name":"final-06-sword-shield","weapon":"sword-shield","variant":"woman","mode":"attack","view":"front","phase":1},
+  {"name":"final-06-spear-shield","weapon":"spear-shield","variant":"man","mode":"attack","view":"front","phase":1}
+]

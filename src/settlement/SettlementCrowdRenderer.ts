@@ -921,7 +921,7 @@ export class SettlementCrowdRenderer {
       standard.active = agent.active;
       const animated = this.animated.get(agent.id);
       if (animated?.combatRig) {
-        animated.combatRig.armBones.leftHand.getWorldPosition(this.companyStandardGrip);
+        animated.combatRig.armBones.leftHand.localToWorld(this.companyStandardGrip.set(.005, .0383, -.0071));
         this.group.worldToLocal(this.companyStandardGrip);
         const grip = standard.gripPose ?? {
           x: 0,

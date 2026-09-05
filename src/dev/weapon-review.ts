@@ -4,6 +4,7 @@ import { SettlementCrowdRenderer, type CrowdRenderAgent } from '../settlement/Se
 import { MILITARY_EQUIPMENT_KINDS, createMilitaryEquipmentSources } from '../settlement/militaryEquipment.ts';
 import { buildCrowdViewState } from '../settlement/crowdView.ts';
 import { resetCombatWeaponRig, resolveCombatWeaponPresentation } from '../settlement/combatWeaponAnimation.ts';
+import { CameraController } from '../camera/CameraController.ts';
 
 type ReviewState={weapon:string;variant:string;mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean};
 const params=new URLSearchParams(location.search);
@@ -23,7 +24,21 @@ const standalone=new THREE.Group();scene.add(standalone);
 let standaloneWeapon:THREE.Group|null=null;
 let frame=0,clock=0,last=performance.now();const errors:string[]=[];
 window.addEventListener('error',e=>errors.push(e.message));
-const temp=new THREE.Vector3(),temp2=new THREE.Vector3();
+const temp=new THREE.Vector3(),temp2=new THREE.Vector3(),cameraOffset=new THREE.Vector3();
+const orbitTarget=new THREE.Vector3(0,1.06,.12);
+let cameraInitialized=false,cameraUserAdjusted=false;
+const cameraController=new CameraController({
+ camera,target:orbitTarget,domElement:renderer.domElement,
+ bounds:{minX:-12,maxX:12,minZ:-12,maxZ:12},
+ getHeightAt:()=>orbitTarget.y,
+ isIllustratedMapReady:()=>false,
+ continuousRenderLoop:true,orbitOnly:true,orbitFov:camera.fov,
+ minimumOrbitDistance:.08,maximumOrbitDistance:30,
+});
+renderer.domElement.addEventListener('mousedown',event=>{
+ if(event.button===1||event.button===2)cameraUserAdjusted=true;
+},{capture:true});
+renderer.domElement.addEventListener('wheel',()=>{cameraUserAdjusted=true;},{capture:true});
 function agent():CrowdRenderAgent{
  const tool=state.weapon as CrowdRenderAgent['tool'];
  const attack=state.mode==='attack'||state.mode==='hit'||state.mode==='fallback';
@@ -51,45 +66,64 @@ function pose(frozen=false,dt=0){
   crowd.syncAgents([a],view,0);
  }
 }
-function frameCamera(){
+function cameraFocus(out:THREE.Vector3){
  const visual=rig();if(!visual)return;
  const hand=state.weapon==='bow'&&state.mode!=='fallback'?visual.combatRig.armBones.leftHand:visual.combatRig.armBones.rightHand;
  if(state.view.startsWith('grip')){
-  hand.getWorldPosition(temp);temp.add(new THREE.Vector3(0,.01,.03));
-  const offset=state.view==='grip-inside'?new THREE.Vector3(.32,.1,.28):state.view==='grip-back'?new THREE.Vector3(-.32,.06,-.22):new THREE.Vector3(-.27,.11,.35);
-  camera.position.copy(temp).add(offset);camera.lookAt(temp);
+  hand.getWorldPosition(out);out.add(temp2.set(0,.01,.03));
  }else if(state.view==='weapon'){
-  const bounds=new THREE.Box3().setFromObject(standalone);const size=bounds.getSize(temp2);bounds.getCenter(temp);
-  camera.position.copy(temp).add(new THREE.Vector3(size.y*.28,size.y*.12,Math.max(size.y,size.x)*1.8));camera.lookAt(temp);
+  new THREE.Box3().setFromObject(standalone).getCenter(out);
  }else{
   const pelvis=visual.model.getObjectByName('Pelvis')??visual.model;
-  pelvis.getWorldPosition(temp);temp.y=1.06;temp.z+=.12;
-  const offset=state.view==='side'?new THREE.Vector3(-3.3,.35,.15):state.view==='back'?new THREE.Vector3(-2.5,.4,-2.9):state.view==='far'?new THREE.Vector3(4,6,8):new THREE.Vector3(-1.25,.55,3.3);
-  camera.position.copy(temp).add(offset);camera.lookAt(temp);
+  pelvis.getWorldPosition(out);out.y=1.06;out.z+=.12;
  }
+}
+function applyCameraPreset(){
+ cameraFocus(temp);if(!Number.isFinite(temp.x))return;
+ if(state.view.startsWith('grip'))cameraOffset.copy(state.view==='grip-inside'?temp2.set(.32,.1,.28):state.view==='grip-back'?temp2.set(-.32,.06,-.22):temp2.set(-.27,.11,.35));
+ else if(state.view==='weapon'){
+  const size=new THREE.Box3().setFromObject(standalone).getSize(temp2);
+  cameraOffset.set(size.y*.28,size.y*.12,Math.max(size.y,size.x)*1.8);
+ }else cameraOffset.copy(state.view==='side'?temp2.set(-3.3,.35,.15):state.view==='back'?temp2.set(-2.5,.4,-2.9):state.view==='far'?temp2.set(4,6,8):temp2.set(-1.25,.55,3.3));
+ orbitTarget.y=temp.y;
+ const distance=Math.max(.08,cameraOffset.length());
+ cameraController.applyShowcaseView(temp.x,temp.z,Math.atan2(cameraOffset.z,cameraOffset.x),Math.asin(THREE.MathUtils.clamp(cameraOffset.y/distance,-1,1)),distance);
+ cameraInitialized=true;cameraUserAdjusted=false;
+}
+function followAnimatedGrip(){
+ if(cameraUserAdjusted||!state.view.startsWith('grip'))return;
+ cameraFocus(temp);orbitTarget.copy(temp);
 }
 function stats(){
  const visual=rig();const r=visual?.combatRig;
  const bones=r?Object.fromEntries(Object.entries(r.armBones).map(([name,b])=>[name,(b as THREE.Bone).getWorldPosition(new THREE.Vector3()).toArray()])):{};
- return {ready:true,state:{...state},frame,errors:[...errors],bones,backend:renderer.backend.constructor.name,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:renderer.info.memory};
+ return {ready:true,state:{...state},frame,errors:[...errors],bones,backend:renderer.backend.constructor.name,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:renderer.info.memory,camera:{position:camera.position.toArray(),target:cameraController.getTargetPosition().toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted}};
 }
-function render(){frameCamera();renderer.render(scene,camera);frame++;document.querySelector('#status')!.textContent=`${state.weapon} · ${state.variant} · ${state.mode}\nphase ${state.phase.toFixed(2)} · clip ${state.time.toFixed(2)} · ${state.view}\n${errors.join('\n')}`;}
+function render(){renderer.render(scene,camera);frame++;document.body.dataset.weaponReviewCamera=JSON.stringify({position:camera.position.toArray(),target:orbitTarget.toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted});document.querySelector('#status')!.textContent=`${state.weapon} · ${state.variant} · ${state.mode}\nphase ${state.phase.toFixed(2)} · clip ${state.time.toFixed(2)} · ${state.view}\n${errors.join('\n')}`;}
 function set(patch:Partial<ReviewState>){
+ const resetCamera=!cameraInitialized||['weapon','variant','mode','view','standard'].some(key=>Object.hasOwn(patch,key));
  Object.assign(state,patch);clock=state.phase;
+ for(const el of document.querySelectorAll<HTMLSelectElement>('select[data-key]'))el.value=String(state[el.dataset.key as keyof ReviewState]);
+ phase.value=String(state.phase);
  pose(true);
  parent.visible=state.view!=='weapon';standalone.visible=state.view==='weapon';
  if(standaloneWeapon){standalone.remove(standaloneWeapon);standaloneWeapon=null;}
  if(state.view==='weapon'){
   const source=sources[state.weapon as keyof typeof sources];standaloneWeapon=source.scene.clone(true);
-  standaloneWeapon.scale.setScalar(source.targetLength/source.sourceLength);standalone.add(standaloneWeapon);
+  standaloneWeapon.scale.setScalar(source.targetLength/source.sourceLength);
+  standaloneWeapon.position.y=-source.bounds.min.y*standaloneWeapon.scale.y+.2;
+  standalone.add(standaloneWeapon);
  }
+ if(resetCamera)applyCameraPreset();
  render();return stats();
 }
 const controls=document.querySelector('#controls')!;
-function select(key:keyof ReviewState,values:string[]){const el=document.createElement('select');for(const value of values)el.add(new Option(value,value));el.value=String(state[key]);el.onchange=()=>set({[key]:el.value});controls.append(el);}
+function select(key:keyof ReviewState,values:string[]){const el=document.createElement('select');el.dataset.key=key;for(const value of values)el.add(new Option(value,value));el.value=String(state[key]);el.onchange=()=>set({[key]:el.value});controls.append(el);}
 select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',['man','woman','raider']);select('mode',['idle','walk','run','flee','hurt','attack','hit','fallback','fall']);select('view',['front','side','back','grip','grip-inside','grip-back','weapon','far']);
 const phase=document.createElement('input');phase.type='range';phase.min='0';phase.max='1';phase.step='.01';phase.value=String(state.phase);phase.oninput=()=>set({phase:Number(phase.value),paused:true});controls.append(phase);
 const play=document.createElement('button');play.textContent='Play / pause';play.onclick=()=>set({paused:!state.paused});controls.append(play);
+const resetCamera=document.createElement('button');resetCamera.textContent='Reset camera';resetCamera.onclick=()=>{applyCameraPreset();render();};controls.append(resetCamera);
 (window as any).weaponReview={set,stats,state};set({});
-function animate(now:number){const dt=Math.min(.05,(now-last)/1000);last=now;if(!state.paused){clock+=dt;state.phase=clock%1;state.time=clock%1;pose(false,dt);}render();requestAnimationFrame(animate);}requestAnimationFrame(animate);
+function animate(now:number){const dt=Math.min(.05,(now-last)/1000);last=now;if(!state.paused){clock+=dt/(resolveCombatWeaponPresentation(state.weapon as any,state.mode==='fallback'?1.5:8)?.attackSeconds??1);state.phase=clock%1;state.time=clock%1;phase.value=String(state.phase);pose(false,dt);}followAnimatedGrip();cameraController.update(dt);render();requestAnimationFrame(animate);}requestAnimationFrame(animate);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+window.addEventListener('pagehide',()=>cameraController.dispose(),{once:true});

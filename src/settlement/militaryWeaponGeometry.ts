@@ -7,7 +7,7 @@ export const CROSSBOW_FRAME = {
   rear: -0.46, front: 0.38, prodY: 0.3, halfSpan: 0.39,
   stringTipY: 0.19, nutY: -0.055, deckZ: 0.031, stringZ: 0.041,
   grip: [0, -0.18, -0.023] as const,
-  support: [0, 0.13, -0.027] as const,
+  support: [0, 0.06, -0.027] as const,
   muzzle: [0, 0.345, 0.047] as const,
 };
 
@@ -108,8 +108,8 @@ export function swordBladeGeometry(length:number,width:number):THREE.BufferGeome
 export function createRealisticSword(materials:MilitaryEquipmentMaterials,longSword:boolean):THREE.Group{
  const group=new THREE.Group();group.name=longSword?'Procedural longsword':'Procedural arming sword';
  group.userData.equipmentIdentity=longSword?'mail-company-longsword':'infantry-sidearm';
- const gripLength=longSword?.16:.115,span=longSword?.14:.115;
- group.userData.modelGripLocal=[0,-.01-gripLength*.5,0];
+ const gripLength=longSword?.20:.17,span=longSword?.14:.115;
+ group.userData.modelGripLocal=[0,-.028-gripLength*.5,0];
  part(group,swordBladeGeometry(longSword?.92:.77,longSword?.027:.024),materials.steel,
   longSword?'Longsword · tapered double-edged blade':'Sidearm · tapered double-edged blade');
  part(group,tube([[-span,-.012,0],[-span*.7,.006,0],[0,.012,0],[span*.7,.006,0],[span,-.012,0]],.008),

@@ -1,4 +1,49 @@
-# Weapon overhaul acceptance and evidence
+# Weapon overhaul — completed implementation and evidence
+
+Completed 5 September 2026. All five attack families used by the nine military
+kits now use authored weapon trajectories and anatomical hand contact solves.
+
+- Spear/pike: retract at the waist, then extend both arms toward the target.
+  Shield variants attack beside the shield. Halberds raise and chop forward.
+- Swords: wind up beside the head, cut down with torso rotation, and recover
+  continuously. Ranged fallback daggers use this new blade cycle.
+- Bow: hold forward, draw to the right cheek, keep the arrow nock/string at the
+  hooked fingers, and pass the arrow above/beside the bow grip.
+- Crossbow: lower, span the cord, return to the release lever, raise and aim.
+  The left palm supports the tiller throughout.
+- Arm and neck twist joints follow the authored pose. Every owned joint and
+  mount restores cleanly. Standards retain their left-hand grip during attacks.
+- Both hands have four finger pairs and a thumb hinge. Original low-poly hand
+  topology is retained and still determines the close-up knuckle detail.
+- Rebuilt sword/crossbow silhouettes, fitted thinner polearm parts, blunt
+  polearm butts, removed the fallback dagger's false raised fuller.
+
+Final checks: TypeScript and diskless Vite production build pass. 2,727 actual
+male/female/raider poses across nine kits pass contact (<2 mm), wrist (<30°),
+adjacent-phase stability, cycle seam, forward thrust, right-cheek draw and arrow
+clearance checks. Carry/neutral skin, combat events/ammo/hit ownership, geometry,
+materials, weapon drops, standards/integration and authored skin batching pass.
+Both added rig tests are registered in package.json. Broad CI discovery remains
+blocked by other test files without package script entries;
+the focused suites above were executed directly and passed.
+
+Equipment stress: 216 mixed soldiers, 76 catalog draw-call ceiling, 794,064
+exact equipment triangles, zero overflow. Mutable cords stay in shared line
+streams. CPU attack overlay: 27 mixed rigs, median 1.54 ms / p95 2.06 ms after
+warm-up (previous median 2.45 ms before avoiding repeated full-hierarchy updates).
+These are overlay timings, not a full-game FPS benchmark.
+
+Final visual evidence: `weapon-qa-final-cases.json`, images `weapon-qa/final-06-*`,
+and `weapon-qa/weapon-qa-final-cases.webm`. The matching motion report records no
+browser/renderer errors across all five moving attack families. Earlier
+`review-03-*` captures cover the full phase/model matrix; `edge-04-*` covers
+run/hit/fall, fallback daggers and standards. The fall preview retains attached
+weapons; production detach/scatter is verified by the separate weapon-drop test.
+
+Interactive review: `http://127.0.0.1:5175/artifacts/weapon-review.html`.
+No save/schema changes, deployment or commits were required.
+
+## Initial investigation log (superseded by the completed result above)
 
 Goal: rebuild the full military weapon presentation, including all nine kits,
 fallback daggers, shields and standards interacting with grips. Check idle,
@@ -33,7 +78,7 @@ and ordinary villager animation intact.
 - Source tests and typecheck/build plus recorded visual evidence; green tests
   alone are not completion.
 
-## Current iteration
+## Initial iteration
 
 - Added `src/dev/weapon-review.ts`, `artifacts/weapon-review.html` and
   `scripts/captureWeaponQA.mts`. Review supports frozen clip/attack phase,
@@ -73,5 +118,5 @@ and ordinary villager animation intact.
 - Typecheck passed after current geometry/carry changes. Other existing tests
   have stale grip constants / assumed 2 hinges and haven't been updated yet.
 
-Status: in progress. No requirement is fully accepted yet; further mesh,
-grip, all-attack, transition, visual and performance work remains.
+Initial status was in progress; the implementation and final evidence above
+supersede this investigation log.
