@@ -1,0 +1,13 @@
+[
+  {"name":"shield-medium-carry-inside","weapon":"spear-shield","variant":"man","mode":"walk","phase":0.5,"view":"shield"},
+  {"name":"shield-medium-carry-side","weapon":"spear-shield","variant":"man","mode":"walk","phase":0.5,"view":"shield-side"},
+  {"name":"shield-medium-thrust","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"shield"},
+  {"name":"shield-small-carry","weapon":"sidearm-shield","variant":"man","mode":"walk","phase":0.5,"view":"shield"},
+  {"name":"shield-small-strike","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.95,"view":"shield-side"},
+  {"name":"shield-large-carry","weapon":"sword-shield","variant":"man","mode":"walk","phase":0.5,"view":"shield"},
+  {"name":"shield-large-strike","weapon":"sword-shield","variant":"man","mode":"attack","phase":0.95,"view":"shield-side"},
+  {"name":"shield-raider-carry","weapon":"spear-shield","variant":"raider","mode":"walk","phase":0.5,"view":"shield","seed":9821},
+  {"name":"shield-raider-thrust","weapon":"spear-shield","variant":"raider","mode":"attack","phase":0.95,"view":"shield-side","seed":9821},
+  {"name":"shield-design","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"front"},
+  {"name":"shield-far","weapon":"spear-shield","variant":"man","mode":"walk","phase":0.5,"view":"far"}
+]

@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CROSSBOW_FRAME, createRealisticCrossbow, createRealisticSword } from './militaryWeaponGeometry.ts';
 import { BOW_GRIP } from './bowHandGrip.ts';
+import { createShieldArmStrap, shieldGripLayout, SHIELD_HANDLE_RADII } from './shieldGrip.ts';
 import { createAmmunitionGeometry, createAmmunitionMaterial } from './rangedAmmunition.ts';
 import {
   createMilitaryEquipmentMaterials,
@@ -531,13 +532,22 @@ function createShield(kind: 'small' | 'medium' | 'large', materials: Materials):
       kind === 'small' ? 0.008 : 0.009,
     );
   }
-  add(group, new RoundedBoxGeometry(kind === 'large' ? 0.43 : 0.3, 0.037, 0.03, 3, 0.01), materials.leather, `${kind} shield · adjustable rear arm strap`, [0, 0.07, -depth * 0.62], [0, 0, Math.PI / 2]);
-  add(group, new THREE.CylinderGeometry(0.019, 0.019, kind === 'small' ? 0.2 : 0.25, 9), materials.walnut, `${kind} shield · shaped wooden hand grip`, [0, -0.04, -0.075], [0, 0, Math.PI / 2]);
-  for (const x of [-0.13, 0.13]) {
-    addRivet(group, materials.brass, `${kind} shield · rear strap rivet`, [x, 0.07, -depth * 0.73], 0.009);
+  const layout = shieldGripLayout(kind);
+  add(group, createShieldArmStrap(), materials.leather, `${kind} shield · raised leather forearm loop`, [layout.strapX, layout.strapY, 0]);
+  const handle = new THREE.CylinderGeometry(SHIELD_HANDLE_RADII[1], SHIELD_HANDLE_RADII[1], layout.gripLength, 12);
+  handle.scale(SHIELD_HANDLE_RADII[0] / SHIELD_HANDLE_RADII[1], 1, 1);
+  add(group, handle, materials.walnut,
+    `${kind} shield · vertical wooden hand grip`, layout.grip);
+  for (const sign of [-1, 1]) {
+    const y = layout.grip[1] + sign * layout.gripLength * .5;
+    add(group, new THREE.BoxGeometry(.028, .008, .074), materials.leather,
+      `${kind} shield · hand grip leather anchor`, [layout.grip[0], y, -.059]);
+    addRivet(group, materials.brass, `${kind} shield · rear strap rivet`, [layout.strapX, layout.strapY + sign * .067, -.025], .009);
   }
   group.name = `Procedural ${kind} shield`;
   group.userData.equipmentIdentity = `${kind}-shield`;
+  group.userData.shieldGripLocal = layout.grip;
+  group.userData.shieldStrapLocal = [layout.strapX, layout.strapY, -.085];
   return group;
 }
 

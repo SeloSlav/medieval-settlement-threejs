@@ -1,5 +1,7 @@
 :root {
   --medieval-cursor: url('/assets/ui/cursors/medieval-pointer.png') 2 2, auto;
+  --medieval-pan-cursor: url('/assets/ui/cursors/medieval-pan.png') 20 20, move;
+  --medieval-orbit-cursor: url('/assets/ui/cursors/medieval-orbit.png') 20 20, grabbing;
 }
 
 html, body, #app { cursor: var(--medieval-cursor); }

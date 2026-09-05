@@ -1,0 +1,8 @@
+[
+ {"name":"elbow-shield-carry","weapon":"spear-shield","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-shield-attack","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left"},
+ {"name":"elbow-bow-draw","weapon":"bow","variant":"man","mode":"attack","phase":0.85,"view":"elbow-right"},
+ {"name":"elbow-bow-support","weapon":"bow","variant":"man","mode":"attack","phase":0.85,"view":"elbow-left"},
+ {"name":"shield-top","weapon":"spear-shield","variant":"man","mode":"walk","view":"shield"},
+ {"name":"shield-design","weapon":"spear-shield","variant":"man","mode":"attack","phase":0.95,"view":"front"}
+]

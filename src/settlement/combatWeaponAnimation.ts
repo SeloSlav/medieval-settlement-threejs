@@ -4,6 +4,7 @@ import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
 import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES } from './militaryHandGrip.ts';
 import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
 import { bowHandGrip, bowPalmLocal } from './bowHandGrip.ts';
+import { SHIELD_HAND_FRAME, shieldHandFit } from './shieldGrip.ts';
 import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
 
@@ -221,6 +222,8 @@ export type CombatWeaponRig = {
   tool: THREE.Group | null;
   rangedMount: THREE.Group | null;
   shieldMount: THREE.Group | null;
+  shieldBasePosition: THREE.Vector3;
+  shieldBaseQuaternion: THREE.Quaternion;
   carryGripMount: THREE.Group | null;
   carryGripBaseQuaternion: THREE.Quaternion;
   carryGripBasePosition: THREE.Vector3;
@@ -299,6 +302,8 @@ export function bindCombatWeaponRig(
   const rangedMount = mounts?.find(
     (mount) => mount.userData.workerToolCombatRole === 'ranged-held',
   ) ?? null;
+  const shieldMount = mounts?.find(mount => mount.parent === armBones.leftHand
+    && mount.userData.workerToolCombatRole === 'always') ?? null;
   const nockedArrow = toolKind === 'bow' && rangedMount
     ? createNockedArrow(rangedMount)
     : null;
@@ -354,8 +359,9 @@ export function bindCombatWeaponRig(
     model,
     tool,
     rangedMount,
-    shieldMount: mounts?.find(mount => mount.parent === armBones.leftHand
-      && mount.userData.workerToolCombatRole === 'always') ?? null,
+    shieldMount,
+    shieldBasePosition: shieldMount?.position.clone() ?? new THREE.Vector3(),
+    shieldBaseQuaternion: shieldMount?.quaternion.clone() ?? new THREE.Quaternion(),
     carryGripMount: null,
     carryGripBaseQuaternion: new THREE.Quaternion(),
     carryGripBasePosition: new THREE.Vector3(),
@@ -408,6 +414,10 @@ function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone
 
 export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   if (!rig.overlayApplied) return;
+  if (rig.shieldMount) {
+    rig.shieldMount.position.copy(rig.shieldBasePosition);
+    rig.shieldMount.quaternion.copy(rig.shieldBaseQuaternion);
+  }
   if (rig.carryGripMount) {
     rig.carryGripMount.quaternion.copy(rig.carryGripBaseQuaternion);
     rig.carryGripMount.position.copy(rig.carryGripBasePosition);
@@ -445,7 +455,6 @@ const CROSSBOW_CARRY = PALM_WEAPON_FRAME.clone()
   .premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.65));
 const CROSSBOW_SUPPORT_HAND = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)));
-const SHIELD_CARRY = new THREE.Quaternion();
 
 /** Like the standard bearer, own only the carrying arm after the base mixer.
  * Keep the wrist relative to the model's facing, so torso sway cannot whip a
@@ -488,8 +497,7 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
       rig.armBones.leftHand.quaternion.copy(parentInverse).multiply(handWorld).normalize();
     }
   } else if (rig.shieldMount) {
-    poseCarryArm(rig, true, CARRY_LEFT);
-    orientCarryGrip(rig, rig.armBones.leftHand, rig.shieldMount, SHIELD_CARRY);
+    poseShieldArm(rig, false);
   }
   updateArmTwist(rig, primaryLeft);
   if (!primaryLeft && (tool === 'crossbow' || rig.shieldMount)) updateArmTwist(rig, true);
@@ -504,12 +512,39 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
     left ? rig.armBones.leftHand : rig.armBones.rightHand, target, left ? 1 : -1,
     target[1] < -.8 ? 'low' : 'upright');
 }
-function orientCarryGrip(rig: CombatWeaponRig, hand: THREE.Bone, mount: THREE.Group, orientation: THREE.Quaternion): void {
-  const desiredWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(orientation);
-  const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
-  const mountInverse = rig.scratchQuaternions[2]!.copy(mount.quaternion).invert();
-  hand.quaternion.copy(parentInverse).multiply(desiredWorld).multiply(mountInverse).normalize();
-  hand.updateWorldMatrix(true, false);
+/** The arm supports the shield across its rear face. Orient the upper arm and
+ * forearm first, keeping the elbow below the shoulder and the wrist straight;
+ * the shield then follows the palm and its authored grip/strap frame. */
+function poseShieldArm(rig: CombatWeaponRig, raised: boolean): void {
+  resetArm(rig, true);
+  const mount = rig.shieldMount!, arm = rig.armBones;
+  const body = rig.model.getWorldQuaternion(rig.scratchQuaternions[4]!);
+  const upperDirection = rig.scratchVectors[13]!.set(.45, raised ? -.70 : -.91, raised ? .71 : .41).normalize().applyQuaternion(body);
+  const forearmDirection = rig.scratchVectors[14]!.set(-.98, .16, .10).normalize().applyQuaternion(body);
+  const palm = rig.scratchVectors[15]!.set(0, 0, -1).applyQuaternion(body);
+  // Seat the upper arm in the elbow's bend plane. Palm roll belongs to the
+  // forearm; pointing both bones' palms at the body corkscrews the sleeve.
+  const upperPalm = rig.scratchVectors[12]!.copy(forearmDirection).negate()
+    .addScaledVector(upperDirection, forearmDirection.dot(upperDirection)).normalize();
+  alignShieldBone(rig, arm.leftUpperArm, upperDirection, upperPalm);
+  alignShieldBone(rig, arm.leftForearm, forearmDirection, palm);
+  arm.leftHand.quaternion.identity();
+  arm.leftHand.updateWorldMatrix(true, false);
+  mount.quaternion.copy(SHIELD_HAND_FRAME);
+  const grip = mount.userData.shieldGripLocal as readonly [number, number, number];
+  const gripOffset = rig.scratchVectors[13]!.set(...grip).multiply(mount.scale).applyQuaternion(mount.quaternion);
+  const fit = shieldHandFit(arm.leftHand);
+  mount.position.set(...fit.palm).sub(gripOffset);
+  for (let i = 0; i < 8; i++) rig.leftGripBones[i]?.quaternion.copy(fit.fingers[i]!);
+  rig.leftGripBones[8]?.quaternion.copy(fit.thumb);
+}
+
+function alignShieldBone(rig: CombatWeaponRig, bone: THREE.Bone, direction: THREE.Vector3, palmDirection: THREE.Vector3): void {
+  const palm = rig.scratchVectors[0]!.copy(palmDirection).addScaledVector(direction, -palmDirection.dot(direction)).normalize();
+  const thumb = rig.scratchVectors[1]!.crossVectors(palm, direction).normalize();
+  const world = rig.scratchQuaternions[0]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(palm, direction, thumb));
+  bone.quaternion.copy(bone.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(world).normalize();
+  bone.updateWorldMatrix(true, false);
 }
 
 /** The worker mesh's right palm faces local -X (left +X), fingers extend +Y,
@@ -909,7 +944,7 @@ function attackContact(rig: CombatWeaponRig, local: readonly [number, number, nu
  * cosine rule gives the forearm's cone about shoulder-to-wrist. Intersect
  * that cone with the grip's cone instead of folding the wrist to a guessed
  * roll. Two cheap refinements account for the wrist-to-contact offset. */
-function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3, handWorld: THREE.Quaternion): void {
+function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3, handWorld: THREE.Quaternion, stockGrip = false): void {
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const upper = left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm;
   const forearm = left ? rig.armBones.leftForearm : rig.armBones.rightForearm;
@@ -940,7 +975,9 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
     const b = Math.atan2(Math.sin(align - around), Math.cos(align - around));
     // Keep one anatomical branch for the complete cycle. Selecting whichever
     // roll is momentarily closest flips the elbow when the two costs cross.
-    const roll = left ? b : a;
+    // The crossbow's horizontal stock needs the outward branch for the right
+    // elbow; the melee branch folds that arm across the chest as it rises.
+    const roll = left || stockGrip ? b : a;
     handWorld.premultiply(rig.scratchQuaternions[3]!.setFromAxisAngle(axis, roll)).normalize();
   }
 }
@@ -1054,7 +1091,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
     if (diagonal) handWorld.multiply(SWORD_GRIP_CANT);
     if (timeline.family === 'spear-pike') handWorld.copy(rig.attackOrientation).multiply(THRUST_HAND_FRAME);
     const contact = attackContact(rig, primaryGrip);
-    alignAttackGrip(rig, false, contact, handWorld);
+    alignAttackGrip(rig, false, contact, handWorld, timeline.family === 'crossbow');
     let handOff = 0;
     if (timeline.family === 'crossbow' && timeline.poseProgress > .14 && timeline.poseProgress < .72) {
       handOff = smoothstep(timeline.poseProgress, .14, .34) * (1 - smoothstep(timeline.poseProgress, .52, .72));
@@ -1085,8 +1122,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
       solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld, false, timeline.family === 'crossbow');
       if (timeline.family !== 'crossbow') closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
     } else if (rig.shieldMount) {
-      poseCarryArm(rig, true, [.28, -.26, .58]);
-      orientCarryGrip(rig, arms.leftHand, rig.shieldMount, SHIELD_CARRY);
+      poseShieldArm(rig, true);
     } else poseCarryArm(rig, true, CARRY_SWORD);
   }
   // Attachment still belongs to its original hand for shared batching/drop
