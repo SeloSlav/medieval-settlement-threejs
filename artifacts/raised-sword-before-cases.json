@@ -1,0 +1,101 @@
+[
+  {
+    "name": "raised-sword-before-0.65-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.65,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.65-elbow-right",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.65,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.65-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.65,
+    "view": "grip",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.76-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.76,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.76-elbow-right",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.76,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.76-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.76,
+    "view": "grip",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.82-front",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "front",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.82-elbow-right",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "elbow-right",
+    "paused": true,
+    "standard": false
+  },
+  {
+    "name": "raised-sword-before-0.82-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.82,
+    "view": "grip",
+    "paused": true,
+    "standard": false
+  }
+]

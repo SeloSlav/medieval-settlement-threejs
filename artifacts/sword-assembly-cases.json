@@ -1,0 +1,122 @@
+[
+  {
+    "name": "sword-assembly-man-sidearm-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-man-sidearm-grip-back",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-man-sidearm-shield-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-man-sidearm-shield-grip-back",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-man-sword-shield-grip",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-man-sword-shield-grip-back",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sidearm-grip",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sidearm-grip-back",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sidearm-shield-grip",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sidearm-shield-grip-back",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sword-shield-grip",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip",
+    "standard": false
+  },
+  {
+    "name": "sword-assembly-raider-sword-shield-grip-back",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.56,
+    "view": "grip-back",
+    "standard": false
+  }
+]

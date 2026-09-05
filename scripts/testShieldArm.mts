@@ -55,6 +55,7 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
     const mixer = new THREE.AnimationMixer(model);
     for (const mode of ['idle', 'walk', 'run', 'flee', 'hurt', 'attack', 'hit']) {
       const combat = mode === 'attack' || mode === 'hit';
+      const cutting = mode === 'attack' && kind !== 'spear-shield';
       const clipName = mode === 'attack' ? 'slash' : mode === 'hurt' || mode === 'hit' ? 'hit_to_body_01' : mode === 'flee' ? 'flee_01' : mode;
       const clip = gltf.animations.find(c => c.name === clipName)!;
       assert.ok(clip, `${name}/${mode}: missing clip`);
@@ -77,12 +78,18 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
         const fingers = new THREE.Vector3(0, 1, 0).applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
         assert.ok(f.angleTo(fingers) < .001, 'shield wrist stays straight');
         const outward = elbow.clone().sub(shoulder).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert());
-        const elbowDrop=combat?.2*(shoulder.distanceTo(elbow)+elbow.distanceTo(wrist)):.15;
-        assert.ok(outward.x > 0 && outward.x < .09 && outward.y < -elbowDrop, `${name}/${kind}/${mode}: shield elbow stays below the shoulder (${outward.toArray()})`);
         const armLength = shoulder.distanceTo(elbow) + elbow.distanceTo(wrist);
+        const elbowDrop = combat ? (cutting ? .12 : .2) * armLength : .15;
+        assert.ok(outward.x > 0 && outward.x < (cutting ? .30 * armLength : .09) && outward.y < -elbowDrop,
+          `${name}/${kind}/${mode}: shield elbow stays below and outside the shoulder (${outward.toArray()})`);
         const reach = wrist.clone().sub(shoulder).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert()).divideScalar(armLength);
-        assert.ok(reach.distanceTo(combat?new THREE.Vector3(-.32,-.12,.50):mirroredReach) < .001,
-          'combat raises the shield; carrying keeps the approved relaxed reach');
+        if (cutting) {
+          assert.ok(reach.x >= -.321 && reach.x <= -.099 && reach.y >= -.321 && reach.y <= -.119 && Math.abs(reach.z - .50) < .001,
+            'the cutting shield moves down and outward within a compact frontal guard');
+        } else {
+          assert.ok(reach.distanceTo(combat ? new THREE.Vector3(-.32, -.12, .50) : mirroredReach) < .001,
+            'other combat poses raise the shield; carrying keeps the approved relaxed reach');
+        }
         // The asset's left forearm is longer than the right. Preserve that
         // anatomy while comparing the same crossbow reach and bend plane.
         if(!combat) {

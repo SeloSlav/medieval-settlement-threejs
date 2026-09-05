@@ -1,10 +1,11 @@
 {
-  "capturedAt": "2026-09-05T18:44:07.328Z",
+  "capturedAt": "2026-09-05T19:31:54.603Z",
   "sources": {
     "src/settlement/weaponAttackMotion.ts": "cfc2a943eeb78e160d833190f582263701889fdbc0b3bf8ff2609effd673aa79",
     "src/settlement/meleeBodyPose.ts": "223c04ee0a6e347188632c0bea6e20a97b0ef20303b8a5756506fc786b351872",
-    "src/settlement/combatWeaponAnimation.ts": "0a43d0efa77f059741b9ee986226dd641c26c2883836051eebe5f515029b7e8e",
-    "src/settlement/meleeHandGrip.ts": "e4ce5bc11c9cc9ccfbb0bd391736ed6c77d74febd68a76f2f1b8b080b78426a2",
+    "src/settlement/combatWeaponAnimation.ts": "f1ac0f6e987790f7d7108185f62b0159a02a7884c4306a19965bae33d2d28fc7",
+    "src/settlement/meleeHandGrip.ts": "ae3ec2f652e9431c5273d751ba7deb916d3d08443a72404240a12d978c3409e9",
+    "src/settlement/militaryEquipment.ts": "ed18ae9dcc35c2cf7ccfc31fe6921c3a7b91fd98a4cda60f569933928046faa9",
     "public/assets/models/villagers/worker-male-common-01-v002.glb": "b83b6fa6b58098304cecce9dbd76302c645db5d52f4377e1e7c2a17b656568f7",
     "public/assets/models/villagers/ottoman-raider-common-01-v001.glb": "2159ac4dd1aae05aa0379f35bf3ea3166a06d859e3e60a1f08406f97e16b0a95"
   },
@@ -22,12 +23,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 3.5414012738492784,
-      "worstJoint": "R_GripMiddle",
+      "maxJointStepDegrees": 3.541012543686402,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 4.512706261797381e-7,
-      "maxGripError": 6.211597237124918e-8,
+      "maxGripError": 6.211289848155904e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.3964371015491022
+      "minWeaponY": 0.3964861966835237
     },
     {
       "input": {
@@ -41,12 +42,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 3.540593918861949,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.5404896335401577,
+      "worstJoint": "R_GripThumb",
       "maxFootSlide": 4.6451694675401144e-7,
-      "maxGripError": 6.521686494840662e-8,
+      "maxGripError": 6.521497090922382e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.41168154909695637
+      "minWeaponY": 0.4117312461238076
     },
     {
       "input": {
@@ -60,12 +61,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 3.5404189865719644,
+      "maxJointStepDegrees": 3.5404074155638536,
       "worstJoint": "R_Hand",
       "maxFootSlide": 4.7667413295383824e-7,
-      "maxGripError": 7.009814298225176e-8,
+      "maxGripError": 7.009589446496319e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.42680691811667915
+      "minWeaponY": 0.42685736816336
     },
     {
       "input": {
@@ -79,12 +80,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 3.4240276825123885,
-      "worstJoint": "R_GripMiddle",
+      "maxJointStepDegrees": 3.4235984671590383,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 4.5127062587835144e-7,
-      "maxGripError": 6.557703204608377e-8,
+      "maxGripError": 6.557611408136417e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.42820202694001147
+      "minWeaponY": 0.42825443122324913
     },
     {
       "input": {
@@ -117,12 +118,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 3.423114345594043,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.4230304520417643,
+      "worstJoint": "R_GripThumb",
       "maxFootSlide": 4.6451694633127836e-7,
-      "maxGripError": 6.980838200992206e-8,
+      "maxGripError": 6.980714678948771e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.44477512300417005
+      "minWeaponY": 0.4448282852643104
     },
     {
       "input": {
@@ -155,12 +156,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 3.4229320597514588,
+      "maxJointStepDegrees": 3.4229186664867757,
       "worstJoint": "R_Hand",
       "maxFootSlide": 4.766741326864758e-7,
-      "maxGripError": 7.514210722911081e-8,
+      "maxGripError": 7.514037103506815e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.46121885263428114
+      "minWeaponY": 0.4612727488796609
     },
     {
       "input": {
@@ -174,8 +175,8 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 0.06299790348310083,
-      "worstJoint": "R_GripMiddleTip",
+      "maxJointStepDegrees": 0.06867330824725783,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
       "maxGripError": 8.671165063719753e-8,
       "maxRidingLegChange": 0,
@@ -193,12 +194,12 @@
       },
       "problems": {},
       "bodyScale": 1.6712153984314828,
-      "maxJointStepDegrees": 3.592988636961855,
-      "worstJoint": "R_GripPinky",
+      "maxJointStepDegrees": 3.5930498390622887,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 1.7140257455331284e-7,
-      "maxGripError": 4.8569431102134364e-8,
+      "maxGripError": 4.856899807385248e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4019181868821177
+      "minWeaponY": 0.4019308763271433
     },
     {
       "input": {
@@ -212,12 +213,12 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 3.5929256355615844,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.5927853499194593,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 1.82959051397448e-7,
-      "maxGripError": 5.027503954105888e-8,
+      "maxGripError": 5.027464918610669e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4173919002227827
+      "minWeaponY": 0.41740330642789897
     },
     {
       "input": {
@@ -231,12 +232,12 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 3.5927701932510065,
-      "worstJoint": "R_GripIndex",
+      "maxJointStepDegrees": 3.592808700612985,
+      "worstJoint": "R_GripPinkyTip",
       "maxFootSlide": 1.9555930897737236e-7,
-      "maxGripError": 5.2266126030482446e-8,
+      "maxGripError": 5.2265749844354387e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4327447228343122
+      "minWeaponY": 0.43275504450993046
     },
     {
       "input": {
@@ -250,12 +251,12 @@
       },
       "problems": {},
       "bodyScale": 1.6712153984314828,
-      "maxJointStepDegrees": 3.4578296812742377,
-      "worstJoint": "R_GripPinky",
+      "maxJointStepDegrees": 3.4578925415312325,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 1.7140257455331284e-7,
-      "maxGripError": 5.865185684101462e-8,
+      "maxGripError": 5.865253125643657e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.43806238504314354
+      "minWeaponY": 0.4380754854443683
     },
     {
       "input": {
@@ -288,12 +289,12 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 3.457740022901313,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.457621331659841,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 1.82959051397448e-7,
-      "maxGripError": 5.862198107956455e-8,
+      "maxGripError": 5.8622390237202014e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4550479472069026
+      "minWeaponY": 0.45505980718309896
     },
     {
       "input": {
@@ -307,8 +308,8 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 0.023619215025784464,
-      "worstJoint": "R_GripThumb",
+      "maxJointStepDegrees": 0.02603282580297629,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
       "maxGripError": 4.092524175005402e-8,
       "maxRidingLegChange": 0,
@@ -326,12 +327,12 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 3.4576073909743754,
-      "worstJoint": "R_GripIndex",
+      "maxJointStepDegrees": 3.4576233959823677,
+      "worstJoint": "R_GripMiddle",
       "maxFootSlide": 1.9555930897737236e-7,
-      "maxGripError": 5.952363526444678e-8,
+      "maxGripError": 5.952388111761559e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4719008787510721
+      "minWeaponY": 0.47191148103802566
     },
     {
       "input": {
@@ -364,12 +365,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 4.684125001838937,
-      "worstJoint": "R_GripMiddleTip",
+      "maxJointStepDegrees": 4.684399570573742,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.223261958674807e-8,
+      "maxGripError": 3.6984211498739465e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.1978826358723569
+      "minWeaponY": 1.1979449321197595
     },
     {
       "input": {
@@ -402,12 +403,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 4.683822342425077,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 4.684262556072366,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.20854421425377e-8,
+      "maxGripError": 3.6233471588653976e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.2012432739942733
+      "minWeaponY": 1.201306244672682
     },
     {
       "input": {
@@ -440,12 +441,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 4.68387353992253,
+      "maxJointStepDegrees": 4.683973346487111,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.458508548756377e-8,
+      "maxGripError": 5.458363997530253e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.2050745995933583
+      "minWeaponY": 1.205147745906993
     },
     {
       "input": {
@@ -459,7 +460,7 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 0.05214119613682572,
+      "maxJointStepDegrees": 0.03739186609848346,
       "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 0,
       "maxGripError": 2.0227158477858872e-8,
@@ -478,12 +479,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 4.684125001839249,
-      "worstJoint": "R_GripMiddleTip",
+      "maxJointStepDegrees": 4.684399570574053,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.221882237046725e-8,
+      "maxGripError": 3.697212894357275e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.1979338033978817
+      "minWeaponY": 1.1979960996452856
     },
     {
       "input": {
@@ -497,12 +498,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 4.683822342424767,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 4.684262556071742,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.207169289011245e-8,
+      "maxGripError": 3.622163485573645e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.201296581845851
+      "minWeaponY": 1.2013595525242597
     },
     {
       "input": {
@@ -516,12 +517,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 4.683873539921907,
+      "maxJointStepDegrees": 4.683973346486799,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.456725306457658e-8,
+      "maxGripError": 5.456580858694809e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.2051300310532767
+      "minWeaponY": 1.2052031773669112
     },
     {
       "input": {
@@ -535,12 +536,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 4.684125001839249,
-      "worstJoint": "R_GripMiddleTip",
+      "maxJointStepDegrees": 4.684399570574053,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.221882237046725e-8,
+      "maxGripError": 3.697212894357275e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.1979338033978817
+      "minWeaponY": 1.1979960996452856
     },
     {
       "input": {
@@ -554,12 +555,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 4.683822342424767,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 4.684262556071742,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.207169289011245e-8,
+      "maxGripError": 3.622163485573645e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.201296581845851
+      "minWeaponY": 1.2013595525242597
     },
     {
       "input": {
@@ -573,12 +574,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 4.683873539921907,
+      "maxJointStepDegrees": 4.683973346486799,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.456725306457658e-8,
+      "maxGripError": 5.456580858694809e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.2051300310532767
+      "minWeaponY": 1.2052031773669112
     },
     {
       "input": {
@@ -592,12 +593,12 @@
       },
       "problems": {},
       "bodyScale": 1.6712153984314828,
-      "maxJointStepDegrees": 4.333113282764009,
-      "worstJoint": "R_GripPinky",
+      "maxJointStepDegrees": 4.333377031001051,
+      "worstJoint": "R_GripThumb",
       "maxFootSlide": 0,
-      "maxGripError": 5.409656261239021e-8,
+      "maxGripError": 5.409656565489463e-8,
       "maxRidingLegChange": 4.2146848510894035e-8,
-      "minWeaponY": 1.1935811414345063
+      "minWeaponY": 1.1935939525677544
     },
     {
       "input": {
@@ -630,12 +631,12 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 4.332985430196683,
+      "maxJointStepDegrees": 4.333020702864245,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.986333510624412e-8,
+      "maxGripError": 5.986346753566706e-8,
       "maxRidingLegChange": 5.16191365590357e-8,
-      "minWeaponY": 1.1966132018837734
+      "minWeaponY": 1.1966241155761599
     },
     {
       "input": {
@@ -668,12 +669,12 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 4.333460077331352,
+      "maxJointStepDegrees": 4.333521097931472,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 6.762428283274403e-8,
+      "maxGripError": 6.76245433149652e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.2002668181141836
+      "minWeaponY": 1.2002879036953382
     },
     {
       "input": {
@@ -687,8 +688,8 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 0.053929948925012516,
-      "worstJoint": "L_GripRingTip",
+      "maxJointStepDegrees": 0.059677789261042904,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
       "maxGripError": 3.228158769176229e-8,
       "maxRidingLegChange": 0,
@@ -706,12 +707,12 @@
       },
       "problems": {},
       "bodyScale": 1.6712153984314828,
-      "maxJointStepDegrees": 4.333113282764009,
-      "worstJoint": "R_GripPinky",
+      "maxJointStepDegrees": 4.333377031001051,
+      "worstJoint": "R_GripThumb",
       "maxFootSlide": 0,
-      "maxGripError": 5.409656261239021e-8,
+      "maxGripError": 5.409656565489463e-8,
       "maxRidingLegChange": 4.2146848510894035e-8,
-      "minWeaponY": 1.1935811414345063
+      "minWeaponY": 1.1935939525677544
     },
     {
       "input": {
@@ -744,12 +745,12 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 4.332985430196683,
+      "maxJointStepDegrees": 4.333020702864245,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.986333510624412e-8,
+      "maxGripError": 5.986346753566706e-8,
       "maxRidingLegChange": 5.16191365590357e-8,
-      "minWeaponY": 1.1966132018837734
+      "minWeaponY": 1.1966241155761599
     },
     {
       "input": {
@@ -782,12 +783,12 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 4.333460077331352,
+      "maxJointStepDegrees": 4.333521097931472,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 6.762428283274403e-8,
+      "maxGripError": 6.76245433149652e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.2002668181141836
+      "minWeaponY": 1.2002879036953382
     },
     {
       "input": {
@@ -801,8 +802,8 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 0.053929948925012516,
-      "worstJoint": "L_GripRingTip",
+      "maxJointStepDegrees": 0.059677789261042904,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
       "maxGripError": 3.228158769176229e-8,
       "maxRidingLegChange": 0,
@@ -820,12 +821,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 3.5414012738492784,
-      "worstJoint": "R_GripMiddle",
+      "maxJointStepDegrees": 3.541012543686402,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 4.512706261797381e-7,
-      "maxGripError": 6.211597237124918e-8,
+      "maxGripError": 6.211289848155904e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.3964371015491022
+      "minWeaponY": 0.3964861966835237
     },
     {
       "input": {
@@ -839,12 +840,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 3.540593918861949,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.5404896335401577,
+      "worstJoint": "R_GripThumb",
       "maxFootSlide": 4.6451694675401144e-7,
-      "maxGripError": 6.521686494840662e-8,
+      "maxGripError": 6.521497090922382e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.41168154909695637
+      "minWeaponY": 0.4117312461238076
     },
     {
       "input": {
@@ -858,12 +859,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 3.5404189865719644,
+      "maxJointStepDegrees": 3.5404074155638536,
       "worstJoint": "R_Hand",
       "maxFootSlide": 4.7667413295383824e-7,
-      "maxGripError": 7.009814298225176e-8,
+      "maxGripError": 7.009589446496319e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.42680691811667915
+      "minWeaponY": 0.42685736816336
     },
     {
       "input": {
@@ -877,12 +878,12 @@
       },
       "problems": {},
       "bodyScale": 1.6712153984314828,
-      "maxJointStepDegrees": 3.592988636961855,
-      "worstJoint": "R_GripPinky",
+      "maxJointStepDegrees": 3.5930498390622887,
+      "worstJoint": "R_GripRing",
       "maxFootSlide": 1.7140257455331284e-7,
-      "maxGripError": 4.8569431102134364e-8,
+      "maxGripError": 4.856899807385248e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4019181868821177
+      "minWeaponY": 0.4019308763271433
     },
     {
       "input": {
@@ -896,12 +897,12 @@
       },
       "problems": {},
       "bodyScale": 1.7411224477776366,
-      "maxJointStepDegrees": 3.5929256355615844,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 3.5927853499194593,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 1.82959051397448e-7,
-      "maxGripError": 5.027503954105888e-8,
+      "maxGripError": 5.027464918610669e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4173919002227827
+      "minWeaponY": 0.41740330642789897
     },
     {
       "input": {
@@ -915,12 +916,12 @@
       },
       "problems": {},
       "bodyScale": 1.8104833483007734,
-      "maxJointStepDegrees": 3.5927701932510065,
-      "worstJoint": "R_GripIndex",
+      "maxJointStepDegrees": 3.592808700612985,
+      "worstJoint": "R_GripPinkyTip",
       "maxFootSlide": 1.9555930897737236e-7,
-      "maxGripError": 5.2266126030482446e-8,
+      "maxGripError": 5.2265749844354387e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 0.4327447228343122
+      "minWeaponY": 0.43275504450993046
     },
     {
       "input": {
@@ -934,12 +935,12 @@
       },
       "problems": {},
       "bodyScale": 1.6520069639640929,
-      "maxJointStepDegrees": 4.684125001839249,
-      "worstJoint": "R_GripMiddleTip",
+      "maxJointStepDegrees": 4.684399570574053,
+      "worstJoint": "R_GripRingTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.221882237046725e-8,
+      "maxGripError": 3.697212894357275e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.1979338033978817
+      "minWeaponY": 1.1979960996452856
     },
     {
       "input": {
@@ -953,12 +954,12 @@
       },
       "problems": {},
       "bodyScale": 1.7211105232410222,
-      "maxJointStepDegrees": 4.683822342424767,
-      "worstJoint": "R_GripRingTip",
+      "maxJointStepDegrees": 4.684262556071742,
+      "worstJoint": "R_GripMiddleTip",
       "maxFootSlide": 0,
-      "maxGripError": 4.207169289011245e-8,
+      "maxGripError": 3.622163485573645e-8,
       "maxRidingLegChange": 0,
-      "minWeaponY": 1.201296581845851
+      "minWeaponY": 1.2013595525242597
     },
     {
       "input": {
@@ -972,12 +973,12 @@
       },
       "problems": {},
       "bodyScale": 1.7896742109611006,
-      "maxJointStepDegrees": 4.683873539921907,
+      "maxJointStepDegrees": 4.683973346486799,
       "worstJoint": "R_Hand",
       "maxFootSlide": 0,
-      "maxGripError": 5.456725306457658e-8,
+      "maxGripError": 5.456580858694809e-8,
       "maxRidingLegChange": 2.9802322387695312e-8,
-      "minWeaponY": 1.2051300310532767
+      "minWeaponY": 1.2052031773669112
     }
   ]
 }

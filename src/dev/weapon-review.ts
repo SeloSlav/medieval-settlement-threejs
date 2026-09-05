@@ -137,6 +137,10 @@ function cameraFocus(out:THREE.Vector3){
  }else{
   const pelvis=visual.model.getObjectByName('Pelvis')??visual.model;
   pelvis.getWorldPosition(out);out.y=1.06;out.z+=.12;
+  if(state.mode==='attack'){
+   if(state.weapon==='halberd'){out.y=1.80;out.z+=.45;}
+   else if(['sidearm','sidearm-shield','sword-shield'].includes(state.weapon))out.y=1.42;
+  }
  }
 }
 function applyCameraPreset(){
@@ -157,6 +161,9 @@ function applyCameraPreset(){
    const halfFov=Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*Math.min(1,camera.aspect));
    const radius=mountedBounds.getSize(temp2).length()/2;
    cameraOffset.setLength(Math.max(cameraOffset.length(),radius/Math.sin(halfFov)*1.12));
+  }else if(state.mode==='attack'&&state.view!=='far'){
+   if(state.weapon==='halberd')cameraOffset.multiplyScalar(1.90);
+   else if(['sidearm','sidearm-shield','sword-shield'].includes(state.weapon))cameraOffset.multiplyScalar(1.30);
   }
  }
  orbitTarget.y=temp.y;

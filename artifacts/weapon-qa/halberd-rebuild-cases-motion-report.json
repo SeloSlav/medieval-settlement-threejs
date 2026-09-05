@@ -1,0 +1,32 @@
+[
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "man",
+      "weapon": "halberd",
+      "mode": "attack",
+      "paused": true,
+      "standard": false
+    },
+    "seconds": 4,
+    "frames": 222,
+    "firstPhase": 0.56,
+    "lastPhase": 0.27712962962962884,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "raider",
+      "weapon": "halberd",
+      "mode": "attack",
+      "paused": true,
+      "standard": false
+    },
+    "seconds": 4,
+    "frames": 169,
+    "firstPhase": 0.5775000000000013,
+    "lastPhase": 0.2847222222222232,
+    "errors": []
+  }
+]

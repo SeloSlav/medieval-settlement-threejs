@@ -28,6 +28,7 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
       for (const defensive of kind.endsWith('shield') ? [false, true] : [false]) {
         let previousEdge: THREE.Vector3 | undefined;
         let previous: THREE.Quaternion[] = [];
+        let shieldAtContact: THREE.Vector3 | undefined;
         for (let frame = 0; frame <= 200; frame++) {
           resetCombatWeaponRig(rig); setMilitaryEquipmentCombatStance(equipment, 'melee');
           const phase = frame / 200, label = `${name}/${kind}/${scale}/${mounted}/${defensive}/${phase}`;
@@ -36,6 +37,33 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
           const upper = elbow.clone().sub(shoulder), lower = wrist.clone().sub(elbow);
           const handForward = new THREE.Vector3(0, 1, 0).applyQuaternion(rig.armBones.rightHand.getWorldQuaternion(new THREE.Quaternion()));
           assert.ok(handForward.angleTo(lower) < .26, `${label}: the weapon wrist must stay aligned`);
+          if (!defensive && kind !== 'halberd') {
+            const reachDirection = wrist.clone().sub(shoulder).normalize().applyQuaternion(inverse);
+            if (reachDirection.y > .45 && phase >= .76 && phase <= .87) {
+              const hand = rig.armBones.rightHand.quaternion;
+              const roll = 2 * Math.atan2(hand.y, hand.w);
+              assert.ok(Math.abs(Math.atan2(Math.sin(roll), Math.cos(roll))) < .05,
+                `${label}: the raised arm must turn with its palm, without winding up the wrist`);
+            }
+            if (upper.angleTo(lower) > .01) {
+              const u = upper.clone().normalize(), f = lower.clone().normalize();
+              const bend = f.addScaledVector(u, -f.dot(u)).normalize()
+                .applyQuaternion(rig.armBones.rightUpperArm.getWorldQuaternion(new THREE.Quaternion()).invert());
+              assert.ok(bend.z > .99, `${label}: the elbow must bend through its anatomical hinge`);
+            }
+            if (kind.endsWith('shield')) {
+              const shieldReach = position(rig.armBones.leftHand).sub(position(rig.armBones.leftUpperArm)).applyQuaternion(inverse);
+              if (frame === 0) shieldAtContact = shieldReach;
+              if (frame === 100) {
+                const displacement = shieldAtContact!.clone().sub(shieldReach);
+                assert.ok(displacement.x > .08 * scale && displacement.x < .15 * scale,
+                  `${label}: the shield hand must move modestly toward the soldier's left during the cut`);
+                assert.ok(displacement.y < -.07 * scale && displacement.y > -.14 * scale,
+                  `${label}: the shield hand must lower during the cut and return in recovery`);
+                assert.ok(Math.abs(displacement.z) < .001, `${label}: keep the shield in front of the body`);
+              }
+            }
+          }
           if (defensive) {
             const palm = new THREE.Vector3(-1, 0, 0).applyQuaternion(rig.armBones.rightHand.getWorldQuaternion(new THREE.Quaternion())).applyQuaternion(inverse);
             assert.ok(palm.x > .65, `${label}: lowered weapon palm must face inward`);
@@ -73,4 +101,4 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
     }
   }
 }
-console.log(`${poses} melee poses passed: straight sword downstrokes, natural defensive elbows/palms, overhead edge-first halberd chops.`);
+console.log(`${poses} melee poses passed: raised sword arm/palm alignment, straight downstrokes, outward/lowered shields, natural defensive elbows/palms, overhead edge-first halberd chops.`);

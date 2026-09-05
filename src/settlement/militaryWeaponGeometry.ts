@@ -92,10 +92,14 @@ export function createRealisticCrossbow(materials:MilitaryEquipmentMaterials):TH
  return group;
 }
 
+// Seat both ends inside the guard collar so separate material meshes form
+// one fitted sword, without daylight between blade, guard and leather grip.
+const SWORD_JOINTS = { guardTop: .0235, guardBottom: -.012, overlap: .002 } as const;
+
 /** A continuous thin blade with raised shoulders around a shallow forged fuller.
  * The edge is part of the cross-section, rather than a thick extruded plate. */
 export function swordBladeGeometry(length:number,width:number):THREE.BufferGeometry{
- const stations=[[.035,width],[.10,width],[length*.55,width*.83],[length*.84,width*.57],[length,0.0003]];
+ const stations=[[SWORD_JOINTS.guardTop-SWORD_JOINTS.overlap,width],[.10,width],[length*.55,width*.83],[length*.84,width*.57],[length,0.0003]];
  const section=[[-1,0],[-.82,.0025],[-.28,.003],[-.18,.0018],[.18,.0018],[.28,.003],[.82,.0025],[1,0],
   [.82,-.0025],[.28,-.003],[.18,-.0018],[-.18,-.0018],[-.28,-.003],[-.82,-.0025]];
  const p:number[]=[],uv:number[]=[],ix:number[]=[];
@@ -115,23 +119,27 @@ export function createRealisticSword(materials:MilitaryEquipmentMaterials,longSw
  group.rotation.y=Math.PI/2;
  group.userData.equipmentIdentity=longSword?'mail-company-longsword':'infantry-sidearm';
  const gripLength=longSword?.20:.17,span=longSword?.14:.115;
+ const gripTop=SWORD_JOINTS.guardBottom+SWORD_JOINTS.overlap;
  group.userData.modelGripLocal=[0,-.028-gripLength*.5,0];
  part(group,swordBladeGeometry(longSword?.92:.77,longSword?.027:.024),materials.steel,
   longSword?'Longsword · tapered double-edged blade':'Sidearm · tapered double-edged blade');
  part(group,tube([[-span,-.012,0],[-span*.7,.006,0],[0,.012,0],[span*.7,.006,0],[span,-.012,0]],.008),
   materials.bluedSteel,'Sword · forged quillon guard');
- part(group,new THREE.BoxGeometry(.055,.023,.03),materials.bluedSteel,'Sword · fitted guard collar',[0,.012,0]);
+ part(group,new THREE.BoxGeometry(.055,SWORD_JOINTS.guardTop-SWORD_JOINTS.guardBottom,.03),materials.bluedSteel,
+  'Sword · fitted guard collar',[0,(SWORD_JOINTS.guardTop+SWORD_JOINTS.guardBottom)*.5,0]);
  const grip=part(group,new THREE.CylinderGeometry(.016,.019,gripLength,12),materials.leather,
-  'Sword · leather-bound grip',[0,-.01-gripLength*.5,0]);grip.scale.z=.84;
+  'Sword · leather-bound grip',[0,gripTop-gripLength*.5,0]);grip.scale.z=.84;
  const wrap:THREE.Vector3[]=[];
  for(let i=0;i<=64;i++){
   const t=i/64,angle=t*Math.PI*10,r=THREE.MathUtils.lerp(.0165,.0195,t);
-  wrap.push(new THREE.Vector3(Math.cos(angle)*r,-.015-t*(gripLength-.01),Math.sin(angle)*r*.84));
+  wrap.push(new THREE.Vector3(Math.cos(angle)*r,gripTop-.005-t*(gripLength-.01),Math.sin(angle)*r*.84));
  }
  part(group,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(wrap),64,.0012,4,false),materials.oxblood,'Sword · fine leather grip seam');
- const pommel=part(group,new THREE.SphereGeometry(longSword?.037:.033,12,8),materials.bluedSteel,
-  'Sword · wheel pommel',[0,-gripLength-.039,0]);pommel.scale.z=.35;
- for(const z of [-.014,.014])part(group,new THREE.CylinderGeometry(.006,.006,.003,8),materials.steel,
-  'Sword · peened tang',[0,-gripLength-.039,z],[Math.PI/2,0,0]);
+ const pommelRadius=longSword?.037:.033,pommelY=gripTop-gripLength-.029,pommelDepth=.35;
+ const pommel=part(group,new THREE.SphereGeometry(pommelRadius,12,8),materials.bluedSteel,
+  'Sword · wheel pommel',[0,pommelY,0]);pommel.scale.z=pommelDepth;
+ const pinLength=.003,pinInset=.001;
+ for(const sign of [-1,1])part(group,new THREE.CylinderGeometry(.006,.006,pinLength,8),materials.steel,
+  'Sword · peened tang',[0,pommelY,sign*(pommelRadius*pommelDepth+pinLength*.5-pinInset)],[Math.PI/2,0,0]);
  return group;
 }

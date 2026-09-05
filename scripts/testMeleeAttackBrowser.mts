@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test';
 const browser=await chromium.launch({headless:true,channel:'chrome',args:['--enable-unsafe-webgpu','--ignore-gpu-blocklist']});
 const sources=Object.fromEntries(await Promise.all([
  'src/settlement/weaponAttackMotion.ts','src/settlement/meleeBodyPose.ts',
- 'src/settlement/combatWeaponAnimation.ts','src/settlement/meleeHandGrip.ts',
+ 'src/settlement/combatWeaponAnimation.ts','src/settlement/meleeHandGrip.ts','src/settlement/militaryEquipment.ts',
  'public/assets/models/villagers/worker-male-common-01-v002.glb',
  'public/assets/models/villagers/ottoman-raider-common-01-v001.glb',
 ].map(async file=>[file,createHash('sha256').update(await readFile(file)).digest('hex')])));

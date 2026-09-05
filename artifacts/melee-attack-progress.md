@@ -1,5 +1,85 @@
 # Melee attack review — 5 September 2026
 
+## Follow-up: connected sword assemblies
+
+Closed the physical gaps between the sidearm/longsword blades, guard collars
+and leather grips. The blade base and grip now seat 2 mm inside a shared guard
+dimension contract. The sidearm's peened pommel fittings now seat into its
+actual flattened face instead of floating above it. The existing grip location,
+handle dimensions, overall weapon length and attack poses are preserved.
+
+Checked both male rigs with sidearm, sidearm-shield and sword-shield in 12
+close-up renders (`sword-assembly-cases.json`; images and sheets in `weapon-qa`).
+Measured blade/guard and guard/grip overlap at 2 mm for both models; the existing
+grip/pommel overlap is 4 mm for the sidearm and 8 mm for the longsword. Existing
+finger-contact checks, equipment geometry sharing and the production build pass.
+
+## Follow-up: raised sword elbow and shield movement
+
+The sidearm, sidearm-shield and sword-shield attack arms now rotate their
+upper arm and forearm with the palm as the weapon rises. Previously the arm
+kept its low-guard bend plane while the hand rotated, leaving roughly 40
+degrees of wrist roll before the downstroke. The raised pose now has almost
+zero wrist roll, preserves the anatomical elbow hinge, and retains a straight
+arm through the downward cut. This applies to both male rigs, foot and mounted.
+
+During sidearm-shield and sword-shield cuts, the shield hand eases about 10 cm
+down and 11 cm toward the soldier's left, then returns during recovery. The
+shield stays forward-facing, the wrist stays neutral, and the fingers stay
+seated on its handle. Defensive and carrying poses retain their existing targets.
+
+Verification: 63 targeted live browser scenarios passed for sidearms and
+sword-shield, including mounted units, both male rigs, three sizes/facings,
+defense and standard bearers. Sampled weapon/body/shield/horse intersections,
+ground clearance, palm contact and leg stability passed. The 13,266-pose
+anatomical test now guards raised palm/arm alignment and shield displacement;
+2,562 shield poses and 1,782 exact overlay restorations passed. Affected
+finger-surface checks remain within 2 mm; targeted custom attacks and the
+TypeScript/production build passed.
+
+Rendered evidence: `sword-elbow-shield-cases.json` and
+`sword-elbow-motion-cases.json` produce 34 fixed-view captures plus six four-second
+playback sequences, including hussars and akinci. Captures, contact sheets,
+the video and motion reports are in `weapon-qa`. The current source-hashed
+collision reports are `melee-stress-sidearm.json` and
+`melee-stress-sword-shield.json`. Concurrent ranged changes were preserved.
+
+## Follow-up: defensive swords, overhead halberd, straight sword cuts
+
+The latest corrections cover three requests. Sidearm-shield and sword-shield
+defense now use a relaxed anatomical right arm with an inward-facing palm;
+the blade follows that hand and remains outside the thigh/rider. The halberd
+has a rebuilt overhead chop: a quarter turn around its haft presents the axe
+edge in the vertical strike plane. Its attack grips are near the butt, with
+both elbows solved outward from their own shoulders. Those grip locations
+apply only to attacks; carrying retains its original handles and poses.
+
+Following the subsequent request, sidearm, sidearm-shield and sword-shield
+cuts now extend the weapon arm before the downstroke and keep it straight
+through contact and follow-through, on foot and mounted. The wrist stays
+within 15 degrees of the forearm. Finger fits were updated for the changed
+grips/arm postures and checked across attack and defense.
+
+Verification: 13,266 anatomical pose checks; 69 targeted live browser scenarios
+covering the new sword/sidearm/halberd attacks, defenses, mounted equipment,
+standard bearers, both male rigs, sizes and facings; a separate 33-scenario
+defense sweep; 1,782 exact overlay restores; all melee-only custom attack
+checks; affected finger-surface checks; retained spear/pike posture checks;
+TypeScript/production build. Blade/haft rays clear sampled bodies, shields
+and horses, weapon vertices clear the ground, and planted feet/riding legs
+remain stable. These are sampled checks plus rendered review, not continuous
+all-triangle collision proof.
+
+`npm run test:melee-arm-posture` explicitly asserts straight sword elbows on
+the downstroke, natural defensive palms/elbows, an overhead halberd start,
+downward edge-led travel, and a support elbow on its own side of the chest.
+Current captures: `halberd-final-cases.json`, `sword-extension-cases.json`,
+and `defensive-arm-cases.json`, with contact sheets and attack videos in
+`weapon-qa`. The attack review camera includes overhead blades. Source-hashed
+browser reports are `melee-stress-halberd.json`, `melee-stress-sidearm.json`,
+`melee-stress-sword-shield.json`, and `melee-stress-shield-defense.json`.
+Concurrent ranged edits and unrelated workspace changes were preserved.
+
 ## Follow-up: spear support arm
 
 The user rejected the earlier spear pose despite its passing contact tests:

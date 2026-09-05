@@ -9,6 +9,7 @@ try{
  const page=await browser.newPage({viewport:{width:1280,height:1000},deviceScaleFactor:1,
   ...(process.argv.includes('--video')?{recordVideo:{dir:output,size:{width:1280,height:1000}}}:{})});
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.routeWebSocket('**',()=>{});
  const modelFlag=process.argv.indexOf('--male-model');
  if(modelFlag>=0){
   const body=await fs.readFile(process.argv[modelFlag+1]!);

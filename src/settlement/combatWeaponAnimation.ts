@@ -4,6 +4,7 @@ import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
 import { MILITARY_GRIP_BONES, MILITARY_LEFT_GRIP_BONES, offsetMilitaryHandGrip } from './militaryHandGrip.ts';
 import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
 import { bowHandGrip, bowPalmLocal } from './bowHandGrip.ts';
+import { crossbowFingerGrip } from './crossbowHandGrip.ts';
 import { SHIELD_HAND_FRAME, shieldHandFit } from './shieldGrip.ts';
 import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
@@ -524,7 +525,7 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
 /** Mirror the approved crossbow carrying arm: same relaxed reach, tucked
  * elbow and neutral wrist. Fit the shield to that hand without stretching
  * the sleeve or moving the authored elbow/skinning pivots. */
-function poseShieldArm(rig: CombatWeaponRig, raised = false, tool: WorkerToolKind = 'sidearm-shield'): void {
+function poseShieldArm(rig: CombatWeaponRig, raised = false, tool: WorkerToolKind = 'sidearm-shield', cutOffset = 0): void {
   if (raised) resetArm(rig, true);
   else poseCarryArm(rig, true, CARRY_SHIELD);
   const mount = rig.shieldMount!, arm = rig.armBones;
@@ -539,7 +540,8 @@ function poseShieldArm(rig: CombatWeaponRig, raised = false, tool: WorkerToolKin
     // Put elbow and wrist in the same frontal plane. The forearm crosses
     // behind the board and the neutral palm faces back, so the shield faces
     // the threat instead of remaining edge-on like the carrying pose.
-    const length=upperLength+lowerLength, x=-.32*length, y=-.12*length, z=.50*length;
+    const length=upperLength+lowerLength;
+    const x=(-.32+.22*cutOffset)*length, y=(-.12-.20*cutOffset)*length, z=.50*length;
     const distance=Math.hypot(x,y);
     const radius2=Math.max(0,upperLength*upperLength-z*z);
     const along=(radius2-lowerLength*lowerLength+distance*distance)/(2*distance);
@@ -1162,6 +1164,21 @@ function poseSwordCutArm(rig: CombatWeaponRig, grip: readonly [number, number, n
   const target = rig.scratchVectors[2]!.copy(lowerDirection).addScaledVector(axis, -lowerDirection.dot(axis)).normalize();
   const roll = Math.atan2(rig.scratchVectors[3]!.crossVectors(fingers, target).dot(axis), fingers.dot(target));
   handWorld.premultiply(rig.scratchQuaternions[3]!.setFromAxisAngle(axis, roll)).normalize();
+  // When raised, the upper arm and forearm must turn with the palm. Keeping
+  // the low guard's elbow plane while rotating just the hand twists the cuff
+  // and makes the raised elbow appear reversed, even at full extension.
+  const reachDirection = hand.getWorldPosition(rig.scratchVectors[6]!)
+    .sub(upper.getWorldPosition(rig.scratchVectors[7]!)).normalize();
+  const bodyUp = rig.scratchVectors[8]!.set(0, 1, 0).applyQuaternion(rig.bodyOrientation);
+  const raised = smoothstep(reachDirection.dot(bodyUp), 0, .45);
+  const palmHinge = rig.scratchVectors[9]!.set(1, 0, 0).applyQuaternion(handWorld);
+  palmHinge.addScaledVector(reachDirection, -palmHinge.dot(reachDirection)).normalize();
+  hinge.lerp(palmHinge, raised).normalize();
+  const raisedBend = rig.scratchVectors[10]!.crossVectors(reachDirection, hinge).normalize();
+  upperDirection.copy(reachDirection).multiplyScalar(along).addScaledVector(raisedBend, bendDistance).divideScalar(upperLength);
+  lowerDirection.copy(reachDirection).multiplyScalar(reach).addScaledVector(upperDirection, -upperLength).divideScalar(lowerLength);
+  alignCrossbowSupportBone(rig, upper, upperDirection, hinge);
+  alignCrossbowSupportBone(rig, forearm, lowerDirection, hinge);
   hand.quaternion.copy(hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(handWorld).normalize();
   hand.updateWorldMatrix(true, false);
   hand.localToWorld(meleePalmLocal(hand, false, rig.attackOrigin));
@@ -1385,6 +1402,10 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
       solveAttackHand(rig, false, contact, handWorld, false, false, true);
     }
     closeWeaponHand(rig, true);
+    // Fit only the firing grip. Release back to the original finger pose while
+    // spanning the string, without changing the hand's position or orientation.
+    const stockFingers = crossbowFingerGrip(arms.rightHand);
+    for (let i = 0; i < 8; i++) rig.gripBones[i]?.quaternion.slerp(stockFingers[i]!, extension);
   } else {
     const diagonal = timeline.family === 'sword-shield' || timeline.family === 'spear-pike';
     handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
@@ -1415,7 +1436,11 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
       }
       closeMeleeHand(rig, true, input.tool);
     } else if (rig.shieldMount) {
-      poseShieldArm(rig, true, input.tool);
+      const swordCut = input.logicalMode === 'fight' && !input.defensive
+        && (input.tool === 'sidearm-shield' || input.tool === 'sword-shield');
+      const phase = timeline.poseProgress;
+      const shieldOffset = swordCut ? phase < .5 ? 1 - smoothstep(phase, .15, .5) : smoothstep(phase, .60, .86) : 0;
+      poseShieldArm(rig, true, input.tool, shieldOffset);
     } else poseMeleeFreeHand(rig,Boolean(input.mounted));
   }
   // Attachment still belongs to its original hand for shared batching/drop

@@ -1,0 +1,102 @@
+[
+  {
+    "name": "sword-elbow-motion-man-sidearm-shield",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.91,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-motion-man-sword-shield",
+    "unit": "on-foot",
+    "variant": "man",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.91,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-motion-raider-sidearm-shield",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.91,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-motion-raider-sword-shield",
+    "unit": "on-foot",
+    "variant": "raider",
+    "weapon": "sword-shield",
+    "mode": "attack",
+    "phase": 0.91,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-hussars-0.76-front",
+    "unit": "hussars",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.76,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-hussars-0.04-front",
+    "unit": "hussars",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.04,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-hussars-0.12-side",
+    "unit": "hussars",
+    "variant": "man",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.12,
+    "view": "side",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-akinci-0.76-front",
+    "unit": "akinci",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.76,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-akinci-0.04-front",
+    "unit": "akinci",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.04,
+    "view": "front",
+    "standard": false
+  },
+  {
+    "name": "sword-elbow-mounted-akinci-0.12-side",
+    "unit": "akinci",
+    "variant": "raider",
+    "weapon": "sidearm-shield",
+    "mode": "attack",
+    "phase": 0.12,
+    "view": "side",
+    "standard": false
+  }
+]
