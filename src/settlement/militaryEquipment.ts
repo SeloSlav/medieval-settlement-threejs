@@ -789,7 +789,7 @@ function configureMount(
       // A chopping grip uses the rear of the haft, leaving only a short butt
       // behind the driving hand so the downstroke cannot cross the torso.
       mount.userData.workerToolAttackGripLocal = [0, -.44, 0];
-      mount.userData.workerToolAttackSupportGripLocal = [0, -.16, 0];
+      mount.userData.workerToolAttackSupportGripLocal = [0, -.22, 0];
     }
     const muzzle = muzzleFor(kind, combatRole);
     if (muzzle) mount.userData.workerToolMuzzleLocal = muzzle;

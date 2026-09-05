@@ -71,8 +71,10 @@ export const FOREST_CANOPY_SUN_OPENING_RELIEF = 0.72;
 export const FOREST_CANOPY_SUN_OPENING_FAR_VISIBILITY = 0.14;
 export const FOREST_CANOPY_SUN_OPENING_FADE_START_METERS = 110;
 export const FOREST_CANOPY_SUN_OPENING_FADE_END_METERS = 260;
-export const FOREST_GROUND_TEXTURE_BLEND_START = 0.12;
-export const FOREST_GROUND_TEXTURE_BLEND_END = 0.96;
+// Sunlit meadow persists through the sparse crown fringe; nearly closed
+// forest still resolves to litter. This changes surface identity only.
+export const FOREST_GROUND_TEXTURE_BLEND_START = 0.24;
+export const FOREST_GROUND_TEXTURE_BLEND_END = 0.98;
 export const TERRAIN_TOPOGRAPHY_INTERVAL_METERS = 2;
 
 const TERRAIN_TOPOGRAPHY_VISIBILITY_KEY = 'terrainTopographyVisibility';

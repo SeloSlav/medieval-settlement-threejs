@@ -130,8 +130,15 @@ assert.match(
   /const forestGroundBlend = smoothstep\([\s\S]*?FOREST_GROUND_TEXTURE_BLEND_START[\s\S]*?FOREST_GROUND_TEXTURE_BLEND_END[\s\S]*?forestBlendAttribute/,
   'forest litter must use its own inset mask without moving other forest systems',
 );
-assert.equal(FOREST_GROUND_TEXTURE_BLEND_START, 0.12);
-assert.equal(FOREST_GROUND_TEXTURE_BLEND_END, 0.96);
+const forestSurfaceWeight = (coverage: number): number => {
+  const t = THREE.MathUtils.clamp((coverage - FOREST_GROUND_TEXTURE_BLEND_START)
+    / (FOREST_GROUND_TEXTURE_BLEND_END - FOREST_GROUND_TEXTURE_BLEND_START), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+assert.equal(forestSurfaceWeight(0.2), 0, 'open meadow must overlap the sparse forest fringe');
+assert.ok(forestSurfaceWeight(0.35) < 0.1, 'sparse crowns should not create a broad bare-litter apron');
+assert.ok(forestSurfaceWeight(0.9) > 0.95, 'closed forest must retain its leaf-litter surface');
+assert.equal(forestSurfaceWeight(1), 1);
 const forestHraoProjections = [
   ['A', 'primary'],
   ['B', 'secondary'],

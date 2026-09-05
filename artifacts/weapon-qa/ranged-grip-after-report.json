@@ -1,0 +1,1029 @@
+{
+  "errors": [],
+  "captures": [
+    {
+      "file": "bow-thumb-after-inside.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.95,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 3,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06266924788236522,
+          1.3116505209008817,
+          0.07339953333377933
+        ],
+        "leftUpperArm": [
+          0.07789930205782197,
+          1.3518176717224275,
+          0.21864180347064407
+        ],
+        "leftForearm": [
+          0.04577759966347613,
+          1.3811483162072073,
+          0.5051663989929339
+        ],
+        "leftHand": [
+          0.05902927341124588,
+          1.4551721395130612,
+          0.6808432591913195
+        ],
+        "rightClavicle": [
+          0.048199567766776315,
+          1.3110057633920384,
+          0.008937089027577942
+        ],
+        "rightUpperArm": [
+          0.03618357793735997,
+          1.3183198873836304,
+          -0.13765741641242793
+        ],
+        "rightForearm": [
+          -0.24942124250679096,
+          1.4072239961631492,
+          -0.11364868579731884
+        ],
+        "rightHand": [
+          -0.14268602730778152,
+          1.484348894411476,
+          0.02483188445991498
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 6,
+      "triangles": 24020,
+      "memory": {
+        "attributes": 160,
+        "attributesSize": 4558164,
+        "geometries": 50,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 77,
+        "programsSize": 374162,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 126,
+        "uniformBuffersSize": 933488,
+        "total": 116530672
+      },
+      "camera": {
+        "position": [
+          0.3790292734112459,
+          1.5651721395130613,
+          0.9908432591913195
+        ],
+        "target": [
+          0.05902927341124588,
+          1.4651721395130612,
+          0.7108432591913195
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "bow-thumb-after-back.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.95,
+        "time": 0.35,
+        "view": "grip-back",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 30,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06266924788236522,
+          1.3116505209008817,
+          0.07339953333377933
+        ],
+        "leftUpperArm": [
+          0.07789930205782197,
+          1.3518176717224275,
+          0.21864180347064407
+        ],
+        "leftForearm": [
+          0.04577759966347613,
+          1.3811483162072073,
+          0.5051663989929339
+        ],
+        "leftHand": [
+          0.05902927341124588,
+          1.4551721395130612,
+          0.6808432591913195
+        ],
+        "rightClavicle": [
+          0.048199567766776315,
+          1.3110057633920384,
+          0.008937089027577942
+        ],
+        "rightUpperArm": [
+          0.03618357793735997,
+          1.3183198873836304,
+          -0.13765741641242793
+        ],
+        "rightForearm": [
+          -0.24942124250679096,
+          1.4072239961631492,
+          -0.11364868579731884
+        ],
+        "rightHand": [
+          -0.14268602730778152,
+          1.484348894411476,
+          0.02483188445991498
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 60,
+      "triangles": 25548,
+      "memory": {
+        "attributes": 160,
+        "attributesSize": 4558164,
+        "geometries": 50,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 77,
+        "programsSize": 374162,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 126,
+        "uniformBuffersSize": 933488,
+        "total": 116530672
+      },
+      "camera": {
+        "position": [
+          -0.2609707265887541,
+          1.5251721395130613,
+          0.49084325919131944
+        ],
+        "target": [
+          0.05902927341124588,
+          1.4651721395130612,
+          0.7108432591913195
+        ],
+        "distance": 0.39293765408777004,
+        "yaw": -2.539305307454829,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-0.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 51,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07323553213116102,
+          1.3113614924171424,
+          0.043405238274381364
+        ],
+        "leftUpperArm": [
+          0.2019787175585568,
+          1.3507699263078161,
+          0.11277991866330878
+        ],
+        "leftForearm": [
+          0.010239994742009595,
+          1.3971231227313847,
+          0.3250913987553019
+        ],
+        "leftHand": [
+          -0.08122167108555602,
+          1.4834900412719942,
+          0.46894217669855914
+        ],
+        "rightClavicle": [
+          0.011879002793423618,
+          1.3111163260420127,
+          0.01889988168108871
+        ],
+        "rightUpperArm": [
+          -0.11577100514980966,
+          1.3191664689800389,
+          -0.05409676767768322
+        ],
+        "rightForearm": [
+          -0.24294555132666318,
+          1.26217249760552,
+          0.21166390047982875
+        ],
+        "rightHand": [
+          -0.14110151780259436,
+          1.406390845973793,
+          0.28478285717940416
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 102,
+      "triangles": 26004,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          0.1788984821974057,
+          1.5163908459737931,
+          0.5947828571794042
+        ],
+        "target": [
+          -0.14110151780259436,
+          1.416390845973793,
+          0.31478285717940413
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-20.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.2,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 83,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          0.1293764150647141,
+          1.0688555986164459,
+          0.2141161082080918
+        ],
+        "leftHand": [
+          -0.015441328759903311,
+          1.0894153022943125,
+          0.3370902649063314
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.14904671469310057,
+          1.102774052293519,
+          0.1526393669300244
+        ],
+        "rightHand": [
+          0.006123265732504851,
+          1.1548472055389574,
+          0.25127091667784096
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 166,
+      "triangles": 26460,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          0.32612326573250494,
+          1.2648472055389575,
+          0.561270916677841
+        ],
+        "target": [
+          0.006123265732504851,
+          1.1648472055389574,
+          0.281270916677841
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-40.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.4,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 124,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          0.13214571163932853,
+          1.0678780072213403,
+          0.2127735624657433
+        ],
+        "leftHand": [
+          -0.012677802876129657,
+          1.0911621107020966,
+          0.3352542713852632
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.11385271361730347,
+          1.2025805099520412,
+          0.2315097290433157
+        ],
+        "rightHand": [
+          -0.02334011387626353,
+          1.2227905594952866,
+          0.3985921468540858
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 248,
+      "triangles": 26460,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          0.2966598861237365,
+          1.3327905594952867,
+          0.7085921468540858
+        ],
+        "target": [
+          -0.02334011387626353,
+          1.2327905594952866,
+          0.42859214685408575
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-54.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.54,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 156,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          0.13214571163932853,
+          1.0678780072213403,
+          0.2127735624657433
+        ],
+        "leftHand": [
+          -0.012677802876129657,
+          1.0911621107020966,
+          0.3352542713852632
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.14410608262428726,
+          1.1760409073355216,
+          0.2151469324657557
+        ],
+        "rightHand": [
+          -0.028291923846222672,
+          1.2324193334191755,
+          0.3563066506071607
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 312,
+      "triangles": 26460,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          0.29170807615377736,
+          1.3424193334191756,
+          0.6663066506071608
+        ],
+        "target": [
+          -0.028291923846222672,
+          1.2424193334191755,
+          0.38630665060716074
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-62.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.62,
+        "time": 0.35,
+        "view": "grip-inside",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 186,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          0.13214571163932853,
+          1.0678780072213403,
+          0.2127735624657433
+        ],
+        "leftHand": [
+          -0.012677802876129657,
+          1.0911621107020966,
+          0.3352542713852632
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.08705243999301025,
+          1.1391938139743039,
+          0.19104287552293783
+        ],
+        "rightHand": [
+          0.06752544331352396,
+          1.2058484543797445,
+          0.28148820310667366
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 372,
+      "triangles": 26460,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          0.387525443313524,
+          1.3158484543797446,
+          0.5914882031066737
+        ],
+        "target": [
+          0.06752544331352396,
+          1.2158484543797445,
+          0.3114882031066737
+        ],
+        "distance": 0.43680659335683114,
+        "yaw": 0.7188299996216245,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "crossbow-stock-after-full.png",
+      "ready": true,
+      "state": {
+        "unit": "on-foot",
+        "weapon": "crossbow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.4,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 225,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07348490013173316,
+          1.310951864810278,
+          0.06853794152718617
+        ],
+        "leftUpperArm": [
+          0.19703320879283806,
+          1.3432595572019717,
+          0.14997937234343856
+        ],
+        "leftForearm": [
+          0.13214571163932853,
+          1.0678780072213403,
+          0.2127735624657433
+        ],
+        "leftHand": [
+          -0.012677802876129657,
+          1.0911621107020966,
+          0.3352542713852632
+        ],
+        "rightClavicle": [
+          0.01399269392043364,
+          1.3132483499072687,
+          0.03989183003379612
+        ],
+        "rightUpperArm": [
+          -0.10824498926373824,
+          1.3285259685619848,
+          -0.04080750322681434
+        ],
+        "rightForearm": [
+          -0.11385271361730347,
+          1.2025805099520412,
+          0.2315097290433157
+        ],
+        "rightHand": [
+          -0.02334011387626353,
+          1.2227905594952866,
+          0.3985921468540858
+        ]
+      },
+      "mounted": false,
+      "rider": {
+        "action": "wait",
+        "y": 0.02,
+        "time": 1.7339582877159117,
+        "legs": {
+          "L_Calf": [
+            0.23927641997157095,
+            0.45751541425160086,
+            0.1569797664470517
+          ],
+          "R_Calf": [
+            -0.052856144631101394,
+            0.4743668999600785,
+            0.02605729372775111
+          ],
+          "L_Foot": [
+            0.3294926892123899,
+            0.02076219386571454,
+            0.14339803116615416
+          ],
+          "R_Foot": [
+            -0.015074077912969212,
+            0.05211976737802826,
+            0.005087708835064885
+          ]
+        }
+      },
+      "horse": null,
+      "backend": "WebGPUBackend",
+      "drawCalls": 450,
+      "triangles": 26460,
+      "memory": {
+        "attributes": 167,
+        "attributesSize": 4655832,
+        "geometries": 53,
+        "indexAttributes": 14,
+        "indexAttributesSize": 529464,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 84,
+        "programsSize": 398864,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 11,
+        "storageAttributesSize": 3745792,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 141,
+        "uniformBuffersSize": 1050336,
+        "total": 116769890
+      },
+      "camera": {
+        "position": [
+          -1.232325605587796,
+          1.61,
+          3.4589745866107435
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    }
+  ]
+}

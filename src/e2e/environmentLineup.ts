@@ -72,6 +72,10 @@ function setView(id) {
   manager.camera.updateMatrixWorld(true);
 }
 const nextFrame = () => new Promise(requestAnimationFrame);
+const summarize = values => {
+  const sorted = values.filter(Number.isFinite).sort((a,b) => a-b);
+  return { median: sorted[Math.floor(sorted.length * .5)], p95: sorted[Math.floor(sorted.length * .95)], p99: sorted[Math.floor(sorted.length * .99)], max: sorted.at(-1) };
+};
 async function frames(count, collect = false, dt = 0) {
   const samples = [];
   let last;
@@ -106,6 +110,35 @@ window.__ENVIRONMENT_GAUNTLET__ = {
     await frames(360, false, 1 / 30);
     windStrength.value = 0;
   },
+  async captureMotion({ sampleCount = 720 } = {}) {
+    setView('design');
+    manager.setLightingDiagnostic('final');
+    await frames(120, false, 1 / 60);
+    const samples = [];
+    const lod = [];
+    let last;
+    for (let i = 0; i < sampleCount; i++) {
+      // Out-and-back logarithmic zoom crosses all existing near/overview
+      // handoffs without changing their thresholds or resident capacities.
+      const phase = (1 - Math.cos(i / (sampleCount - 1) * Math.PI * 2)) * .5;
+      orbitDistance = Math.exp(Math.log(185) * (1 - phase) + Math.log(13.54) * phase);
+      manager.camera.position.copy(manager.cameraTarget).add(new THREE.Vector3(.3, .72, .63).normalize().multiplyScalar(orbitDistance));
+      manager.camera.lookAt(manager.cameraTarget);
+      manager.camera.updateMatrixWorld(true);
+      const time = await nextFrame();
+      const start = performance.now();
+      const handle = gpu.beginFrame(time);
+      manager.render(1 / 60, orbitDistance);
+      if (handle) gpu.endFrame(handle);
+      if (last !== undefined) samples.push({ time, frameMs: time-last, cpuMs: performance.now()-start });
+      if (i % 30 === 0) lod.push({ frame: i, distance: orbitDistance, renderer: manager.getPerformanceStats(), grass: manager.grassField?.getStreamTelemetry() });
+      last = time;
+    }
+    await manager.waitForSubmittedWork();
+    await nextFrame();
+    for (const sample of samples) sample.gpuMs = gpu.getFrameTiming(sample.time).durationMs;
+    return { settings, conditions, samples, lod, adapter: manager.getRendererAdapterEvidence(), gpuEvidence: gpu.getEvidence(), frameMs: summarize(samples.map(s => s.frameMs)), cpuMs: summarize(samples.map(s => s.cpuMs)), gpuMs: summarize(samples.map(s => s.gpuMs)) };
+  },
   async capture({ view, diagnostic = 'final', sampleCount = 240 }) {
     setView(view);
     manager.setLightingDiagnostic(diagnostic);
@@ -113,10 +146,6 @@ window.__ENVIRONMENT_GAUNTLET__ = {
     const samples = await frames(sampleCount, true);
     await manager.waitForSubmittedWork();
     await nextFrame();
-    const summary = values => {
-      const sorted = values.filter(Number.isFinite).sort((a,b) => a-b);
-      return { median: sorted[Math.floor(sorted.length * .5)], p95: sorted[Math.floor(sorted.length * .95)], p99: sorted[Math.floor(sorted.length * .99)], max: sorted.at(-1) };
-    };
     for (const sample of samples) sample.gpuMs = gpu.getFrameTiming(sample.time).durationMs;
     // Native drawing-buffer capture after the GPU queue settles avoids stale compositor frames.
     manager.render(0, orbitDistance);
@@ -128,8 +157,8 @@ window.__ENVIRONMENT_GAUNTLET__ = {
       renderer: manager.getPerformanceStats(), adapter: manager.getRendererAdapterEvidence(),
       forest: manager.getForestManager().getSeedThreeStructuralStats(),
       grass: manager.grassField?.getStreamTelemetry(),
-      frameMs: summary(samples.map(s => s.frameMs)), cpuMs: summary(samples.map(s => s.cpuMs)),
-      gpuMs: summary(samples.map(s => s.gpuMs).filter(v => v !== null)), gpuEvidence: gpu.getEvidence(), samples,
+      frameMs: summarize(samples.map(s => s.frameMs)), cpuMs: summarize(samples.map(s => s.cpuMs)),
+      gpuMs: summarize(samples.map(s => s.gpuMs).filter(v => v !== null)), gpuEvidence: gpu.getEvidence(), samples,
     };
   },
   manager,

@@ -73,7 +73,7 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
    if(!process.argv.includes('--cycle-fit'))return evaluatePose(finger);
    const trial=bones.map(b=>b.quaternion.clone());
    let overlap=0,gap=0,count=0;
-   for(const phase of [0,.1,.4,.56,.65,.85,.95,-1]) {
+   for(const phase of [0,.05,.1,.15,.2,.3,.4,.56,.65,.75,.85,.95,-1]) {
     restoreCombatWeaponPose(rig);
     applyCombatWeaponPose(rig,{tool:kind,targetDistance:1.5,attackCooldown:(1-Math.max(0,phase))*resolveCombatWeaponPresentation(kind,1.5)!.attackSeconds,logicalMode:'fight',dtSeconds:0,defensive:defensive||phase<0});
     bones.forEach((b,i)=>b.quaternion.copy(trial[i]!));

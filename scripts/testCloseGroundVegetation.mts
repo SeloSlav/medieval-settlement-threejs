@@ -56,7 +56,7 @@ const lodSource = readFileSync(
   'utf8',
 );
 const meadowTuftPath =
-  `${projectRoot}public/assets/textures/vegetation/grass/close-meadow-tuft-greener.png`;
+  `${projectRoot}public/assets/textures/vegetation/grass/close-meadow-tuft-fuller-v2.png`;
 
 assert.equal(
   grassTuftTargetForForestBlend(192, 0),
@@ -89,8 +89,8 @@ assert.equal(wildflowerPlacementChanceForForestBlend(1), 0);
 
 assert.match(
   grassSource,
-  /CLOSE_MEADOW_TUFT_PATH[\s\S]*?close-meadow-tuft-greener\.png/,
-  'close grass should use the greener generated meadow card',
+  /CLOSE_MEADOW_TUFT_PATH[\s\S]*?close-meadow-tuft-fuller-v2\.png/,
+  'close grass should use the fuller generated meadow card',
 );
 assert.match(
   grassSource,

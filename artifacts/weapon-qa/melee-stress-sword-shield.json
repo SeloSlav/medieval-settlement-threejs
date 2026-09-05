@@ -1,0 +1,242 @@
+{
+  "capturedAt": "2026-09-05T18:46:30.594Z",
+  "sources": {
+    "src/settlement/weaponAttackMotion.ts": "cfc2a943eeb78e160d833190f582263701889fdbc0b3bf8ff2609effd673aa79",
+    "src/settlement/meleeBodyPose.ts": "223c04ee0a6e347188632c0bea6e20a97b0ef20303b8a5756506fc786b351872",
+    "src/settlement/combatWeaponAnimation.ts": "16da702c2119a77973fb20006a0a5ae60f9b348d18b92caf146e1cf4d951d1cd",
+    "src/settlement/meleeHandGrip.ts": "e4ce5bc11c9cc9ccfbb0bd391736ed6c77d74febd68a76f2f1b8b080b78426a2",
+    "public/assets/models/villagers/worker-male-common-01-v002.glb": "b83b6fa6b58098304cecce9dbd76302c645db5d52f4377e1e7c2a17b656568f7",
+    "public/assets/models/villagers/ottoman-raider-common-01-v001.glb": "2159ac4dd1aae05aa0379f35bf3ea3166a06d859e3e60a1f08406f97e16b0a95"
+  },
+  "errors": [],
+  "reports": [
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 3.4228697074302823,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 4.5127062587835144e-7,
+      "maxGripError": 8.27832564237472e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.30546826202013205
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.10757476409148727,
+      "worstJoint": "L_GripPinkyTip",
+      "maxFootSlide": 0,
+      "maxGripError": 1.047727950062353e-7,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.24235361868749816
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 3.422896166058686,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.6451694633127836e-7,
+      "maxGripError": 8.812483592004842e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.31690737252617607
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.06844699374795468,
+      "worstJoint": "L_GripRing",
+      "maxFootSlide": 0,
+      "maxGripError": 1.069902050241349e-7,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2511527592793068
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 3.423343269879307,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 4.766741326864758e-7,
+      "maxGripError": 9.485803425035654e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.32825725520737603
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.0752080565553329,
+      "worstJoint": "L_GripThumb",
+      "maxFootSlide": 0,
+      "maxGripError": 1.0946321597429923e-7,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.25988316027559416
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 3.4578285792261694,
+      "worstJoint": "R_GripRing",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 7.404104093715796e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.3153286168838662
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.047412440990005064,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 0,
+      "maxGripError": 4.932207414482113e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.26596761251082757
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 3.4578332333424,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 7.400332621646906e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.3271801985741221
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.03676173216210261,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 5.166328338813921e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2757544876194605
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 3.457649075798465,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 7.514155828446779e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.33893928177701893
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.036861435163905235,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 5.376703410565065e-8,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2854649028287425
+    }
+  ]
+}

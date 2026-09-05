@@ -89,6 +89,7 @@
     "test:melee-attack-browser": "node --experimental-strip-types scripts/testMeleeAttackBrowser.mts",
     "test:melee-pose-lifecycle": "npx tsx scripts/testMeleePoseLifecycle.mts",
     "test:spear-support-arm": "npx tsx scripts/testSpearSupportArm.mts",
+    "test:melee-arm-posture": "npx tsx scripts/testMeleeArmPosture.mts",
     "test:spear-support-arm": "npx tsx scripts/testSpearSupportArm.mts",
     "test:melee-hand-grip": "npx tsx scripts/fitMeleeGrip.mts --verify && npx tsx scripts/fitMeleeGrip.mts --verify --shielded && npx tsx scripts/fitMeleeGrip.mts --verify --shield && npx tsx scripts/fitMeleeGrip.mts --verify --defend",
     "test:shield-arm": "npx tsx scripts/testShieldArm.mts",

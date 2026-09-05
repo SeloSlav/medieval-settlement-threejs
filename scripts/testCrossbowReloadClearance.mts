@@ -22,6 +22,7 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
  for(let frame=0;frame<=100;frame++){
   const phase=frame/100;resetCombatWeaponRig(rig);applyCombatWeaponPose(rig,{tool:'crossbow',targetDistance:8,attackCooldown:(1-phase)*resolveCombatWeaponPresentation('crossbow',8)!.attackSeconds,dtSeconds:0,logicalMode:'fight'});model.updateMatrixWorld(true);collider.matrixWorld.copy(stock.matrixWorld);
   const axis=new THREE.Vector3(1,0,0).transformDirection(collider.matrixWorld);let depth=0,where:unknown;
+  if(process.argv.includes('--diagnose')&&[0,20,40].includes(frame)){const h=rig.armBones.rightHand;console.log('palm',phase,stock.worldToLocal(h.localToWorld(new THREE.Vector3(-.01,.044,-.0071).multiplyScalar(h.userData.militaryGripScale))).toArray());}
   for(const {skin,faces}of parts)for(const f of faces){const p=f.map(v=>skin.getVertexPosition(v,new THREE.Vector3()).applyMatrix4(skin.matrixWorld)).reduce((a,b)=>a.add(b)).divideScalar(3);samples++;
    ray.set(p,axis);const hits=ray.intersectObject(collider,false).filter((h,i,list)=>i===0||h.distance-list[i-1]!.distance>1e-7);if(hits.length%2){ray.set(p,axis.clone().negate());const back=ray.intersectObject(collider,false)[0];const distance=Math.min(hits[0]!.distance,back?.distance??Infinity);if(distance>depth)where=stock.worldToLocal(p.clone()).toArray();depth=Math.max(depth,distance);}
   }

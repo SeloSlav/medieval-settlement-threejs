@@ -109,7 +109,7 @@ export type SeedThreeTuftVariant = {
 };
 
 export const CLOSE_MEADOW_TUFT_PATH =
-  '/assets/textures/vegetation/grass/close-meadow-tuft-greener.png';
+  '/assets/textures/vegetation/grass/close-meadow-tuft-fuller-v2.png';
 
 let textureCache: SeedThreeGrassTextures | null = null;
 

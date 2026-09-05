@@ -13,7 +13,7 @@ try {
   if (process.env.ENVIRONMENT_GRASS_ASSET) {
     const grassAsset = readFileSync(process.env.ENVIRONMENT_GRASS_ASSET);
     assetOverrides.grass = { path: process.env.ENVIRONMENT_GRASS_ASSET, sha256: createHash('sha256').update(grassAsset).digest('hex') };
-    await page.route('**/assets/textures/vegetation/grass/close-meadow-tuft-greener.png', route => route.fulfill({ body: grassAsset, contentType: 'image/png' }));
+    await page.route('**/assets/textures/vegetation/grass/close-meadow-tuft-*.png', route => route.fulfill({ body: grassAsset, contentType: 'image/png' }));
   }
   const errors = [];
   page.on('pageerror', error => { errors.push(error.message); console.log('ERROR', error.message); });
@@ -51,12 +51,36 @@ try {
     }
     const captureViews = (process.env.ENVIRONMENT_VIEWS ?? 'strategic,design,edge,ground').split(',');
     const diagnostics = (process.env.ENVIRONMENT_DIAGNOSTICS ?? 'final').split(',');
+    if (process.env.ENVIRONMENT_SEASON) await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), process.env.ENVIRONMENT_SEASON);
+    if (process.env.ENVIRONMENT_MOTION === '1') {
+      const evidence = await page.evaluate(() => window.__ENVIRONMENT_GAUNTLET__.captureMotion());
+      writeFileSync(`${out}/motion.json`, JSON.stringify(evidence, null, 2));
+      console.log('motion', { gpuMs: evidence.gpuMs, frameMs: evidence.frameMs });
+    }
     for (const diagnostic of diagnostics) for (const view of captureViews) {
       const { png, ...evidence } = await page.evaluate(({ view, diagnostic }) => window.__ENVIRONMENT_GAUNTLET__.capture({ view, diagnostic, sampleCount: 480 }), { view, diagnostic });
       const name = diagnostic === 'final' ? view : `${view}-${diagnostic}`;
       writeFileSync(`${out}/${name}.png`, Buffer.from(png.split(',')[1], 'base64'));
       writeFileSync(`${out}/${name}.json`, JSON.stringify({ ...evidence, assetOverrides }, null, 2));
       console.log(name, { frameMs: evidence.frameMs, gpuMs: evidence.gpuMs, draws: evidence.renderer.calls, triangles: evidence.renderer.triangles });
+    }
+    for (const season of (process.env.ENVIRONMENT_SEASONS ?? '').split(',').filter(Boolean)) {
+      await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), season);
+      for (const view of ['design', 'meadow']) {
+        const { png, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.capture({ view, sampleCount: 240 }), view);
+        writeFileSync(`${out}/${season}-${view}.png`, Buffer.from(png.split(',')[1], 'base64'));
+        writeFileSync(`${out}/${season}-${view}.json`, JSON.stringify(evidence, null, 2));
+        console.log(`${season}-${view}`, { gpuMs: evidence.gpuMs, draws: evidence.renderer.calls });
+      }
+    }
+    for (const season of (process.env.ENVIRONMENT_SEASONS ?? '').split(',').filter(Boolean)) {
+      await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), season);
+      for (const view of ['design', 'meadow']) {
+        const { png, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.capture({ view, sampleCount: 240 }), view);
+        writeFileSync(`${out}/${season}-${view}.png`, Buffer.from(png.split(',')[1], 'base64'));
+        writeFileSync(`${out}/${season}-${view}.json`, JSON.stringify(evidence, null, 2));
+        console.log(`${season}-${view}`, { gpuMs: evidence.gpuMs, draws: evidence.renderer.calls });
+      }
     }
     writeFileSync(`${out}/runtime.json`, JSON.stringify({ url, errors }, null, 2));
     if (errors.length) throw new Error(errors.join('\n'));

@@ -93,7 +93,7 @@ export default defineConfig(({ mode }) => {
     || mode === 'stable-capture';
   const buildInputs: Record<string, string> = { game: gameEntry };
   if (includeQaArchives || mode === 'e2e') {
-    for (const name of ['water-gauntlet','water-world-gauntlet','river-lineup']) {
+    for (const name of ['water-gauntlet','water-world-gauntlet','river-lineup','environment-lineup']) {
       const entry = fileURLToPath(new URL(`./${name}.html`, import.meta.url));
       if (existsSync(entry)) buildInputs[name] = entry;
     }

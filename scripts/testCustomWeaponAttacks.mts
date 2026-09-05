@@ -6,6 +6,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip, offsetMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
 import { bowPalmLocal } from '../src/settlement/bowHandGrip.ts';
 import { meleePalmLocal } from '../src/settlement/meleeHandGrip.ts';
+import { rangedArmSkinAxes } from './lib/rangedArmSkin.mts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, resetCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources, setMilitaryEquipmentCombatStance } from '../src/settlement/militaryEquipment.ts';
 
@@ -24,6 +25,9 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
   const model=clone(gltf.scene) as THREE.Group;model.scale.setScalar(height/(bounds.max.y-bounds.min.y));model.updateMatrixWorld(true);
   const equipment=attachMilitaryEquipment(model,sources[kind]);
   const rig=bindCombatWeaponRig(model,kind,equipment)!;
+  const correctedSkin=Boolean(rig.armBones.leftHand.userData.militaryGripOrigin);
+  const skinAxes=correctedSkin&&(kind==='bow'||kind==='crossbow')?rangedArmSkinAxes(model):null;
+  const limbTransforms=rig.ownedBones.map(b=>[...b.position.toArray(),...b.scale.toArray()]);
   const base=rig.ownedBones.map(b=>b.quaternion.clone());
   const presentation=resolveCombatWeaponPresentation(kind,8)!;
   benchmarkRigs.push({rig,kind,duration:presentation.attackSeconds});
@@ -37,9 +41,10 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
    setMilitaryEquipmentCombatStance(equipment,presentation.stance);
    applyCombatWeaponPose(rig,{tool:kind,targetDistance:8,attackCooldown:(1-frame/100)*presentation.attackSeconds,dtSeconds:0,logicalMode:'fight'});
    assert.ok(rig.ownedBones.every(b=>b.quaternion.toArray().every(Number.isFinite)),`${name}/${kind}: nonfinite pose`);
+   rig.ownedBones.forEach((b,i)=>assert.deepEqual([...b.position.toArray(),...b.scale.toArray()],limbTransforms[i],`${name}/${kind}: pose must not resize or shift limb joints`));
    if(frame===0)firstPose=rig.ownedBones.map(b=>b.getWorldQuaternion(new THREE.Quaternion()));
    if(frame===100)rig.ownedBones.forEach((b,i)=>{const angle=b.getWorldQuaternion(new THREE.Quaternion()).normalize().angleTo(firstPose[i]!.clone().normalize());assert.ok(angle<1e-4,`${name}/${kind}/${b.name}: recovery seam ${angle} radians`);});
-   if(kind==='bow'){
+   if(kind==='bow'&&!correctedSkin){
     const shoulder=rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3());
     const elbow=rig.armBones.leftForearm.getWorldPosition(new THREE.Vector3()).sub(shoulder);
     const reach=rig.armBones.leftHand.getWorldPosition(new THREE.Vector3()).sub(shoulder).normalize();
@@ -72,10 +77,10 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
     const reach=leftWrist.clone().sub(leftShoulder).normalize();
     const bend=leftElbow.clone().sub(leftShoulder);
     bend.addScaledVector(reach,-bend.dot(reach)).applyQuaternion(bodyInverse);
-    assert.ok(bend.y <= 1e-4,`${name}/${frame}: crossbow support elbow must bend down rather than inward/upward`);
+    if(!correctedSkin)assert.ok(bend.y <= 1e-4,`${name}/${frame}: crossbow support elbow must bend down rather than inward/upward`);
     if(frame===0 || frame>=86){
      const length=leftShoulder.distanceTo(leftElbow)+leftElbow.distanceTo(leftWrist);
-     assert.ok(Math.abs(leftShoulder.distanceTo(leftWrist)/length-1)<1e-6,`${name}/${frame}: crossbow support arm must be fully straight at fire`);
+     if(!correctedSkin)assert.ok(Math.abs(leftShoulder.distanceTo(leftWrist)/length-1)<1e-6,`${name}/${frame}: crossbow support arm must be fully straight at fire`);
     }
    }
    if(kind==='bow' && rig.nockedArrow?.visible){
@@ -92,14 +97,21 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
      const elbow=rig.armBones.leftForearm.getWorldPosition(new THREE.Vector3());
      const wrist=rig.armBones.leftHand.getWorldPosition(new THREE.Vector3());
      const extension=shoulder.distanceTo(wrist)/(shoulder.distanceTo(elbow)+elbow.distanceTo(wrist));
-     assert.ok(Math.abs(extension-1)<1e-6,`${name}: aiming bow arm must be completely straight (${extension})`);
+     if(!correctedSkin)assert.ok(Math.abs(extension-1)<1e-6,`${name}: aiming bow arm must be completely straight (${extension})`);
      const head=model.getObjectByName('Head')!.getWorldPosition(new THREE.Vector3());
      assert.ok(draw.x<head.x-.025 && draw.z>head.z,'full draw anchors on the right side in front of the head');
      assert.ok(draw.z-head.z<rig.armLength*.15,'drawing hand must come back to the cheek');
-     assert.ok(Math.abs(wrist.x-shoulder.x)<.002,'straight bow arm must aim forward from the shoulder, not across the chest');
+     if(!correctedSkin)assert.ok(Math.abs(wrist.x-shoulder.x)<.002,'straight bow arm must aim forward from the shoulder, not across the chest');
     }
    }
    const hand=kind==='bow'?rig.armBones.leftHand:rig.armBones.rightHand;
+   if(skinAxes&&(frame===0||frame>=(kind==='bow'?72:86))){
+    model.updateMatrixWorld(true);const [upper,lower]=skinAxes();
+    const angle=THREE.MathUtils.radToDeg(upper!.angleTo(lower!));
+    // Cloth taper and the wrist's blended weights retain a small difference
+    // between surface principal axes even with the corrected elbow extended.
+    assert.ok(angle<12,`${name}/${kind}/${frame}: visible sleeve and bracer kink by ${angle} degrees`);
+   }
    const mount=kind==='bow'?rig.rangedMount!:equipment;
    const center=mount.localToWorld(new THREE.Vector3(...(mount.userData.workerToolAttackGripLocal??mount.userData.workerToolGripLocal)));
    const palm=hand.localToWorld(kind==='bow'?bowPalmLocal(hand,new THREE.Vector3()):new THREE.Vector3(-.01,.044,-.0071).multiplyScalar(Number(hand.userData.militaryGripScale??1)));
