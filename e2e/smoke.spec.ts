@@ -220,6 +220,37 @@ test('keeps at least three specialty digits visible before truncation', async ({
   });
 });
 
+test('frames the central Development launcher on all four sides with iron', async ({ page }) => {
+  await page.setContent(`
+    <style>* { box-sizing: border-box; }</style>
+    <div class="settlement-hud">
+      <button class="development-launcher" aria-label="Developments"></button>
+    </div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+  await page.addStyleTag({ path: 'src/ui/developmentMenu.css' });
+  await page.addStyleTag({ path: 'src/ui/gameplayCraft.css' });
+
+  const border = await page.locator('.development-launcher').evaluate((button) => {
+    const style = getComputedStyle(button);
+    return {
+      widths: [
+        style.borderTopWidth,
+        style.borderRightWidth,
+        style.borderBottomWidth,
+        style.borderLeftWidth,
+      ],
+      image: style.borderImageSource,
+      imageWidth: style.borderImageWidth,
+    };
+  });
+
+  expect(border.widths).toEqual(['1px', '1px', '1px', '1px']);
+  expect(border.image).toContain('iron-frame.svg');
+  expect(border.imageWidth).toBe('7px');
+});
+
 test('centers Development between civic status and right-aligned resource controls', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 720 });
   await page.setContent(`

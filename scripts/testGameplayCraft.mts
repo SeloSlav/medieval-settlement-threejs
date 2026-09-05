@@ -29,6 +29,8 @@ for (const state of [':focus-visible', ':disabled', 'aria-pressed', "data-status
 }
 assert.match(source, /ui-tooltip:not\(\.ui-tooltip--noble-setup\):not\(\.ui-tooltip--world-setup\)/,
   'Keep the approved startup tooltip styles untouched');
+assert.match(source, /\.development-launcher\s*\{[^}]*border-image:\s*var\(--estate-frame\)/s,
+  'Frame the central development launcher with the shared iron border');
 const assets = [...source.matchAll(/url\('([^']+)'\)/g)].map(match => match[1]);
 assert.equal(assets.length, 4, 'Reuse the four approved material assets; do not add a second texture set');
 for (const asset of assets) {

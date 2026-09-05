@@ -26,6 +26,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
   benchmarkRigs.push({rig,kind,duration:presentation.attackSeconds});
   let primaryError=0,supportError=0,maxWrist=0,worstFrame=0,maxStep=0,stepFrame=0,maxOther=0,otherFrame=0;
   const previousHands:THREE.Quaternion[]=[];
+  let previousCrossbowPose:THREE.Quaternion[]=[];
   const points:THREE.Vector3[]=[];
   let firstPose:THREE.Quaternion[]=[];
   for(let frame=0;frame<=100;frame++){
@@ -47,17 +48,32 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
     const delta=hand.quaternion.clone().multiply(rig.referenceQuaternions.get(hand)!.clone().invert());
     assert.ok(2*Math.atan2(Math.abs(delta.y),Math.abs(delta.w))<.12,'bow wrist must not absorb a large axial twist');
    }
-   if(kind==='crossbow' && (frame===0 || frame>=86)){
+   if(kind==='crossbow'){
+    const rotations=rig.ownedBones.map(b=>b.getWorldQuaternion(new THREE.Quaternion()).normalize());
+    rotations.forEach((q,i)=>{if(previousCrossbowPose[i])assert.ok(q.angleTo(previousCrossbowPose[i]!)<.22,
+      `${name}/${frame}/${rig.ownedBones[i]!.name}: crossbow joint/twist bone must not invert between adjacent poses`);});
+    previousCrossbowPose=rotations;
     const shoulder=rig.armBones.rightUpperArm.getWorldPosition(new THREE.Vector3());
     const elbow=rig.armBones.rightForearm.getWorldPosition(new THREE.Vector3());
     const wrist=rig.armBones.rightHand.getWorldPosition(new THREE.Vector3());
     const bodyInverse=model.getWorldQuaternion(new THREE.Quaternion()).invert();
     const upper=elbow.clone().sub(shoulder).applyQuaternion(bodyInverse);
     const lower=wrist.clone().sub(elbow).applyQuaternion(bodyInverse);
-    assert.ok(upper.y < -rig.armLength*.15,`${name}/${frame}: crossbow trigger elbow must stay below the shoulder at fire`);
-    assert.ok(lower.y > rig.armLength*.2,`${name}/${frame}: crossbow forearm must rise naturally to the trigger`);
+    const flex=upper.angleTo(lower);
+    assert.ok(flex >= .199,`${name}/${frame}: crossbow trigger elbow must lock before straightening through its hinge`);
     const bodyElbow=elbow.clone().sub(rig.bodyCenter).applyQuaternion(bodyInverse);
     assert.ok(bodyElbow.x < 0,`${name}/${frame}: crossbow trigger elbow must stay on the right side, not invert across the chest`);
+    const leftShoulder=rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3());
+    const leftElbow=rig.armBones.leftForearm.getWorldPosition(new THREE.Vector3());
+    const leftWrist=rig.armBones.leftHand.getWorldPosition(new THREE.Vector3());
+    const reach=leftWrist.clone().sub(leftShoulder).normalize();
+    const bend=leftElbow.clone().sub(leftShoulder);
+    bend.addScaledVector(reach,-bend.dot(reach)).applyQuaternion(bodyInverse);
+    assert.ok(bend.y <= 1e-4,`${name}/${frame}: crossbow support elbow must bend down rather than inward/upward`);
+    if(frame===0 || frame>=86){
+     const length=leftShoulder.distanceTo(leftElbow)+leftElbow.distanceTo(leftWrist);
+     assert.ok(Math.abs(leftShoulder.distanceTo(leftWrist)/length-1)<1e-6,`${name}/${frame}: crossbow support arm must be fully straight at fire`);
+    }
    }
    if(kind==='bow' && rig.nockedArrow?.visible){
     const draw=rig.armBones.rightHand.localToWorld(new THREE.Vector3(-.026,.056,-.0071)

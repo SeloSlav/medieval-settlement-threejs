@@ -6,9 +6,7 @@
   min-height: 100%;
   display: grid;
   place-items: center;
-  border: 0;
-  border-right: 1px solid var(--ui-edge);
-  border-left: 1px solid var(--ui-edge);
+  border: 1px solid var(--ui-edge);
   background: transparent;
   color: var(--ui-brass-bright);
   cursor: pointer;

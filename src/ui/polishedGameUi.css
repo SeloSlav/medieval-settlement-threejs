@@ -697,13 +697,19 @@ select:focus-visible {
 .settlement-hud__stat[data-resource='housing']::before { content: '\2302'; color: #ceb17a; }
 .settlement-hud__stat[data-resource='labor']::before { content: '\2692'; color: #b7b0a1; }
 .settlement-hud__construction-card
-  > .settlement-hud__stat[data-resource-group='construction'],
-.settlement-hud__body--resources
-  > .settlement-hud__food-stores
-  > .settlement-hud__stat {
+  > .settlement-hud__stat[data-resource-group='construction'] {
   grid-template-columns: minmax(0, 1fr);
   place-items: center;
   gap: 0;
+  padding-inline: 4px;
+}
+
+.settlement-hud__body--resources
+  > .settlement-hud__food-stores
+  > .settlement-hud__stat {
+  grid-template-columns: 20px max-content;
+  justify-content: center;
+  gap: 4px;
   padding-inline: 4px;
 }
 
@@ -715,13 +721,6 @@ select:focus-visible {
   grid-column: 1;
   grid-row: 1;
   justify-self: center;
-}
-
-.settlement-hud__body--resources
-  > .settlement-hud__food-stores
-  > .settlement-hud__stat
-  > .settlement-hud__supply-value {
-  display: none;
 }
 
 .settlement-hud__ribbon-side--resources
@@ -1056,7 +1055,8 @@ select:focus-visible {
   font-size: 18px;
 }
 
-.settlement-hud__construction-material-name {
+.settlement-hud__construction-material-name,
+.settlement-hud__supply-resource-name {
   grid-column: 2;
   grid-row: 1;
   color: #dfd4bd;
@@ -1662,6 +1662,29 @@ select:focus-visible {
 .settlement-hud__fuel-grid {
   grid-template-columns: repeat(2, minmax(126px, 1fr));
   width: min(310px, calc(100vw - 28px));
+}
+
+.settlement-hud__fuel-grid .settlement-hud__supply-resource {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  gap: 3px 8px;
+  min-height: 0;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.settlement-hud__fuel-grid .settlement-hud__supply-resource::before {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: 18px;
+}
+
+.settlement-hud__fuel-grid .settlement-hud__supply-resource > .settlement-hud__value {
+  grid-column: 3;
+  grid-row: 1;
+  color: #e4c98c;
+  font-size: 17px;
 }
 
 .settlement-hud__supply-header {

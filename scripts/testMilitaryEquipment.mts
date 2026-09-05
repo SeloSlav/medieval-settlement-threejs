@@ -40,11 +40,11 @@ const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
   'spear-shield': { targetLength: 2.65, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.56], secondaryRoles: ['always'] },
   'pike-kit': { targetLength: 4.7, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
   crossbow: {
-    targetLength: 0.95,
+    targetLength: 0.7665318434243388,
     primaryBone: 'R_Hand',
     primaryRole: 'ranged-held',
     secondaryBones: ['Spine02', 'Spine02', 'R_Hand'],
-    secondaryLengths: [0.54, 0.95, 0.42],
+    secondaryLengths: [0.54, 0.7665318434243388, 0.42],
     secondaryRoles: ['always', 'ranged-stowed', 'melee-held'],
   },
   sidearm: { targetLength: 0.82, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },

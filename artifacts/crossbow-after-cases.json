@@ -4,5 +4,11 @@
  {"name":"crossbow-after-fire","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"front"},
  {"name":"crossbow-after-elbow","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-right"},
  {"name":"crossbow-after-side","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"side"},
- {"name":"crossbow-after-raider","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"front"}
+ {"name":"crossbow-after-raider","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"front"},
+ {"name":"crossbow-lock-before-string","weapon":"crossbow","variant":"man","mode":"attack","phase":0.30,"view":"elbow-right"},
+ {"name":"crossbow-support-recovery","weapon":"crossbow","variant":"man","mode":"attack","phase":0.06,"view":"elbow-left"},
+ {"name":"crossbow-support-load","weapon":"crossbow","variant":"man","mode":"attack","phase":0.5,"view":"elbow-left"},
+ {"name":"crossbow-support-straight","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-left"},
+ {"name":"crossbow-raider-support-recovery","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.06,"view":"elbow-left"},
+ {"name":"crossbow-far","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"far","seed":4294967295}
 ]

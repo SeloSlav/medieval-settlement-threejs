@@ -1,0 +1,6 @@
+[
+ {"name":"crossbow-carry-before-grip","weapon":"crossbow","variant":"man","mode":"walk","time":0.35,"view":"grip"},
+ {"name":"crossbow-carry-before-side","weapon":"crossbow","variant":"man","mode":"walk","time":0.35,"view":"side"},
+ {"name":"crossbow-carry-before-elbow","weapon":"crossbow","variant":"man","mode":"walk","time":0.35,"view":"elbow-right"},
+ {"name":"crossbow-fallback-before-elbow","weapon":"crossbow","variant":"man","mode":"fallback","phase":0.4,"view":"elbow-right"}
+]

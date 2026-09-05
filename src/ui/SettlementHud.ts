@@ -58,10 +58,8 @@ import {
   HUD_FOOD_GROUPS,
   HUD_FOOD_RESOURCE_KINDS,
   hudFoodResourceLabel,
-  hudFoodResourceTooltip,
 } from './hudFoodCards.ts';
 import { HUD_PROVISION_GROUPS, hudProvisionResourceLabel } from './hudProvisionCards.ts';
-import { RESOURCE_DESCRIPTIONS } from './resourceDescriptions.ts';
 import type { SettlementAnimalsView } from './settlementAnimals.ts';
 import {
   EMPTY_SETTLEMENT_PEOPLE_VIEW,
@@ -512,12 +510,12 @@ const SETTLEMENT_HUD_HTML = `
             <span class="settlement-hud__supply-line" data-supply-icon="firewood" data-fuel-supply-total>Firewood and charcoal available to residences set this estimate.</span>
             <span class="settlement-hud__supply-line settlement-hud__supply-line--note" data-supply-icon="labor">Workplaces can also draw from shared fuel stores, so fuel may run out sooner.</span>
           </div>
-          <div class="settlement-hud__stat settlement-hud__stat--store" data-resource="firewood" data-fuel-resource="firewood" data-tooltip-title="Firewood" data-tooltip="${RESOURCE_DESCRIPTIONS.firewood}">
-            <span class="settlement-hud__label">Firewood</span>
+          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__supply-resource" data-resource="firewood" data-fuel-resource="firewood">
+            <span class="settlement-hud__supply-resource-name">Firewood</span>
             <strong class="settlement-hud__value" data-fuel-firewood-amount>0</strong>
           </div>
-          <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-fuel-resource="charcoal" data-tooltip-title="Charcoal" data-tooltip="${RESOURCE_DESCRIPTIONS.charcoal}">
-            <span class="settlement-hud__label">Charcoal</span>
+          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__supply-resource" tabindex="0" data-resource="charcoal" data-fuel-resource="charcoal">
+            <span class="settlement-hud__supply-resource-name">Charcoal</span>
             <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
             <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
           </div>
@@ -556,8 +554,7 @@ const SETTLEMENT_HUD_HTML = `
                     data-food-breakdown-row="${kind}"
                     data-food-resource="${kind}"
                     aria-label="${hudFoodResourceLabel(kind)}"
-                    data-tooltip-title="${hudFoodResourceLabel(kind)}"
-                    data-tooltip="${hudFoodResourceTooltip(kind)}"
+                    data-tooltip="${hudFoodResourceLabel(kind)}"
                   >
                     <span class="settlement-hud__label">${hudFoodResourceLabel(kind)}</span>
                     <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
@@ -595,7 +592,7 @@ const SETTLEMENT_HUD_HTML = `
             <section class="settlement-hud__stores-section" data-provision-category="${category}" aria-labelledby="settlement-provision-category-${category}">
               <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-${category}"><strong>${label}</strong></div>
               ${kinds.map((kind) => `
-                <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="${kind}" data-tooltip-title="${hudProvisionResourceLabel(kind)}" data-tooltip="${RESOURCE_DESCRIPTIONS[kind]}">
+                <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="${kind}" data-tooltip="${hudProvisionResourceLabel(kind)}">
                   <span class="settlement-hud__label">${hudProvisionResourceLabel(kind)}</span>
                   <strong class="settlement-hud__value" data-stockpile="${kind}">0</strong>
                   <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="${kind}" hidden></span>
@@ -617,16 +614,16 @@ const SETTLEMENT_HUD_HTML = `
           <span data-military-stores-mode-label>Available surplus</span>
         </div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Arms</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="${RESOURCE_DESCRIPTIONS.polearms}"><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="${RESOURCE_DESCRIPTIONS.sidearms}"><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="${RESOURCE_DESCRIPTIONS.bows}"><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="${RESOURCE_DESCRIPTIONS.crossbows}"><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms"><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="Sidearms"><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="Bows"><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="Crossbows"><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Protection</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="${RESOURCE_DESCRIPTIONS.shields}"><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="${RESOURCE_DESCRIPTIONS.paddedArmor}"><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="${RESOURCE_DESCRIPTIONS.mailArmor}"><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="Shields"><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="Padded"><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="Mail"><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Ammunition</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="${RESOURCE_DESCRIPTIONS.ammunition}"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="Ammunition"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
       </div>
     </details>
     <button
@@ -923,16 +920,19 @@ export class SettlementHud {
         || (HUD_FOOD_RESOURCE_KINDS as readonly string[]).includes(resource)
       ) continue;
       const row = this.mustElement(`[data-resource="${resource}"]`);
-      const label = row.querySelector<HTMLElement>('.settlement-hud__label')
+      const label = row.querySelector<HTMLElement>(
+        '.settlement-hud__label, .settlement-hud__supply-resource-name',
+      )
         ?.textContent
         ?.trim() || resource;
-      if (row.closest('[data-hud-card]')) {
+      if (row.closest('[data-hud-card]') || row.matches('[data-fuel-resource]')) {
         delete row.dataset.tooltipTitle;
         delete row.dataset.tooltip;
       } else {
-        const detail = row.dataset.tooltip?.trim();
-        row.dataset.tooltipTitle = row.dataset.tooltipTitle?.trim() || label;
-        row.dataset.tooltip = detail || label;
+        delete row.dataset.tooltipTitle;
+        delete row.dataset.tooltipAmount;
+        delete row.dataset.tooltipAmountLabel;
+        row.dataset.tooltip = label;
       }
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');

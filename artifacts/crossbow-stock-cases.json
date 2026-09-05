@@ -1,0 +1,7 @@
+[
+ {"name":"crossbow-short-stock-fire","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"side"},
+ {"name":"crossbow-short-stock-front","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"front"},
+ {"name":"crossbow-short-stock-load","weapon":"crossbow","variant":"man","mode":"attack","phase":0.5,"view":"side"},
+ {"name":"crossbow-short-stock-raider","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"side"},
+ {"name":"crossbow-short-stock-model","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"weapon"}
+]

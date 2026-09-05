@@ -4,7 +4,7 @@ import type { MilitaryEquipmentMaterials } from './militaryEquipmentMaterials.ts
 /** Shared authored crossbow frame: +Y points downrange, +Z is the top.
  * Lengths are metres before the equipment mount's uniform size fit. */
 export const CROSSBOW_FRAME = {
-  rear: -0.46, front: 0.38, prodY: 0.3, halfSpan: 0.39,
+  rear: -0.26, front: 0.38, prodY: 0.3, prodZ: 0.005, halfSpan: 0.39,
   stringTipY: 0.19, nutY: -0.055, deckZ: 0.031, stringZ: 0.041,
   grip: [0, -0.18, -0.023] as const,
   support: [0, 0.06, -0.027] as const,
@@ -19,7 +19,9 @@ function part(group:THREE.Group,geometry:THREE.BufferGeometry,material:THREE.Mat
 
 /** A narrow, chamfered tiller with a constant bolt deck and a tapered underside. */
 function tillerGeometry():THREE.BufferGeometry{
- const stations=[[-.46,.018,.024,-.025],[-.32,.018,.028,-.027],[-.14,.029,.031,-.037],
+ // Cut the butt square across the existing taper, leaving the trigger grip
+ // and the complete forward stock/deck in their authored positions.
+ const stations=[[CROSSBOW_FRAME.rear,.0216666667,.029,-.0303333333],[-.14,.029,.031,-.037],
   [.025,.03,.031,-.035],[.18,.025,.031,-.028],[.30,.024,.026,-.028],[.38,.019,.021,-.021]];
  const vertices:number[]=[],uvs:number[]=[],indices:number[]=[];
  for(const[y,w,top,bottom]of stations){
@@ -43,9 +45,9 @@ function prodGeometry():THREE.BufferGeometry{
  const count=32;
  for(let i=0;i<=count;i++){
   const x=(i/count*2-1)*CROSSBOW_FRAME.halfSpan,t=Math.abs(x)/CROSSBOW_FRAME.halfSpan;
-  const y=CROSSBOW_FRAME.prodY-.11*t*t;
+  const y=THREE.MathUtils.lerp(CROSSBOW_FRAME.prodY,CROSSBOW_FRAME.stringTipY,t*t);
   const width=THREE.MathUtils.lerp(.022,.007,t**.75),depth=THREE.MathUtils.lerp(.006,.003,t);
-  for(const[a,b]of [[-1,-1],[1,-1],[1,1],[-1,1]]){vertices.push(x,y+a!*width,b!*depth+.005);uvs.push(i/count,(a!+b!+2)/4);}
+  for(const[a,b]of [[-1,-1],[1,-1],[1,1],[-1,1]]){vertices.push(x,y+a!*width,b!*depth+CROSSBOW_FRAME.prodZ);uvs.push(i/count,(a!+b!+2)/4);}
  }
  for(let i=0;i<count;i++)for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4;indices.push(a,b,a+4,b,b+4,a+4);}
  indices.push(0,2,1,0,3,2);const end=count*4;indices.push(end,end+1,end+2,end,end+2,end+3);
@@ -71,7 +73,7 @@ export function createRealisticCrossbow(materials:MilitaryEquipmentMaterials):TH
   part(group,new THREE.CylinderGeometry(.007,.007,.003,10),materials.bluedSteel,
    'Crossbow · flush nut axle',[x,CROSSBOW_FRAME.nutY,.025],[0,0,Math.PI/2]);
  }
- part(group,tube([[0,-.055,-.028],[0,-.10,-.055],[0,-.24,-.067],[0,-.32,-.045]],.0045),
+ part(group,tube([[0,-.055,-.028],[0,-.10,-.055],[0,-.21,-.067],[0,-.25,-.045]],.0045),
   materials.bluedSteel,'Crossbow · long underside release lever');
  part(group,tube([[-.021,.345,-.005],[-.047,.397,-.005],[-.046,.49,-.005],
   [.046,.49,-.005],[.047,.397,-.005],[.021,.345,-.005]],.006,true),materials.bluedSteel,'Crossbow · closed spanning stirrup');
@@ -82,9 +84,10 @@ export function createRealisticCrossbow(materials:MilitaryEquipmentMaterials):TH
  }
  part(group,new THREE.BoxGeometry(.006,.09,.002),materials.steel,'Crossbow · spring bolt retainer',[0,.015,.048],[.1,0,0]);
  const string=new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-  new THREE.Vector3(-CROSSBOW_FRAME.halfSpan,CROSSBOW_FRAME.stringTipY,CROSSBOW_FRAME.stringZ),
+  // Anchor on the steel end faces; only the center rises to the bolt deck.
+  new THREE.Vector3(-CROSSBOW_FRAME.halfSpan,CROSSBOW_FRAME.stringTipY,CROSSBOW_FRAME.prodZ),
   new THREE.Vector3(0,CROSSBOW_FRAME.nutY,CROSSBOW_FRAME.stringZ),
-  new THREE.Vector3(CROSSBOW_FRAME.halfSpan,CROSSBOW_FRAME.stringTipY,CROSSBOW_FRAME.stringZ),
+  new THREE.Vector3(CROSSBOW_FRAME.halfSpan,CROSSBOW_FRAME.stringTipY,CROSSBOW_FRAME.prodZ),
  ]),materials.cord);string.name='Crossbow · drawn cord';string.userData.semanticWeaponPart=string.name;group.add(string);
  return group;
 }

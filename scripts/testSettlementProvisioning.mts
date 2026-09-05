@@ -93,6 +93,14 @@ const settlementHud = readFileSync(
   new URL('../src/ui/SettlementHud.ts', import.meta.url),
   'utf8',
 );
+const polishedGameUi = readFileSync(
+  new URL('../src/ui/polishedGameUi.css', import.meta.url),
+  'utf8',
+);
+const resourceInspector = readFileSync(
+  new URL('../src/resources/ResourceInspector.ts', import.meta.url),
+  'utf8',
+);
 const chapelInspector = readFileSync(
   new URL('../src/resources/inspector/chapelRenderer.ts', import.meta.url),
   'utf8',
@@ -174,6 +182,32 @@ assert.match(
   settlementHud,
   /return `\$\{Math\.round\(months\)\} mo`;/,
   'the compact food and fuel runway buttons must show nearest whole months',
+);
+assert.doesNotMatch(
+  polishedGameUi,
+  />\s*\.settlement-hud__supply-value\s*\{\s*display:\s*none/,
+  'the parent food and fuel buttons must display their compact month readouts',
+);
+assert.match(
+  polishedGameUi,
+  /\.settlement-hud__body--resources[\s\S]{0,180}> \.settlement-hud__food-stores[\s\S]{0,120}grid-template-columns:\s*20px max-content/,
+  'the parent food and fuel buttons must place the month readout beside the icon',
+);
+const fuelBreakdownMarkup = settlementHud.slice(
+  settlementHud.indexOf('data-fuel-breakdown'),
+  settlementHud.indexOf('</details>', settlementHud.indexOf('data-fuel-breakdown')),
+);
+assert.match(fuelBreakdownMarkup, /settlement-hud__supply-resource-name">Firewood</);
+assert.match(fuelBreakdownMarkup, /settlement-hud__supply-resource-name">Charcoal</);
+assert.doesNotMatch(
+  fuelBreakdownMarkup,
+  /data-tooltip(?:-title)?=/,
+  'the labeled firewood and charcoal rows must not mount redundant tooltips',
+);
+assert.match(
+  resourceInspector,
+  /\.settlement-hud__stat--fuel, \[data-fuel-resource\]/,
+  'resource total updates must keep fuel-row tooltips disabled',
 );
 assert.doesNotMatch(
   settlementHud,

@@ -11,7 +11,7 @@ import {
   type PopulationStats,
   type ResourceTotals,
 } from './resourceTotals.ts';
-import { HUD_FOOD_RESOURCE_KINDS, hudFoodResourceTooltip, type HudFoodResourceKind } from '../ui/hudFoodCards.ts';
+import { HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel, type HudFoodResourceKind } from '../ui/hudFoodCards.ts';
 import { HUD_PROVISION_RESOURCE_KINDS } from '../ui/hudProvisionCards.ts';
 
 const FOOD_BREAKDOWN_ROW_KINDS = HUD_FOOD_RESOURCE_KINDS;
@@ -350,9 +350,6 @@ type ResourceInspectorOptions = {
   isBlocked: () => boolean;
 };
 
-const DEFAULT_TOTAL_RESOURCE_TOOLTIP =
-  'All stored stock, including household reserves and goods committed to active projects. Goods in transit are counted separately until unloaded.';
-
 const MILITARY_HUD_RESOURCE_KINDS = new Set<HudResourceKind>([
   'polearms',
   'sidearms',
@@ -401,7 +398,6 @@ export class ResourceInspector {
   private readonly resourceCardModeLabels: HTMLElement[];
   private readonly resourceCardDetails: Partial<Record<HudResourceCardKind, HTMLElement>>;
   private readonly goldResourceReadingLabel: HTMLElement;
-  private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
   private readonly laborValue: HTMLElement;
@@ -631,12 +627,6 @@ export class ResourceInspector {
         this.mustElement(options.uiRoot, `[data-stockpile="${resource}"]`),
       ]),
     ) as Record<StandaloneHudResourceKind, HTMLElement>;
-    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
-      const stat = this.stockpileValues[resource]
-        .closest<HTMLElement>('.settlement-hud__stat');
-      const tooltip = stat?.dataset.tooltip;
-      if (tooltip) this.surplusResourceTooltips.set(resource, tooltip);
-    }
     this.stockpileTransitValues = Object.fromEntries(
       STANDALONE_HUD_RESOURCE_KINDS.map((resource) => [
         resource,
@@ -848,7 +838,9 @@ export class ResourceInspector {
       if (!stat) continue;
       if (
         (isHudResourceCardKind(resource) && stat.closest('[data-hud-card]'))
-        || stat.matches('.settlement-hud__stat--food, .settlement-hud__stat--fuel')
+        || stat.matches(
+          '.settlement-hud__stat--food, .settlement-hud__stat--fuel, [data-fuel-resource]',
+        )
       ) {
         delete stat.dataset.tooltipTitle;
         delete stat.dataset.tooltip;
@@ -856,11 +848,13 @@ export class ResourceInspector {
         delete stat.dataset.tooltipAmountLabel;
         continue;
       }
-      const description = this.surplusResourceTooltips.get(resource);
-      const tooltip = showingTotal
-        ? [description, DEFAULT_TOTAL_RESOURCE_TOOLTIP].filter(Boolean).join('\n\n')
-        : description;
-      if (tooltip) stat.dataset.tooltip = tooltip;
+      const label = stat.querySelector<HTMLElement>(
+        '.settlement-hud__label, .settlement-hud__supply-resource-name',
+      )?.textContent?.trim() || resource;
+      delete stat.dataset.tooltipTitle;
+      delete stat.dataset.tooltipAmount;
+      delete stat.dataset.tooltipAmountLabel;
+      stat.dataset.tooltip = label;
     }
   }
 
@@ -2079,13 +2073,6 @@ export class ResourceInspector {
     this.populationValue.textContent = displayedPopulation.toString();
     this.housingValue.textContent = displayedOpenLivingPlaces.toString();
     this.laborValue.textContent = displayedLabor.toString();
-    this.setHudTooltipAmount(this.populationValue, displayedPopulation, 'Current population');
-    this.setHudTooltipAmount(
-      this.housingValue,
-      displayedOpenLivingPlaces,
-      'Open living places',
-    );
-    this.setHudTooltipAmount(this.laborValue, displayedLabor, 'Workers available');
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
     if (laborSub) {
       laborSub.textContent = starterCampCreated && population.assigned > 0
@@ -2107,12 +2094,6 @@ export class ResourceInspector {
       this.resourceCardAmounts[resource].textContent = Math.round(totals[resource]).toString();
     }
     this.fuelFirewoodAmount.textContent = Math.round(totals.firewood).toString();
-    const amountLabel = this.resourceTotalsPresentation === 'total'
-      ? 'Total stored'
-      : 'Available surplus';
-    for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
-      this.setHudTooltipAmount(this.stockpileValues[resource], totals[resource], amountLabel);
-    }
     this.renderFoodBreakdown();
     for (const resource of STANDALONE_HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];

@@ -325,7 +325,10 @@
 .settlement-hud__speed-value { color: #c6bba3; }
 .settlement-hud__speed,
 .settlement-vitals__zoom { border-color: #a18d6952; }
-.development-launcher { border-color: #9585674d; }
+.development-launcher {
+  border-color: #777463;
+  border-image: var(--estate-frame) 24 / 7px / 0 stretch;
+}
 .construction-dock-button__hotkey {
   color: #dccbad;
   border-color: #958365;

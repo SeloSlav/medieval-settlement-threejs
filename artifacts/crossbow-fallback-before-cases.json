@@ -1,0 +1,7 @@
+[
+ {"name":"crossbow-fallback-before-guard","weapon":"crossbow","variant":"man","mode":"fallback","phase":0.4,"view":"front"},
+ {"name":"crossbow-fallback-before-wind","weapon":"crossbow","variant":"man","mode":"fallback","phase":0.84,"view":"side"},
+ {"name":"crossbow-fallback-before-strike","weapon":"crossbow","variant":"man","mode":"fallback","phase":0.95,"view":"front"},
+ {"name":"crossbow-fallback-before-grip","weapon":"crossbow","variant":"man","mode":"fallback","phase":0.95,"view":"grip"},
+ {"name":"crossbow-carry-before","weapon":"crossbow","variant":"man","mode":"walk","phase":0.5,"view":"front"}
+]

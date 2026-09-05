@@ -91,7 +91,9 @@ const TARGET_LENGTHS: Record<MilitaryEquipmentKind, number> = {
   spear: 2.35,
   'spear-shield': 2.65,
   'pike-kit': 4.7,
-  crossbow: 0.95,
+  // The trimmed stock is shorter than the prod span. Preserve the authored
+  // world scale so bounds-based fitting cannot enlarge the weapon or grips.
+  crossbow: Math.fround(CROSSBOW_FRAME.halfSpan) * 2 * 0.9827331686417439,
   sidearm: 0.82,
   'sidearm-shield': 0.82,
   'sword-shield': 1.08,
@@ -134,7 +136,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
         [0.065, 0.02, 0.085],
         [0.08, 0.12, -0.18],
       ),
-      mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.95, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
+      mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], TARGET_LENGTHS.crossbow, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
     ], 'ranged-held'),
     sidearm: source('sidearm', sidearmAssembly, NATURAL_RIGHT_HAND),

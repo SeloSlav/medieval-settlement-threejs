@@ -2,13 +2,13 @@
   {
     "weapon": "bow",
     "seconds": 5,
-    "frames": 810,
+    "frames": 809,
     "errors": []
   },
   {
     "weapon": "spear",
     "seconds": 4,
-    "frames": 648,
+    "frames": 653,
     "errors": []
   },
   {
@@ -20,13 +20,13 @@
   {
     "weapon": "halberd",
     "seconds": 4,
-    "frames": 653,
+    "frames": 649,
     "errors": []
   },
   {
     "weapon": "crossbow",
     "seconds": 7,
-    "frames": 1152,
+    "frames": 1157,
     "errors": []
   }
 ]

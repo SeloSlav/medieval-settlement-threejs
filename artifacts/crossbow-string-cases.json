@@ -1,0 +1,5 @@
+[
+ {"name":"crossbow-string-tip-anchors","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"weapon"},
+ {"name":"crossbow-string-fired","weapon":"crossbow","variant":"man","mode":"attack","phase":0,"view":"front"},
+ {"name":"crossbow-string-loaded","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"front"}
+]
