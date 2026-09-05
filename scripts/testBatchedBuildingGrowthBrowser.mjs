@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { createServer } from 'vite';
 const label = process.argv[2] ?? 'current';
-const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
+const server = await createServer({ server: { host: '127.0.0.1', port: 0, hmr: false } });
+await server.listen();
+let browser;
 try {
+  browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
   const page = await browser.newPage({ viewport: { width: 640, height: 480 }, deviceScaleFactor: 1 });
+  const browserErrors = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
   await page.route('**/batch-growth-probe', r => r.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
-  await page.goto('http://127.0.0.1:5173/batch-growth-probe');
+  await page.goto(new URL('batch-growth-probe', server.resolvedUrls.local[0]).href);
   const result = await page.evaluate(async () => {
     const THREE = await import('/node_modules/three/build/three.module.js');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
@@ -25,7 +32,6 @@ try {
     const batches = new BuildingStaticBatches(parent);
     const reference = new THREE.Scene(); reference.background = scene.background;
     for (const s of [scene, reference]) { s.add(new THREE.HemisphereLight(0xffffff,0x777777,3)); const light=new THREE.DirectionalLight(0xffffff,3); light.position.set(10,25,10); s.add(light); }
-    const material = new THREE.MeshBasicMaterial({ color: 0xe8c281 });
     const target = new THREE.Vector3(0, 0, 0);
     const renderTarget = new THREE.RenderTarget(640,480);
     const pixels = async s => {
@@ -68,4 +74,6 @@ try {
   // precision. Missing walls affect thousands; the original growth defect
   // changed 30,000–64,000 pixels after nine buildings in these same views.
   assert.ok(result.errors.every(x=>x.settledChanged<250), 'Growing camera-sorted building batches must match individual mesh pixels after upload');
-} finally { await browser.close(); }
+  assert.ok(result.errors.filter(x=>x.view>0).every(x=>x.changed<250), 'Moving the camera must match immediately, without a frame of missing walls');
+  assert.deepEqual(browserErrors, [], 'Building growth must render without browser errors');
+} finally { await browser?.close(); await server.close(); }

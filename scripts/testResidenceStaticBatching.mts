@@ -148,6 +148,7 @@ disposeResidence(initial);
 const dense = new THREE.Group();
 const crossBatches = new ResidenceStaticBatches(dense);
 let denseBeforeDraws = 0;
+let denseBeforeTriangles = 0;
 let denseBeforeBytes = 0;
 let trackedHome: THREE.Group | null = null;
 const denseHomes: THREE.Group[] = [];
@@ -159,6 +160,7 @@ for (let index = 0; index < 100; index += 1) {
   dense.add(home);
   const before = snapshot(home);
   denseBeforeDraws += before.draws;
+  denseBeforeTriangles += before.triangles;
   denseBeforeBytes += before.geometryBytes;
   denseHomes.push(home);
   if (index === 0) trackedHome = home;
@@ -189,9 +191,13 @@ crossBatches.finalizeGeometryBuffers();
 const denseAfter = snapshot(dense);
 const denseFinalGeometry = allGeometryStats(dense);
 const denseStats = crossBatches.getStats();
+assert.equal(denseAfter.triangles, denseBeforeTriangles,
+  'shared geometry instances must retain every visible triangle across all homes');
 // Three's WebGPU backend issues one native draw for every active BatchedMesh
 // multi-draw entry. Keep render-object reduction and native submissions
 // separate so the contract cannot overstate the GPU win.
+// Promoting identical geometry to InstancedMesh adds render objects, while
+// reducing actual WebGPU submissions and retained geometry. Count both paths.
 const denseNativeDraws = denseAfter.draws - denseStats.renderObjects
   + denseStats.nativeDraws;
 assert.ok(
@@ -199,16 +205,16 @@ assert.ok(
   `100-home fixture must retain the reviewed dense load (got ${denseBeforeDraws})`,
 );
 assert.ok(
-  denseAfter.draws <= 200,
-  `100 completed homes must remain at or below 200 render objects (got ${denseAfter.draws})`,
+  denseAfter.draws <= 400,
+  `exact shared geometry instances must remain at or below 400 render objects (got ${denseAfter.draws})`,
 );
 assert.ok(
-  denseAfter.draws <= denseBeforeDraws * 0.03,
-  `100-home batching must remove at least 97% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
+  denseAfter.draws <= denseBeforeDraws * 0.05,
+  `100-home batching must remove at least 95% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
 );
 assert.ok(
-  denseNativeDraws <= 1_450,
-  `100 completed homes with distinct plaster cottage envelopes must remain at or below 1,450 native WebGPU draws (got ${denseNativeDraws})`,
+  denseNativeDraws <= 1_100,
+  `exact instancing must keep 100 varied homes below 1,100 native WebGPU draws (got ${denseNativeDraws})`,
 );
 assert.ok(
   denseNativeDraws <= denseBeforeDraws * 0.2,
@@ -389,9 +395,7 @@ function snapshot(root: THREE.Object3D): Snapshot {
   const uvs: string[] = [];
   const normals: string[] = [];
   const tangents: string[] = [];
-  root.traverseVisible((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh || (mesh as THREE.InstancedMesh).isInstancedMesh) return;
+  const accumulate = (mesh: THREE.Mesh, world: THREE.Matrix4, drawContribution = 1): void => {
     const geometry = mesh.geometry;
     const position = geometry.getAttribute('position');
     if (!position) return;
@@ -412,7 +416,7 @@ function snapshot(root: THREE.Object3D): Snapshot {
         mesh.renderOrder,
         mesh.layers.mask,
       ].join('|');
-      draws += 1;
+      draws += drawContribution;
       triangles += submittedTriangles;
       materials.add(material.uuid);
       buckets.set(key, (buckets.get(key) ?? 0) + submittedTriangles);
@@ -428,7 +432,7 @@ function snapshot(root: THREE.Object3D): Snapshot {
     }
     const normal = geometry.getAttribute('normal');
     if (normal) {
-      normalMatrix.getNormalMatrix(mesh.matrixWorld);
+      normalMatrix.getNormalMatrix(world);
       for (let index = 0; index < normal.count; index += 1) {
         direction.fromBufferAttribute(normal, index).applyNormalMatrix(normalMatrix);
         normals.push(normalTuple(direction.x, direction.y, direction.z));
@@ -438,13 +442,32 @@ function snapshot(root: THREE.Object3D): Snapshot {
     if (tangent) {
       for (let index = 0; index < tangent.count; index += 1) {
         direction.set(tangent.getX(index), tangent.getY(index), tangent.getZ(index));
-        direction.transformDirection(mesh.matrixWorld);
+        direction.transformDirection(world);
         tangents.push(tuple(direction.x, direction.y, direction.z, tangent.getW(index)));
       }
     }
     for (let index = 0; index < position.count; index += 1) {
-      vertex.fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld);
+      vertex.fromBufferAttribute(position, index).applyMatrix4(world);
       bounds.expandByPoint(vertex);
+    }
+  };
+  const instance = new THREE.Matrix4();
+  const world = new THREE.Matrix4();
+  root.traverseVisible(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const instanced = mesh as THREE.InstancedMesh;
+    if (!instanced.isInstancedMesh) {
+      accumulate(mesh, mesh.matrixWorld);
+    } else if (mesh.userData.crossBuildingIdenticalGeometryInstances === true) {
+      let countedDraw = false;
+      for (let slot = 0; slot < instanced.count; slot++) {
+        instanced.getMatrixAt(slot, instance);
+        if (instance.determinant() === 0) continue;
+        world.multiplyMatrices(mesh.matrixWorld, instance);
+        accumulate(mesh, world, countedDraw ? 0 : 1);
+        countedDraw = true;
+      }
     }
   });
   return {
