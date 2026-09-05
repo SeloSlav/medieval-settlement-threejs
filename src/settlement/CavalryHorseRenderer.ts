@@ -89,7 +89,8 @@ export class CavalryHorseRenderer {
       visual.actions.walk.setEffectiveTimeScale(
         Math.max(0.68, Math.min(1.85, pose.moveSpeed / HORSE_WALK_SPEED)),
       );
-      visual.mixer.update(frameDt);
+      if (this.batch) this.batch.updateAnimation(visual.model, visual.mixer, frameDt);
+      else visual.mixer.update(frameDt);
     }
     for (const [id, visual] of this.visuals) {
       if (active.has(id)) continue;
@@ -142,6 +143,7 @@ export class CavalryHorseRenderer {
         this.batch = new AuthoredAnimalInstanceBatch({
           parent: this.group,
           sourceRoot: gltf.scene,
+          animations: Object.values(source.clips),
           capacity: 32,
           name: 'Quaternius horse exact-model instances',
           castShadow: true,

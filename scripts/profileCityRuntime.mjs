@@ -2,12 +2,16 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
-const output = 'artifacts/city-performance';
+const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`;
+const large = process.argv.includes('--large');
 mkdirSync(output, { recursive: true });
 const server = await createServer({ server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
 await server.listen();
 const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+const cdp = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
+await page.exposeFunction('__cityProfileStart', async () => { if(cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');} });
+await page.exposeFunction('__cityProfileEnd', async () => { if(cdp){const {profile}=await cdp.send('Profiler.stop');writeFileSync(`${output}/cpu-profile.json`,JSON.stringify(profile));} });
 const errors = [];
 page.on('pageerror', e => { errors.push(e.message); console.log('pageerror', e.message); });
 page.on('console', e => { if (e.type() === 'error') errors.push(e.text()); });
@@ -45,7 +49,7 @@ try {
   writeFileSync(`${output}/initial-runtime.json`, JSON.stringify({ ...state, errors }, null, 2));
   await page.screenshot({ path: `${output}/initial-runtime.png` });
   console.log('ready', JSON.stringify({ stats: state.stats, buildings: state.buildings.length, residences: state.residences.length, errors }));
-  const measured = await page.evaluate(async () => {
+  const measured = await page.evaluate(async large => {
     const app = window.__cityApp;
     const manager = app.sceneManager;
     const phases = {};
@@ -60,16 +64,29 @@ try {
     const { createDefaultNeeds }=await import('/src/residences/residenceNeedState.ts');
     const camp=app.visualQaFoundersCampFixture;
     const center={x:camp.x,z:camp.z};
-    const buildings=['stable','carpenter','smokehouse','weaver','potter_kiln','bakery'].map((kind,i)=>({...camp,id:`perf-${kind}`,kind,x:center.x+(i%3-1)*20,z:center.z+Math.floor(i/3)*20+24,foundingShelterActive:false,assignedLabor:4,yaw:0}));
-    const residences=Array.from({length:5},(_,i)=>({id:`perf-home-${i}`,zoneId:'perf',parcelIndex:i,x:center.x+(i-2)*16,z:center.z-25,yaw:0,population:6,populationCapacity:6,tier:1,settlementTicks:0,needs:createDefaultNeeds(),abandoned:false,householdWealth:8}));
+    const kinds=['stable','carpenter','smokehouse','weaver','potter_kiln','bakery'];
+    const position=(i)=>large ? {x:center.x+(i%14-6.5)*18,z:center.z+(Math.floor(i/14)-6.5)*18} : {x:center.x+(i%3-1)*20,z:center.z+Math.floor(i/3)*20+24};
+    const buildings=Array.from({length:large?100:6},(_,i)=>({...camp,id:`perf-building-${i}`,kind:kinds[i%kinds.length],...position(i),foundingShelterActive:false,assignedLabor:4,yaw:0}));
+    const residences=Array.from({length:large?100:5},(_,i)=>({id:`perf-home-${i}`,zoneId:'perf',parcelIndex:i,...(large?position(i+100):{x:center.x+(i-2)*16,z:center.z-25}),yaw:0,population:large?5:6,populationCapacity:6,tier:1,settlementTicks:0,needs:createDefaultNeeds(),abandoned:false,householdWealth:8}));
+    if(large)app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
+    const stableIds=buildings.filter(b=>b.kind==='stable').map(b=>b.id);
+    const { AnimalCombatRenderer }=await import('/src/settlement/AnimalCombatRenderer.ts');
+    const dogs=new AnimalCombatRenderer(manager.scene);await dogs.ready;
+    const dogPoses=[];
+    const baseRender=manager.render;
+    manager.render=function(dt,...args){const begin=performance.now();dogs.sync(dogPoses,undefined,dt);phases.dogs=performance.now()-begin;return baseRender.call(this,dt,...args);};
     const reports=[];
     for(const arm of ['terrain-and-camp','buildings','populated']) {
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
       }
-      if(arm==='populated') app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:3},(_,i)=>({id:`perf-ox-${i}`,stableId:'perf-stable',slot:i,purchaseCost:10}))});
+      if(arm==='populated') {
+        app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:large?30:3},(_,i)=>({id:`perf-ox-${i}`,stableId:stableIds[Math.floor(i/3)%stableIds.length],slot:i%3,purchaseCost:10}))});
+        if(large)for(let i=0;i<100;i++){const x=center.x+(i%20-10)*2,z=center.z+(Math.floor(i/20)-2)*3;dogPoses.push({id:`perf-dog-${i}`,faction:'dog',x,y:manager.terrain.getHeightAt(x,z),z,yaw:0,moveSpeed:1,status:'advancing'});}
+      }
       for(let i=0;i<120;i++)await new Promise(requestAnimationFrame);
+      if(arm==='populated')await window.__cityProfileStart();
       const samples=[]; let last;
       for(let i=0;i<180;i++) {
         for(const k of Object.keys(phases)) phases[k]=0;
@@ -77,10 +94,11 @@ try {
         if(last!==undefined)samples.push({intervalMs:time-last,...phases});
         last=time;
       }
-      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics()});
+      if(arm==='populated')await window.__cityProfileEnd();
+      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),visualReport:window.__visualPerf.getReport()});
     }
     return reports;
-  });
+  }, large);
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));

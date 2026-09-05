@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { AuthoredRigWorldMatrices } from './AuthoredRigWorldMatrices.ts';
+import { AuthoredGpuAnimation } from './AuthoredGpuAnimation.ts';
+import { advanceAuthoredAnimationClock } from './AuthoredAnimationClock.ts';
 import {
   MeshPhysicalNodeMaterial,
   MeshStandardNodeMaterial,
@@ -101,6 +103,7 @@ export type AuthoredSkinnedInstanceBatchOptions = {
   parent: THREE.Object3D;
   /** Loaded GLB root. Geometry, texture, UV, skin weights and material inputs are retained. */
   sourceRoot: THREE.Object3D;
+  animations?: readonly THREE.AnimationClip[];
   /** Initial allocation. Call reserve() outside a battle to grow without a render-time hitch. */
   capacity?: number;
   name?: string;
@@ -123,6 +126,7 @@ export type AuthoredSkinnedInstanceBatchDiagnostic = {
   transformBytes: number;
   colorBytes: number;
   lastPoseUploadBytes: number;
+  gpuEvaluatedInstances: number;
   resizeCount: number;
   sourceGeometryIdentityPreserved: boolean;
   sourceTextureIdentityPreserved: boolean;
@@ -219,6 +223,11 @@ export class AuthoredSkinnedInstanceBatch {
   private batchTransformPrepared = false;
   private batchWorldSnapshotValid = false;
   private disposed = false;
+  private readonly gpuAnimation: AuthoredGpuAnimation | null;
+  private readonly gpuActions = new WeakMap<THREE.Object3D, THREE.AnimationAction>();
+  private frameGpuInstances = 0;
+  private lastGpuInstances = 0;
+  private poseEpoch = 0;
 
   constructor(options: AuthoredSkinnedInstanceBatchOptions) {
     this.options = options;
@@ -228,6 +237,9 @@ export class AuthoredSkinnedInstanceBatch {
     this.sourceBoneNames = source.boneNames;
     this.sourceBoneInverses = source.boneInverses;
     this.materialSlotList = createMaterialSlotList(source.layers);
+    this.gpuAnimation = options.animations?.length
+      ? new AuthoredGpuAnimation(options.sourceRoot, options.animations, source.layers[0]!.rootRelativeMatrix)
+      : null;
     this.group.name = options.name ?? `${options.sourceRoot.name || 'Authored rig'} instances`;
     options.parent.add(this.group);
     this.rebuild(Math.max(1, Math.ceil(options.capacity ?? 256)));
@@ -363,6 +375,20 @@ export class AuthoredSkinnedInstanceBatch {
     this.assertSlot(slot);
     this.prepareBatchTransform();
 
+    const gpuAction = this.gpuActions.get(posedRoot);
+    if (this.gpuAnimation && gpuAction) {
+      this.prepareCloneBinding(posedRoot);
+      posedRoot.updateWorldMatrix(true, false);
+      this.instanceMatrixScratch.multiplyMatrices(this.inverseBatchWorld, posedRoot.matrixWorld)
+        .multiply(this.sourceLayers[0]!.rootRelativeMatrix);
+      this.setMatrixAt(slot, this.instanceMatrixScratch);
+      this.gpuAnimation.setAt(slot, gpuAction);
+      this.gpuAnimation.updateObservers(posedRoot, gpuAction);
+      this.frameGpuInstances++;
+      return;
+    }
+    this.gpuAnimation?.clearAt(slot);
+
     let binding = this.posedCloneBindings.get(posedRoot);
     if (!binding) {
       // Clone topology, non-bone source transforms, bind inverses and bone order
@@ -403,6 +429,22 @@ export class AuthoredSkinnedInstanceBatch {
     this.posedCloneBindings.set(posedRoot, this.bindPosedClone(posedRoot));
   }
 
+  /** CPU corrections and bone observers opt out; source animation stays exact. */
+  updateAnimation(posedRoot: THREE.Object3D, mixer: THREE.AnimationMixer, dt: number, allowGpu = true): void {
+    const action = this.gpuAnimation && allowGpu
+      ? advanceAuthoredAnimationClock(mixer, dt, this.gpuAnimation.supportsClip)
+      : (mixer.update(dt), null);
+    if (action) this.gpuActions.set(posedRoot, action);
+    else {
+      this.gpuActions.delete(posedRoot);
+      this.gpuAnimation?.clearObservers(posedRoot);
+    }
+  }
+
+  registerAnimationAttachments(posedRoot: THREE.Object3D, tool: THREE.Object3D): void {
+    this.gpuAnimation?.registerAttachments(posedRoot, tool);
+  }
+
   validateSkeleton(skeleton: THREE.Skeleton, label = 'posed skeleton'): void {
     if (this.validatedSkeletons.has(skeleton)) return;
     validateSkeletonLayout(
@@ -417,6 +459,9 @@ export class AuthoredSkinnedInstanceBatch {
   /** Publishes only the contiguous ranges changed since the previous commit. */
   commit(): void {
     this.assertAlive();
+    this.poseEpoch++;
+    this.lastGpuInstances = this.frameGpuInstances;
+    this.frameGpuInstances = 0;
     this.lastPoseUploadBytes = publishDirtyRange(
       this.posePalette,
       this.poseDirtyStart,
@@ -470,6 +515,7 @@ export class AuthoredSkinnedInstanceBatch {
       transformBytes: this.instanceMatrices.array.byteLength,
       colorBytes: this.instanceColors.array.byteLength,
       lastPoseUploadBytes: this.lastPoseUploadBytes,
+      gpuEvaluatedInstances: this.lastGpuInstances,
       resizeCount: this.resizeCount,
       sourceGeometryIdentityPreserved: this.submittedLayers.every(
         (layer) => layer.mesh.geometry === layer.source.geometry,
@@ -505,6 +551,7 @@ export class AuthoredSkinnedInstanceBatch {
   }
 
   dispose(): void {
+    this.gpuAnimation?.dispose();
     if (this.disposed) return;
     this.disposed = true;
     this.disposeSubmittedLayers();
@@ -521,18 +568,19 @@ export class AuthoredSkinnedInstanceBatch {
     this.disposeSubmittedLayers();
 
     this.capacityValue = capacity;
+    this.gpuAnimation?.reserve(capacity);
     this.posePalette = new StorageBufferAttribute(
       capacity * this.boneCount,
       MATRIX_COMPONENTS,
     );
-    this.posePalette.setUsage(THREE.DynamicDrawUsage);
+    this.posePalette.setUsage(THREE.StaticDrawUsage);
     this.instanceMatrices = new StorageInstancedBufferAttribute(capacity, MATRIX_COMPONENTS);
-    this.instanceMatrices.setUsage(THREE.DynamicDrawUsage);
+    this.instanceMatrices.setUsage(THREE.StaticDrawUsage);
     this.instanceColors = new StorageInstancedBufferAttribute(
       capacity * this.materialSlotList.length,
       COLOR_COMPONENTS,
     );
-    this.instanceColors.setUsage(THREE.DynamicDrawUsage);
+    this.instanceColors.setUsage(THREE.StaticDrawUsage);
 
     fillIdentityMatrices(this.instanceMatrices.array);
     fillWhiteColors(this.instanceColors.array);
@@ -577,6 +625,9 @@ export class AuthoredSkinnedInstanceBatch {
       mesh.frustumCulled = false;
       mesh.userData.authoredSkinnedInstances = true;
       mesh.userData.sourceGeometryUuid = source.geometry.uuid;
+      if (this.gpuAnimation) mesh.onBeforeRender = renderer => {
+        this.gpuAnimation!.render(renderer, this.posePalette, this.countValue, this.poseEpoch, this.lastGpuInstances);
+      };
       this.group.add(mesh);
       return { mesh, materials, source };
     });

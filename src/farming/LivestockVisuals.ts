@@ -235,7 +235,7 @@ export class LivestockVisuals {
       const visible = isWithinCrowdView(animal.x, animal.z, view);
       animal.root.visible = visible;
       this.poseAnimal(animal);
-      if (visible) animal.mixer.update(dt);
+      if (visible) this.updateAnimalAnimation(animal, dt);
     }
 
     for (let index = this.departingAnimals.length - 1; index >= 0; index -= 1) {
@@ -244,7 +244,7 @@ export class LivestockVisuals {
       const visible = isWithinCrowdView(animal.x, animal.z, view);
       animal.root.visible = visible;
       this.poseAnimal(animal);
-      if (visible) animal.mixer.update(dt);
+      if (visible) this.updateAnimalAnimation(animal, dt);
       if (!tripComplete) continue;
       this.departingAnimals.splice(index, 1);
       this.disposeAnimal(animal);
@@ -688,6 +688,7 @@ export class LivestockVisuals {
         this.batches.set(kind, new AuthoredAnimalInstanceBatch({
           parent: this.root,
           sourceRoot: this.sources[kind].scene,
+          animations: Object.values(this.sources[kind].clips),
           capacity: initialCapacity[kind],
           name: `${kind} exact-model livestock instances`,
           castShadow: true,
@@ -699,6 +700,12 @@ export class LivestockVisuals {
         console.warn(`[Livestock] ${kind} exact-model batching unavailable.`, error);
       }
     }
+  }
+
+  private updateAnimalAnimation(animal: AnimalVisual, dt: number): void {
+    const batch = this.batches.get(animal.modelKind);
+    if (batch) batch.updateAnimation(animal.model, animal.mixer, dt);
+    else animal.mixer.update(dt);
   }
 
   private flushAuthoredBatches(): void {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { authoredGpuObservedMounts } from '../scene/AuthoredGpuAnimation.ts';
 
 export const EXACT_MOUNTED_ATTACHMENT_INITIAL_CAPACITY = 8;
 
@@ -230,7 +231,9 @@ export class ExactMountedAttachmentBatch {
     // Updating mount roots with parents=true keeps pooled/reparented rigs safe,
     // even when their visual root is deliberately hidden.
     for (const registration of this.registrations) {
-      for (const mount of registration.mounts) mount.updateWorldMatrix(true, true);
+      for (const mount of registration.mounts) {
+        if (!authoredGpuObservedMounts.has(mount)) mount.updateWorldMatrix(true, true);
+      }
     }
 
     for (const batch of this.meshBatches.values()) this.updateMeshBatch(batch);

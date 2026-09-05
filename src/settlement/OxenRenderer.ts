@@ -345,7 +345,8 @@ export class OxenRenderer {
             / (OX_WALK_SPEED * WORKFORCE_MOVEMENT_SPEED_MULTIPLIER),
         ),
       );
-      visual.mixer.update(simulationDt);
+      if (this.batch) this.batch.updateAnimation(visual.model, visual.mixer, simulationDt);
+      else visual.mixer.update(simulationDt);
     }
     this.flushAuthoredBatch();
   }
@@ -402,6 +403,7 @@ export class OxenRenderer {
         this.batch = new AuthoredAnimalInstanceBatch({
           parent: this.root,
           sourceRoot: gltf.scene,
+          animations: Object.values(clips),
           capacity: 16,
           name: 'Draft ox exact-model instances',
           castShadow: true,

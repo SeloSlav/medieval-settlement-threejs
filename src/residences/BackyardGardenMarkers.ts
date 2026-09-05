@@ -132,6 +132,7 @@ export class BackyardGardenMarkers {
         this.chickenBatch = this.createAnimalBatch(
           source.scene,
           'Backyard hen exact-model instances',
+          [source.idle, source.walk],
         );
         if (this.latestInput) this.syncReplayable(this.latestInput, true);
       },
@@ -150,6 +151,7 @@ export class BackyardGardenMarkers {
         this.goatBatch = this.createAnimalBatch(
           source.scene,
           'Backyard small-ruminant exact-model instances',
+          [source.idle, source.graze],
         );
         this.goatBatchMaterialColors = this.goatBatch
           ? backyardGoatBatchMaterialColors(this.goatBatch.materialSlots())
@@ -171,6 +173,7 @@ export class BackyardGardenMarkers {
         this.pigBatch = this.createAnimalBatch(
           source.scene,
           'Backyard pig exact-model instances',
+          [source.idle, source.graze],
         );
         if (this.latestInput) this.syncReplayable(this.latestInput, true);
       },
@@ -404,7 +407,8 @@ export class BackyardGardenMarkers {
           }
         }
         chicken.root.position.set(chicken.x, 0, chicken.z);
-        chicken.mixer.update(dt);
+        if (this.chickenBatch) this.chickenBatch.updateAnimation(chicken.model, chicken.mixer, dt);
+        else chicken.mixer.update(dt);
       }
     }
     for (const [residenceId, visuals] of this.goats) {
@@ -423,7 +427,8 @@ export class BackyardGardenMarkers {
           goat.grazing = !goat.grazing;
           goat.timer = 2.5 + goat.random() * 6;
         }
-        goat.mixer.update(dt);
+        if (this.goatBatch) this.goatBatch.updateAnimation(goat.model, goat.mixer, dt);
+        else goat.mixer.update(dt);
       }
     }
     for (const [residenceId, visuals] of this.pigs) {
@@ -442,7 +447,8 @@ export class BackyardGardenMarkers {
           pig.grazing = !pig.grazing;
           pig.timer = 2.5 + pig.random() * 6;
         }
-        pig.mixer.update(dt);
+        if (this.pigBatch) this.pigBatch.updateAnimation(pig.model, pig.mixer, dt);
+        else pig.mixer.update(dt);
       }
     }
     this.flushAuthoredBatches();
@@ -648,11 +654,13 @@ export class BackyardGardenMarkers {
   private createAnimalBatch(
     sourceRoot: THREE.Object3D,
     name: string,
+    animations: readonly THREE.AnimationClip[],
   ): AuthoredAnimalInstanceBatch | null {
     try {
       return new AuthoredAnimalInstanceBatch({
         parent: this.root,
         sourceRoot,
+        animations,
         capacity: 32,
         name,
         castShadow: true,

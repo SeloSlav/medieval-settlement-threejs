@@ -177,6 +177,7 @@ export async function createFishWildlifeVisuals(
     batch = new AuthoredAnimalInstanceBatch({
       parent: group,
       sourceRoot: source.scene,
+      animations: Object.values(source.clips),
       capacity: totalCapacity,
       name: 'Fish exact-model instances',
     });
@@ -316,7 +317,8 @@ export async function createFishWildlifeVisuals(
         } else {
           updateSwimming(fish, school, dt, terrain, water, rng);
         }
-        fish.mixer.update(dt);
+        if (batch) batch.updateAnimation(fish.model, fish.mixer, dt);
+        else fish.mixer.update(dt);
       }
     }
     if (batch) {

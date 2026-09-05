@@ -85,7 +85,9 @@ export class AnimalCombatRenderer {
       instance.mixer.timeScale = nextAction === 'Walk' || nextAction === 'Gallop'
         ? animalCombatLocomotionRate(nextAction, gaitSpeed) * (dt > 0 ? simulationRate * motionDt / dt : 0)
         : 1;
-      instance.mixer.update(Math.max(0, dt));
+      const batch = this.batches.get(pose.faction);
+      if (batch) batch.updateAnimation(instance.model, instance.mixer, Math.max(0, dt));
+      else instance.mixer.update(Math.max(0, dt));
     }
     for (const [id, instance] of this.instances) {
       if (!active.has(id)) this.removeInstance(id, instance);
@@ -130,6 +132,7 @@ export class AnimalCombatRenderer {
           this.batches.set(faction, new AuthoredAnimalInstanceBatch({
             parent: this.group,
             sourceRoot: asset.scene,
+            animations: asset.animations,
             capacity: 16,
             name: `${faction} exact-model combat instances`,
             castShadow: true,

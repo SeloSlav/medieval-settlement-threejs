@@ -881,8 +881,11 @@ export class SettlementCrowdRenderer {
         visual.movementSpeed = agent.movementSpeed;
         this.lastLocomotionRateRefreshes += 1;
       }
-      if (dt > 0) {
-        visual.mixer.update(dt);
+      if (dt >= 0) {
+        this.authoredBatches![sourceKey].updateAnimation(
+          visual.model, visual.mixer, dt,
+          (!agent.tool || !isMilitaryEquipmentKind(agent.tool)) && !agent.mounted && !agent.companyStandard,
+        );
         this.lastMixerUpdates += 1;
       }
       this.applyCombatPresentation(visual, agent, dt);
@@ -997,6 +1000,9 @@ export class SettlementCrowdRenderer {
       ? bindCombatWeaponRig(model, agent.tool, tool) : null;
     // Register after binding so the nocked ammunition joins the shared batches.
     if (tool) this.mountedAttachments.registerTool(tool);
+    if (tool && agent.tool && !isMilitaryEquipmentKind(agent.tool)) {
+      this.authoredBatches![sourceKey].registerAnimationAttachments(model, tool);
+    }
 
     const mixer = new THREE.AnimationMixer(model);
     const actions: Record<VillagerRenderMode, THREE.AnimationAction> = {
@@ -1288,6 +1294,7 @@ export class SettlementCrowdRenderer {
     return new AuthoredSkinnedInstanceBatch({
       parent: this.animatedGroup,
       sourceRoot: source.scene,
+      animations: Object.values(source.clips),
       capacity: INITIAL_AUTHORED_BATCH_CAPACITY,
       name: `${variant} exact authored crowd`,
       castShadow: true,

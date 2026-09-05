@@ -157,6 +157,7 @@ export async function createDeerWildlifeVisuals(
       batches.set(sex, new AuthoredAnimalInstanceBatch({
         parent: group,
         sourceRoot: modelSources[sex].scene,
+        animations: Object.values(modelSources[sex].clips),
         capacity: initialCapacity,
         name: `${sex} exact-model wildlife instances`,
         castShadow: true,
@@ -291,7 +292,10 @@ export async function createDeerWildlifeVisuals(
 
       syncDeerVisualTransform(visual, terrain);
       if (visual.root.visible) {
-        visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
+        const dt = Math.min(Math.max(dtSeconds, 0), 0.1);
+        const batch = batches.get(visual.sex);
+        if (batch) batch.updateAnimation(visual.model, visual.mixer, dt);
+        else visual.mixer.update(dt);
       }
     }
     for (const [sex, batch] of batches) {

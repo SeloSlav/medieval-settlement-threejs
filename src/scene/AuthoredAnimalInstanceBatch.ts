@@ -27,6 +27,7 @@ export class AuthoredAnimalInstanceBatch {
   constructor(options: {
     parent: THREE.Object3D;
     sourceRoot: THREE.Object3D;
+    animations?: readonly THREE.AnimationClip[];
     capacity: number;
     name: string;
     castShadow?: boolean;
@@ -36,6 +37,7 @@ export class AuthoredAnimalInstanceBatch {
     this.batch = new AuthoredSkinnedInstanceBatch({
       parent: options.parent,
       sourceRoot: options.sourceRoot,
+      animations: options.animations,
       capacity: options.capacity,
       name: options.name,
       castShadow: options.castShadow ?? false,
@@ -45,6 +47,10 @@ export class AuthoredAnimalInstanceBatch {
 
   materialSlots() {
     return this.batch.materialSlots();
+  }
+
+  updateAnimation(model: THREE.Object3D, mixer: THREE.AnimationMixer, dt: number): void {
+    this.batch.updateAnimation(model, mixer, dt);
   }
 
   beginFrame(requiredCapacity: number): void {

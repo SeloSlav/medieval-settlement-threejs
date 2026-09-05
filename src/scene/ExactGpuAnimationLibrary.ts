@@ -439,6 +439,34 @@ export class ExactGpuAnimationLibrary {
     }
   }
 
+  /** Minimal parent-first closure for exact CPU observers such as tool mounts. */
+  observerBoneIndices(names: readonly string[]): readonly number[] {
+    const required = new Set<number>();
+    for (const name of names) {
+      let bone = this.boneIndex(name);
+      while (bone >= 0 && !required.has(bone)) {
+        required.add(bone);
+        bone = this.upload.parentIndices[bone]!;
+      }
+    }
+    return this.topology.filter(index => required.has(index));
+  }
+
+  /** Evaluate only observed chains, at full precision and the exact clip time. */
+  evaluateObserverBones(clip: number, time: number, indices: readonly number[], workspace: ExactGpuAnimationReferenceWorkspace): void {
+    for (const bone of indices) {
+      this.sampleVector(clip, bone, POSITION_SLOT, time, workspace.positionA);
+      this.sampleQuaternion(clip, bone, time, workspace.quaternionA);
+      this.sampleVector(clip, bone, SCALE_SLOT, time, workspace.scaleA);
+      workspace.localMatrix.compose(workspace.positionA, workspace.quaternionA, workspace.scaleA);
+      const parent = this.upload.parentIndices[bone]!;
+      workspace.modelBoneMatrices[bone]!.multiplyMatrices(
+        parent >= 0 ? workspace.modelBoneMatrices[parent]! : this.rootParentMatrixObjects[bone]!,
+        workspace.localMatrix,
+      );
+    }
+  }
+
   /**
    * Standalone WGSL compute contract. Integration creates immutable storage
    * buffers from upload, dynamic state buffers from ExactGpuAnimationStateBuffer,
