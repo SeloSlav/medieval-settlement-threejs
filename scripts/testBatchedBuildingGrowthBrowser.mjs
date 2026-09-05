@@ -14,7 +14,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
   await page.route('**/batch-growth-probe', r => r.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
   await page.goto(new URL('batch-growth-probe', server.resolvedUrls.local[0]).href);
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async mergeDraws => {
     const THREE = await import('/node_modules/three/build/three.module.js');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { BuildingStaticBatches } = await import('/src/buildings/BuildingStaticBatches.ts');
@@ -29,7 +29,7 @@ try {
     const camera = new THREE.PerspectiveCamera(45, 640/480, .1, 1000);
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x222222);
     const parent = new THREE.Group(); scene.add(parent);
-    const batches = new BuildingStaticBatches(parent);
+    const batches = new BuildingStaticBatches(parent, { mergeDraws });
     const reference = new THREE.Scene(); reference.background = scene.background;
     for (const s of [scene, reference]) { s.add(new THREE.HemisphereLight(0xffffff,0x777777,3)); const light=new THREE.DirectionalLight(0xffffff,3); light.position.set(10,25,10); s.add(light); }
     const target = new THREE.Vector3(0, 0, 0);
@@ -64,7 +64,7 @@ try {
     }
     renderer.dispose();
     return {adapter:backend.adapterEvidence,errors,images};
-  });
+  }, process.argv.includes('--spatial'));
   mkdirSync('artifacts/city-performance', { recursive: true });
   for(const image of result.images)for(const kind of ['actual','expected','settled'])writeFileSync(`artifacts/city-performance/${label}-${image.name}-${kind}.png`,Buffer.from(image[kind].split(',')[1],'base64'));
   delete result.images;

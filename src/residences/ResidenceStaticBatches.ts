@@ -10,6 +10,7 @@ export class ResidenceStaticBatches {
     this.batches = new BuildingStaticBatches(parent, {
       sourceGroupName: 'Residence static batches',
       collisionProxyFlag: 'residenceStaticCollisionProxy',
+      mergeDraws: true,
     });
     this.group = this.batches.group;
     this.group.name = 'Cross-residence static batches';

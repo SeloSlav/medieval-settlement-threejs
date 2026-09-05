@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { VisibleUpdateGroup } from '../scene/VisibleUpdateGroup.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
 import { addSharedFirewoodPile } from '../buildings/firewoodPileMesh.ts';
@@ -2223,7 +2224,7 @@ function addResidenceUpgradeWorks(
   residence: THREE.Group,
   dimensions: HouseDimensions,
 ): void {
-  const works = new THREE.Group();
+  const works = new VisibleUpdateGroup();
   works.name = 'ResidenceUpgradeWorks';
   works.visible = false;
   residence.add(works);
@@ -2450,7 +2451,7 @@ function finishAuthoredTierOneResidence(
   chimneyEmitter.userData.residenceSmokeExit = 'through-shingle-roof';
   group.add(chimneyEmitter);
 
-  const firewoodPile = new THREE.Group();
+  const firewoodPile = new VisibleUpdateGroup();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
   firewoodPile.position.set(1.28, 0, -4.08);
@@ -2562,7 +2563,7 @@ function finishAuthoredKitResidence(
   }
   group.add(chimneyEmitter);
 
-  const firewoodPile = new THREE.Group();
+  const firewoodPile = new VisibleUpdateGroup();
   firewoodPile.name = 'FirewoodPile';
   firewoodPile.visible = false;
   firewoodPile.position.set(
@@ -3480,6 +3481,7 @@ export class ResidenceMarkers {
       }
       if (this.serviceCoverageIds.has(id)) this.serviceCoverageDirty = true;
     }
+    this.staticBatches.finalizeGeometryBuffers();
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
     }

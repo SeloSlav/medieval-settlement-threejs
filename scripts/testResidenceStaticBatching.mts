@@ -200,21 +200,22 @@ assert.equal(denseAfter.triangles, denseBeforeTriangles,
 // reducing actual WebGPU submissions and retained geometry. Count both paths.
 const denseNativeDraws = denseAfter.draws - denseStats.renderObjects
   + denseStats.nativeDraws;
+console.log('Dense residence render budget', { draws: denseAfter.draws, nativeDraws: denseNativeDraws, beforeBytes: denseRawGeometry.bytes, finalBytes: denseFinalGeometry.bytes });
 assert.ok(
   denseBeforeDraws >= 7_500,
   `100-home fixture must retain the reviewed dense load (got ${denseBeforeDraws})`,
 );
 assert.ok(
-  denseAfter.draws <= 400,
-  `exact shared geometry instances must remain at or below 400 render objects (got ${denseAfter.draws})`,
+  denseAfter.draws <= 450,
+  `spatial cells and exact instances must remain at or below 450 render objects (got ${denseAfter.draws})`,
 );
 assert.ok(
   denseAfter.draws <= denseBeforeDraws * 0.05,
   `100-home batching must remove at least 95% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
 );
 assert.ok(
-  denseNativeDraws <= 1_100,
-  `exact instancing must keep 100 varied homes below 1,100 native WebGPU draws (got ${denseNativeDraws})`,
+  denseNativeDraws <= 450,
+  `spatial merging must keep 100 varied homes below 450 native WebGPU draws (got ${denseNativeDraws})`,
 );
 assert.ok(
   denseNativeDraws <= denseBeforeDraws * 0.2,
@@ -238,8 +239,8 @@ assert.ok(
   `100 registered homes must remain at or below 1,300 live geometries (${denseFinalGeometry.geometries})`,
 );
 assert.ok(
-  denseFinalGeometry.bytes <= denseRawGeometry.bytes + 840,
-  `registration may add only the shared 840-byte collision box (${denseRawGeometry.bytes} -> ${denseFinalGeometry.bytes})`,
+  denseFinalGeometry.bytes <= 64 * 1024 * 1024,
+  `100 homes including CPU editing sources and native spatial draw geometry must fit 64 MiB (${denseFinalGeometry.bytes})`,
 );
 const collisionGeometries = new Set<THREE.BufferGeometry>();
 dense.traverse((object) => {

@@ -35,7 +35,7 @@ export async function createCityScaleFixture() {
   ground.position.y = -0.03;
   scene.add(ground);
   await initializeBuildingMaterialLibrary(backend.maxAnisotropy);
-  let batches = new BuildingStaticBatches(structures);
+  let batches = new BuildingStaticBatches(structures, { mergeDraws: true });
   let homes = new ResidenceMarkers(structures);
   const crowd = new SettlementCrowdRenderer({ parent: people });
   const dogs = new AnimalCombatRenderer(animals);
@@ -54,7 +54,7 @@ export async function createCityScaleFixture() {
     batches.dispose();
     homes.dispose();
     structures.clear();
-    batches = new BuildingStaticBatches(structures);
+    batches = new BuildingStaticBatches(structures, { mergeDraws: true });
     homes = new ResidenceMarkers(structures);
     const columns = Math.ceil(Math.sqrt(buildings + residences));
     extent = Math.max(20, columns * 9);

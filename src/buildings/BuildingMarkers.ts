@@ -163,7 +163,7 @@ export class BuildingMarkers {
     this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
     this.campStandards = new CampStandardRenderer(this.group, (x, z) => this.terrain.getHeightAt(x, z));
-    this.staticBatches = new BuildingStaticBatches(this.group);
+    this.staticBatches = new BuildingStaticBatches(this.group, { mergeDraws: true });
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(
       this.group,
       'Batched completed-building shadow proxies',
