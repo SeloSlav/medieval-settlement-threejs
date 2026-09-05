@@ -366,6 +366,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_reforester(ctx, &tick, &clock, sim_tick, building);
     }
 
+    crate::simulation::forestry::step_falling_trees(ctx);
     for building_id in lumber_mill_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;

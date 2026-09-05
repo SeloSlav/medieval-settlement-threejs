@@ -24,6 +24,9 @@ export function upsertTreeRow(
     layoutIndex: Number(row.layoutIndex),
     phase: normalizeTreePhase(row.phase),
     growthProgress: row.growthProgress,
+    harvestProgress: row.harvestProgress,
+    workBuildingId: row.workBuildingId > 0n ? `building-${row.workBuildingId}` : null,
+    logs: row.logs,
   });
 }
 

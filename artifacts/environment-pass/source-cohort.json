@@ -1,6 +1,6 @@
 {
-  "cohortId": "3dd10580100027c8",
-  "sourceCommit": "060876690a49965438fec7267e5d8873e0def1e0",
+  "cohortId": "b03cdbd152589975",
+  "sourceCommit": "c36296ef585217f0043ca1d4d8ec23b3d371892e",
   "files": {
     "src/app/App.ts": "66337fa05e3144a8dca8b97db0d187c84d43c72ad749b13f56bb2ee833ebc0d3",
     "src/app/appBootstrap.ts": "511acf633892e97336c09eb141e4e945993e0d232c05dc0bf5073f7a05cd83ed",
@@ -191,7 +191,7 @@
     "src/e2e/campPlacementProbe.ts": "1f6b928872586719e5932a399293ff73db22d9aec5799ccb21cea6fe2e68ae19",
     "src/e2e/closeGroundZoomProbe.ts": "a95fa4009d9987f139ec50bd1dd189a384f71ce72d105ac1f298c99956185271",
     "src/e2e/dryStoneWallLineup.ts": "418abe4692ae570f05dc8fe5090e34982aa589c7e71125f9f512db8b829fced2",
-    "src/e2e/environmentLineup.ts": "2b0ab04a921bb5a66e6d641a149c42a6e72c75ebbc93e5f51406940bce50b9fd",
+    "src/e2e/environmentLineup.ts": "31c209ac9c0c9611d806eb49c9e245852a76e32589249a4dd580fe997dba3e1d",
     "src/e2e/farmFieldLineup.ts": "cf223da32043f90d5b68ccdcee3234e7488244c5dc3b3ca2ab45dce69884e0fa",
     "src/e2e/fireLightingParityProbe.ts": "35e57f80d0804ad174828900526fc496017eea528b522e9ec04bc8546c19b581",
     "src/e2e/fireLightingProbe.ts": "694ac35b55ba98d24df948c326aa6228baa1e7e2874b0713dd0ad794ca4a2dc2",

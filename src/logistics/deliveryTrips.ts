@@ -92,6 +92,7 @@ export const DELIVERY_DESTINATION_KINDS = [
   'care',
   'trade',
   'military',
+  'forestry',
 ] as const;
 export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number];
 
@@ -120,6 +121,7 @@ export type DeliveryTripState = {
   pathDistance: number;
   travelSpeedMultiplier: number;
   routePolylineJson: string;
+  forestrySource?: { treeId: string; logIndex: number; layoutIndex: number; capacity: number };
 };
 
 export const VISIBLE_CART_CARGO_EPSILON = 0.05;
@@ -477,6 +479,8 @@ export function destinationKindFromId(value: number): DeliveryDestinationKind | 
       return 'trade';
     case 6:
       return 'military';
+    case 7:
+      return 'forestry';
     default:
       return null;
   }

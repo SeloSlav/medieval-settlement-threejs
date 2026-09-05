@@ -102,6 +102,7 @@ fn grow_tree(tree: TreeEntity, growth_increment: f64) -> TreeEntity {
         "stump"
     };
     TreeEntity {
+        harvest_owner: if phase == "mature" { None } else { tree.harvest_owner },
         phase: phase.to_string(),
         growth_progress,
         ..tree

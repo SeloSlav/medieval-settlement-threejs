@@ -58,6 +58,9 @@ export function countTreesNearBuilding(
         matureTrees++;
         break;
       case 'stump':
+      case 'falling':
+      case 'fallen':
+      case 'logs':
         stumpTrees++;
         break;
       case 'growing':

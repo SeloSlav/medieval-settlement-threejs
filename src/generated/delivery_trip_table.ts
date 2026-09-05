@@ -9,6 +9,10 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  ForestrySource,
+} from "./types";
+
 
 export default __t.row({
   id: __t.u64().primaryKey(),
@@ -33,4 +37,7 @@ export default __t.row({
   freeHaulerWorkers: __t.u32().name("free_hauler_workers"),
   laborBuildingId: __t.u64().name("labor_building_id"),
   oxId: __t.u64().name("ox_id"),
+  get forestrySource() {
+    return __t.option(ForestrySource).name("forestry_source");
+  },
 });

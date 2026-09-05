@@ -55,7 +55,7 @@ pub fn step_large_quarry(
             clock,
             &building,
             CommodityKind::Timber,
-            &["lumber_mill", "village_storehouse"],
+            &["village_storehouse"],
             large_quarry_support_target(),
         );
         if !large_quarry_supports_ready(building.timber) {

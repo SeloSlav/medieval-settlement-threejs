@@ -2,6 +2,26 @@
   "schemaVersion": 1,
   "assets": [
     {
+      "id": "forestry-tree-fall",
+      "group": "forestry-felling",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/tree_fall.mp3",
+      "prompt": "A single large forest tree beginning to fall after hand axe felling: deep stressed trunk creaks, wood fibres tearing and snapping, increasing rush of leafy branches sweeping through air. Starts with a quiet creak and accelerates over three seconds. End before the tree hits the ground. Isolated realistic close outdoor foley, no impact thud, no voices, no music, no chainsaw, no machinery.",
+      "durationSeconds": 3.5,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "forestry-tree-impact",
+      "group": "forestry-felling",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/tree_impact.mp3",
+      "prompt": "Immediate heavy impact of one freshly felled large tree striking a soft forest floor: deep woody ground thump, broad crown crash, smaller branches cracking, a short scattering rustle of leaves settling. One synchronized impact right at the start with a natural two second decay. Isolated realistic outdoor foley, no preamble, no voices, no music, no chainsaw, no machinery.",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
       "id": "ambient-forest-day",
       "group": "ambient-core",
       "kind": "sound-effect",

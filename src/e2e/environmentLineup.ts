@@ -11,6 +11,15 @@ import { windStrength } from '@seedthree/core/wind.js';
 import { GORSKI_KOTAR_SPECIES } from '../vegetation/seedthree/gorskiKotarPresets.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { loadSeedThreeGrassTextures } from '../vegetation/seedthree/seedThreeGrass.ts';
+import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
+import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
+import { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
+import { createResidenceMesh } from '../residences/ResidenceMarkers.ts';
+import { BurgageFencing } from '../residences/BurgageFencing.ts';
+import { computeBurgageLayout } from '../residences/burgageLayout.ts';
+import { setActivePlacedBuildingLayout, sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
+import { updateTerrainBuildingPads } from '../terrain/TerrainBuildingPads.ts';
+import { batchStaticFixtureMeshes } from './staticFixtureBatch.ts';
 
 const params = new URLSearchParams(location.search);
 if (params.get('conifers') === 'baseline') {
@@ -42,7 +51,48 @@ for (const points of [
   [[166, -8], [177, -12], [189, -23], [210, -28]],
   [[189, -23], [191, -40], [184, -54]],
 ]) network.addRoadPath(points.map(([x,z]) => manager.terrain.getPointAt(x,z)), 4.2);
+const settlement = { buildings: [], residences: [], parcels: [], batches: null };
+if (params.get('settlement') === '1') {
+  // Existing production assets and clearance/pad/access systems. This optional
+  // fixture adds context without changing the established forest-only views.
+  const zones = [
+    { id: 'north', corners: [[228,14],[196,14],[196,32],[228,32]] },
+    { id: 'south', corners: [[196,6],[228,6],[228,-12],[196,-12]] },
+  ].map(({ id, corners }) => {
+    const [cornerA, cornerB, cornerC, cornerD] = corners.map(([x,z]) => ({ x,z }));
+    return { id, cornerA, cornerB, cornerC, cornerD, frontageEdge: 0, plotCount: 4 };
+  });
+  for (const zone of zones) {
+    const layout = computeBurgageLayout({ a: zone.cornerA, b: zone.cornerB, c: zone.cornerC, d: zone.cornerD }, 0, 4);
+    if (!layout) throw new Error(`Invalid environment review parcel: ${zone.id}`);
+    settlement.parcels.push(...layout.parcels.map(parcel => parcel.polygon));
+    settlement.residences.push(...layout.residences.map(placement => ({ ...placement, id: `${zone.id}-${placement.parcelIndex}`, zoneId: zone.id })));
+  }
+  settlement.buildings = [
+    { id: 'village-well', kind: 'well', x: 231, z: 3, yaw: 0 },
+    { id: 'forest-forager', kind: 'foragers_shed', x: 241, z: 20, yaw: Math.PI },
+    { id: 'village-smithy', kind: 'smithy', x: 247, z: 0, yaw: 0 },
+  ];
+  const pads = BuildingTerrainLayout.fromSettlement(settlement.buildings, settlement.residences, sampleNaturalTerrainHeight);
+  setActivePlacedBuildingLayout(pads);
+  updateTerrainBuildingPads(manager.terrain, pads);
+  network.addRoadPath([[189,-23],[190,-2],[196,10],[232,10],[253,10]].map(([x,z]) => manager.terrain.getPointAt(x,z)), 4.2);
+  await initializeBuildingMaterialLibrary(manager.maxAnisotropy);
+  const root = new THREE.Group();
+  root.name = 'Environment review settlement';
+  manager.scene.add(root);
+  for (const [index, source] of [...settlement.residences, ...settlement.buildings].entries()) {
+    const mesh = source.kind ? createBuildingMesh(source.kind) : createResidenceMesh((settings.seed ^ Math.imul(index + 1, 0x45d9f3b)) >>> 0, 1);
+    mesh.position.copy(manager.terrain.getPointAt(source.x, source.z));
+    mesh.rotation.y = source.yaw;
+    root.add(mesh);
+  }
+  new BurgageFencing(root, network).syncZones(zones, settlement.residences, (x,z) => manager.terrain.getHeightAt(x,z));
+  settlement.batches = batchStaticFixtureMeshes(root, 'Environment review settlement batches').stats;
+  manager.setForestClearanceSources(settlement.buildings, settlement.parcels, []);
+}
 manager.syncRoadNetwork(network);
+if (settlement.buildings.length) manager.syncBuildingAccessRoads(settlement.buildings);
 const views = {
   strategic: { target: [145, -36], distance: 185 },
   design: { target: [190, -20], distance: 75 },
@@ -50,6 +100,9 @@ const views = {
   ground: { target: [190, -20], distance: 13.54 },
   meadow: { target: [210, -5], distance: 18 },
   cap: { target: [210, -28], distance: 16 },
+  village: { target: [219, 7], distance: 105 },
+  lane: { target: [215, 10], distance: 42 },
+  approach: { target: [238, 10], distance: 22 },
 };
 const trees = manager.getForestManager().getTreeLayouts();
 const survey = [];
@@ -92,9 +145,10 @@ async function frames(count, collect = false, dt = 0) {
 }
 const gpu = createVisualGpuTimestampProfiler({ kind: manager.rendererBackend, renderer: manager.renderer });
 setView(activeView);
-await frames(90);
+await frames(150, false, 1 / 60);
 window.__ENVIRONMENT_GAUNTLET__ = {
   survey,
+  settlement,
   views: Object.keys(views),
   async setGrassImage(dataUrl) {
     const source = await new THREE.TextureLoader().loadAsync(dataUrl);
@@ -109,6 +163,40 @@ window.__ENVIRONMENT_GAUNTLET__ = {
     manager.applyDayNight(computeDayNightState(applyVisualQaClock(gameClock(0), conditions), false));
     await frames(360, false, 1 / 30);
     windStrength.value = 0;
+  },
+  async captureCanopyLayers(view = 'meadow') {
+    setView(view);
+    manager.setLightingDiagnostic('final');
+    await frames(150, false, 1 / 60);
+    windStrength.value = 0;
+    const meshes = [];
+    manager.scene.traverse(object => {
+      if (object.isMesh && /^(americanBeech|whiteOak|redMaple|sweetgum|douglasFir|loblolly|pine) /.test(object.name)) meshes.push(object);
+    });
+    const masks = meshes.map(mesh => mesh.layers.mask);
+    const catalog = meshes.map(mesh => {
+      let shown = true;
+      for (let object = mesh; object; object = object.parent) shown &&= object.visible;
+      return { name: mesh.name, crownUnderlay: mesh.userData.crownUnderlay === true, shown, layerMask: mesh.layers.mask, count: mesh.count ?? 1 };
+    });
+    const results = {};
+    const exclusions = {
+      all: () => false,
+      'without-crown-underlay': mesh => mesh.userData.crownUnderlay === true,
+      'without-overview-cards': mesh => mesh.name.includes(' overview '),
+      'without-detail-cards': mesh => mesh.name.endsWith(' cards') && !mesh.name.includes(' overview ') && !mesh.userData.crownUnderlay,
+    };
+    try {
+      for (const [name, exclude] of Object.entries(exclusions)) {
+        meshes.forEach((mesh, i) => { mesh.layers.mask = masks[i]; if (exclude(mesh)) mesh.layers.disable(0); });
+        manager.render(0, orbitDistance);
+        await manager.waitForSubmittedWork();
+        results[name] = manager.renderer.domElement.toDataURL('image/png');
+      }
+    } finally {
+      meshes.forEach((mesh, i) => { mesh.layers.mask = masks[i]; });
+    }
+    return { view, catalog, images: results };
   },
   async captureMotion({ sampleCount = 720 } = {}) {
     setView('design');
@@ -142,7 +230,11 @@ window.__ENVIRONMENT_GAUNTLET__ = {
   async capture({ view, diagnostic = 'final', sampleCount = 240 }) {
     setView(view);
     manager.setLightingDiagnostic(diagnostic);
-    await frames(150);
+    // Advance the existing time-based visibility fades before freezing the
+    // authored screenshot. dt=0 here leaves overview cards resident after a
+    // retreat and falsely adds their submissions to the next close view.
+    await frames(150, false, 1 / 60);
+    windStrength.value = 0;
     const samples = await frames(sampleCount, true);
     await manager.waitForSubmittedWork();
     await nextFrame();

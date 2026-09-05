@@ -33,7 +33,7 @@ pub fn is_ox_supported_workplace(kind: &str) -> bool {
 
 pub fn is_ox_production_workplace(kind: &str) -> bool {
     is_ox_supported_workplace(kind)
-        && !matches!(kind, "village_storehouse" | "granary" | "trading_post")
+        && !matches!(kind, "lumber_mill" | "woodcutters_lodge" | "village_storehouse" | "granary" | "trading_post")
 }
 
 /// Ox postings use a pool independent from human labor. The type-specific
@@ -336,7 +336,7 @@ mod tests {
         assert!(is_ox_supported_workplace("granary"));
         assert!(is_ox_supported_workplace("trading_post"));
         assert!(!is_ox_production_workplace("village_storehouse"));
-        assert!(is_ox_production_workplace("lumber_mill"));
+        assert!(!is_ox_production_workplace("lumber_mill"));
         assert!(is_ox_production_workplace("monastery"));
         assert!(!is_ox_supported_workplace("smithy"));
     }

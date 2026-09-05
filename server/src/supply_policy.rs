@@ -168,6 +168,7 @@ pub fn construction_source_available_stock(
     stock: f64,
 ) -> f64 {
     let reserve = match (kind, commodity) {
+        ("lumber_mill", "timber") => return 0.0,
         ("carpenter", "timber") => carpenter_cart_service_timber_target(cart_service_target_trips),
         ("carpenter", "ironwork") => {
             carpenter_cart_service_ironwork_target(cart_service_target_trips)
@@ -1087,7 +1088,7 @@ mod tests {
         );
         assert_eq!(
             construction_source_available_stock("lumber_mill", 30, "timber", 2.0),
-            2.0
+            0.0
         );
     }
 

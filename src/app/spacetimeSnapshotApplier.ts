@@ -200,7 +200,7 @@ export class SpacetimeSnapshotApplier {
         const previousGrowth = this.previousTreeGrowth.get(treeId);
         const phaseChanged = previousPhase !== entity.phase || previousPhase === undefined;
         const growthChanged = previousGrowth !== entity.growthProgress;
-        if (phaseChanged || growthChanged) {
+        if (phaseChanged || growthChanged || previous?.trees.get(treeId) !== entity) {
           changedTreeIds.push(treeId);
         }
         this.previousTreePhases.set(treeId, entity.phase);

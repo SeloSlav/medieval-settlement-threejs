@@ -111,6 +111,67 @@ pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
 pub const DELIVERY_DESTINATION_RESIDENCE_REMEDY: u8 = 4;
 pub const DELIVERY_DESTINATION_REGIONAL_TRADE: u8 = 5;
 pub const DELIVERY_DESTINATION_MILITARY_COMPANY: u8 = 6;
+pub const DELIVERY_DESTINATION_FORESTRY: u8 = 7;
+
+/// An empty crew walks from its camp to one reserved physical log. Timber
+/// requires a purchased ox, posted here or drawn from the automatic pool.
+pub fn try_start_forestry_trip(
+    ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock,
+    camp: &Building, tree: &crate::tables::TreeEntity, log_index: usize, commodity: CommodityKind,
+) -> bool {
+    if building_has_active_trip(ctx, camp.id) || onsite_building_labor(ctx, camp) == 0
+        || labor_and_logistics_paused(ctx, tick, camp.owner, clock)
+        || tick.building_disabled_by_fire(ctx, camp.id) { return false; }
+    let Some(log) = tree.logs.get(log_index) else { return false; };
+    if ctx.db.delivery_trip().owner().filter(&camp.owner).any(|trip|
+        trip.forestry_source.as_ref().is_some_and(|s| s.tree_id == tree.tree_id && s.log_index as usize == log_index)) { return false; }
+    let Some(network) = tick.road_network(camp.owner) else { return false; };
+    let Some(route) = local_delivery_route(network, camp.x, camp.z, log.x, log.z) else { return false; };
+    let ox_id = if commodity == CommodityKind::Timber {
+        claim_haul_ox_for_workplace(ctx, tick, camp.owner, camp.id, camp.x, camp.z)
+    } else { 0 };
+    if commodity == CommodityKind::Timber && ox_id == 0 { return false; }
+    let stock = if commodity == CommodityKind::Timber {
+        log.health / crate::forestry_policy::LOG_HEALTH_PER_TIMBER
+    } else { log.firewood };
+    let capacity = whole_units(stock.min(building_commodity_room(camp, commodity))
+        .min(if ox_id != 0 { 6.0 } else { 8.0 }));
+    if capacity < 1.0 { release_haul_ox(tick, ox_id); return false; }
+    ctx.db.delivery_trip().insert(DeliveryTrip {
+        id: 0, owner: camp.owner, building_id: camp.id, labor_building_id: camp.id,
+        residence_id: 0, target_building_id: 0, destination_kind: DELIVERY_DESTINATION_FORESTRY,
+        cargo_kind: commodity.as_u8(), amount: 0.0, phase: 0, x: camp.x, z: camp.z,
+        progress: 0.0, speed_mps: TIMBER_DELIVERY_SPEED_MPS,
+        unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC, unload_remaining: 0.0,
+        delivery_workers: 1, path_distance: route.route.distance,
+        travel_speed_multiplier: route.speed_multiplier,
+        route_polyline_json: serialize_route_polyline(&route.route.polyline),
+        free_hauler_workers: 0, ox_id,
+        forestry_source: Some(crate::tables::ForestrySource { tree_id: tree.tree_id.clone(),
+            log_index: log_index as u32, layout_index: tree.layout_index, capacity }),
+    });
+    true
+}
+
+fn collect_forestry_cargo(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
+    let Some(source) = trip.forestry_source.as_ref() else { return; };
+    let Some(mut tree) = ctx.db.tree_entity().tree_id().find(&source.tree_id) else { return; };
+    let Some(camp) = ctx.db.building().id().find(&trip.building_id) else { return; };
+    if tree.harvest_owner != Some(trip.owner) || camp.owner != trip.owner { return; }
+    let Some(log) = tree.logs.get_mut(source.log_index as usize) else { return; };
+    let Some(commodity) = CommodityKind::from_u8(trip.cargo_kind) else { return; };
+    let capacity = source.capacity.min(building_commodity_room(&camp, commodity));
+    if commodity == CommodityKind::Timber && trip.ox_id != 0 {
+        let (health, units) = crate::forestry_policy::wood_from_health(log.health, capacity, false);
+        log.health = health;
+        trip.amount = units;
+    } else if commodity == CommodityKind::Firewood {
+        trip.amount = whole_units(log.firewood.min(capacity));
+        log.firewood -= trip.amount;
+    }
+    super::forestry::settle_depleted_tree(&mut tree);
+    ctx.db.tree_entity().tree_id().update(tree);
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
@@ -1570,7 +1631,11 @@ fn try_start_building_supply_trip_with_labor(
         return false;
     }
 
-    let ox_id = claim_trip_ox(ctx, tick, origin, labor_source);
+    if commodity == CommodityKind::Timber && origin.kind == "lumber_mill" && target.kind != "village_storehouse" { return false; }
+    let ox_id = if commodity == CommodityKind::Timber && origin.kind == "lumber_mill" {
+        claim_haul_ox_for_workplace(ctx, tick, origin.owner, origin.id, origin.x, origin.z)
+    } else { claim_trip_ox(ctx, tick, origin, labor_source) };
+    if commodity == CommodityKind::Timber && origin.kind == "lumber_mill" && ox_id == 0 { return false; }
     let batch = ox_amplified_cart_capacity(per_delivery_amount, delivery_workers, ox_id);
     let load = building_commodity_stock(origin, commodity)
         .min(target_room)
@@ -2095,6 +2160,7 @@ fn insert_trip(
         route_polyline_json: serialize_route_polyline(&route.polyline),
         free_hauler_workers,
         ox_id: spec.ox_id,
+        forestry_source: None,
     });
 }
 
@@ -2360,6 +2426,10 @@ fn trip_route(
 }
 
 fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64) {
+    if trip.destination_kind == DELIVERY_DESTINATION_FORESTRY {
+        collect_forestry_cargo(ctx, trip);
+        return;
+    }
     let Some(TripCargoKind::Commodity(commodity)) = TripCargoKind::from_trip(trip) else {
         return;
     };

@@ -4,7 +4,7 @@ export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
 export type ResourceNodeKind = (typeof RESOURCE_NODE_KINDS)[number];
 
-export const TREE_PHASES = ['stump', 'growing', 'mature'] as const;
+export const TREE_PHASES = ['stump', 'growing', 'mature', 'falling', 'fallen', 'logs'] as const;
 export type TreePhase = (typeof TREE_PHASES)[number];
 
 import {
@@ -62,11 +62,15 @@ export type TreeLayoutEntry = {
   scale: number;
 };
 
+export type TimberLogState = { x: number; z: number; health: number; maxHealth: number; firewood: number };
 export type TreeEntityState = {
   treeId: string;
   layoutIndex: number;
   phase: TreePhase;
   growthProgress: number;
+  harvestProgress?: number;
+  workBuildingId?: string | null;
+  logs?: readonly TimberLogState[];
 };
 
 /**

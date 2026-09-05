@@ -9,12 +9,22 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  TimberLog,
+} from "./types";
+
 
 export default __t.row({
   treeId: __t.string().primaryKey().name("tree_id"),
   layoutIndex: __t.u32().name("layout_index"),
   phase: __t.string(),
   growthProgress: __t.f64().name("growth_progress"),
+  harvestProgress: __t.f64().name("harvest_progress"),
+  harvestOwner: __t.option(__t.identity()).name("harvest_owner"),
+  workBuildingId: __t.u64().name("work_building_id"),
+  get logs() {
+    return __t.array(TimberLog);
+  },
   woodYield: __t.f64().name("wood_yield"),
   x: __t.f64(),
   z: __t.f64(),

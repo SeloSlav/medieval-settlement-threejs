@@ -28,6 +28,13 @@ export function renderLumberMillInspector(
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
   const processorStatus = getBuildingProcessorStatus(building, context.worldQueries, { matureTrees });
+  const wood = context.worldQueries.getForestryStock?.(building);
+  const trip = context.worldQueries.getActiveDeliveryTrip(building);
+  const forestryStatus = trip?.destinationKind === 'forestry'
+    ? (trip.phase === 'inbound' ? 'Ox returning timber to camp storage' : 'Ox collecting a forest log')
+    : wood?.falling ? 'Tree falling — workers stand clear'
+    : wood?.fallen ? 'Workers cutting the fallen tree into logs'
+    : wood?.timber ? (wood.availableOxen ? 'Logs ready — waiting for an ox crew' : 'Logs ready — purchase or assign an ox to haul timber') : null;
   const onsiteLabor = onsiteBuildingLabor(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
@@ -38,14 +45,17 @@ export function renderLumberMillInspector(
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: processorStatus?.statusText ?? 'Idle',
-    statusState: processorStatus?.statusState ?? 'idle',
+    statusText: forestryStatus ?? processorStatus?.statusText ?? 'Idle',
+    statusState: forestryStatus ? (wood?.availableOxen === 0 && wood.timber > 0 ? 'warning' : 'active') : processorStatus?.statusState ?? 'idle',
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
       ${civilianToolRows(building, context.worldQueries)}
       ${forestryWorkAreaDetailRow(building)}
+      <li><span>Timber route</span><span>Tree → fallen trunk → logs → ox → camp storage → ox → Storehouse</span></li>
+      ${wood ? `<li><span>Logs on the ground</span><span>${wood.logs} · ${wood.health}/${wood.maxHealth} wood health</span></li>
+      <li><span>Remaining wood</span><span>${wood.timber} timber or ${wood.firewood} firewood · shared with nearby woodcutters</span></li>` : ''}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
     `,

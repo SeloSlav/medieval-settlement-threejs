@@ -17,6 +17,9 @@ mod fiscal_revenue;
 mod food_spoilage;
 mod food_supplier;
 mod foraging_respawn;
+pub mod forestry;
+#[cfg(feature = "forestry-tests")]
+mod forestry_regression;
 mod founding_site;
 mod game_calendar;
 mod household_discretionary_trade;

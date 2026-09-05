@@ -361,6 +361,9 @@ export const DeliveryTrip = __t.object("DeliveryTrip", {
   freeHaulerWorkers: __t.u32(),
   laborBuildingId: __t.u64(),
   oxId: __t.u64(),
+  get forestrySource() {
+    return __t.option(ForestrySource);
+  },
 });
 export type DeliveryTrip = __Infer<typeof DeliveryTrip>;
 
@@ -439,6 +442,14 @@ export const ForagingNode = __t.object("ForagingNode", {
   anchorZ: __t.f64(),
 });
 export type ForagingNode = __Infer<typeof ForagingNode>;
+
+export const ForestrySource = __t.object("ForestrySource", {
+  treeId: __t.string(),
+  logIndex: __t.u32(),
+  layoutIndex: __t.u32(),
+  capacity: __t.f64(),
+});
+export type ForestrySource = __Infer<typeof ForestrySource>;
 
 export const Graveyard = __t.object("Graveyard", {
   id: __t.u64(),
@@ -979,6 +990,15 @@ export const StableOx = __t.object("StableOx", {
 });
 export type StableOx = __Infer<typeof StableOx>;
 
+export const TimberLog = __t.object("TimberLog", {
+  x: __t.f64(),
+  z: __t.f64(),
+  health: __t.f64(),
+  maxHealth: __t.f64(),
+  firewood: __t.f64(),
+});
+export type TimberLog = __Infer<typeof TimberLog>;
+
 export const TradingPostTradeRule = __t.object("TradingPostTradeRule", {
   id: __t.string(),
   owner: __t.identity(),
@@ -1006,6 +1026,12 @@ export const TreeEntity = __t.object("TreeEntity", {
   layoutIndex: __t.u32(),
   phase: __t.string(),
   growthProgress: __t.f64(),
+  harvestProgress: __t.f64(),
+  harvestOwner: __t.option(__t.identity()),
+  workBuildingId: __t.u64(),
+  get logs() {
+    return __t.array(TimberLog);
+  },
   woodYield: __t.f64(),
   x: __t.f64(),
   z: __t.f64(),

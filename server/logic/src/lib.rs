@@ -1,6 +1,9 @@
 //! Pure server logic compiled for native `cargo test`.
 //! The WASM module crate (`medieval-road-system-server`) cannot link host tests directly.
 
+#[path = "../../src/forestry_policy.rs"]
+pub mod forestry_policy;
+
 #[path = "../../src/balance_generated.rs"]
 pub mod balance_generated;
 

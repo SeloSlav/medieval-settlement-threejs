@@ -1087,6 +1087,8 @@ export class SceneManager {
     setTerrainTopographyVisibility(this.fairTerrainMaterial, visible ? 1 : 0);
   }
 
+  drainForestrySoundEvents() { return this.forestManager?.drainForestrySoundEvents() ?? []; }
+
   setTerrainHorizonDebugMode(mode: TerrainHorizonDebugMode): void {
     this.terrainHorizon.setDebugMode(mode);
   }

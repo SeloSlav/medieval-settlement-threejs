@@ -1687,6 +1687,18 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
+    setTreeTransform: (layoutIndex, worldDelta) => {
+      const mapping = forest.slotByLayoutIndex[layoutIndex];
+      if (!mapping) return;
+      const bucket = forest.buckets[mapping.bucketIndex];
+      const slot = bucket.slots[mapping.slotIndex];
+      slot.matrix.multiplyMatrices(worldDelta, slot.authoredMatrix!);
+      slot.enabled = true;
+      const indices = [mapping.slotIndex];
+      patchSeedThreeLodSlotVisibility(bucket.nearSet, bucket.slots, bucket.nearViewSlotIndices, indices);
+      patchSeedThreeLodSlotVisibility(bucket.overviewSet, bucket.slots, bucket.overviewViewSlotIndices, indices);
+      patchSeedThreeLodSlotVisibility(bucket.nearShadowSet, bucket.slots, bucket.nearSlotIndices, indices);
+    },
     commit: () => commitSeedThreeForestMatrices(forest),
     updateCamera: (
       camera,

@@ -13,9 +13,11 @@ crate-type = ["cdylib"]
 
 [features]
 trailer = []
+forestry-tests = []
 
 [dependencies]
 log = "0.4"
 spacetimedb = "2.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+

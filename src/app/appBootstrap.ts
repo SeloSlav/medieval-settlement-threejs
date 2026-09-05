@@ -329,6 +329,7 @@ export async function bootstrapAppSession(
 
   const { AmbientAudioController } = await import('../audio/AmbientAudioController.ts');
   const ambientAudio = new AmbientAudioController({
+    drainForestrySounds: () => sceneManager.drainForestrySoundEvents(),
     unlockElement: sceneManager.renderer.domElement,
     interactionRoot: uiRoot,
     camera: sceneManager.camera,

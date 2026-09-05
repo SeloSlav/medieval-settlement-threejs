@@ -1723,7 +1723,7 @@ pub fn step_mine(
             clock,
             &building,
             CommodityKind::Timber,
-            &["lumber_mill", "village_storehouse"],
+            &["village_storehouse"],
             rich_mine_support_target(),
         );
     }
@@ -3113,7 +3113,7 @@ fn request_military_workshop_inputs(
 ) {
     for (commodity, per_cycle) in inputs {
         let sources: &[&str] = match commodity {
-            CommodityKind::Timber => &["lumber_mill", "village_storehouse", "trading_post"],
+            CommodityKind::Timber => &["village_storehouse", "trading_post"],
             CommodityKind::Ironwork => &["smithy", "village_storehouse", "trading_post"],
             CommodityKind::Leather => &["tannery", "village_storehouse", "trading_post"],
             CommodityKind::Linen => &[
@@ -4490,7 +4490,7 @@ pub fn step_carpenter(
         clock,
         &building,
         CommodityKind::Timber,
-        &["lumber_mill", "village_storehouse"],
+        &["village_storehouse"],
         cart_service_timber,
     );
     request_connected_commodity(
@@ -4513,7 +4513,7 @@ pub fn step_carpenter(
             clock,
             &building,
             CommodityKind::Timber,
-            &["lumber_mill", "village_storehouse"],
+            &["village_storehouse"],
             cart_service_timber + CARPENTER_TIMBER_PER_POLEARM * next_batch,
         );
         request_connected_commodity(

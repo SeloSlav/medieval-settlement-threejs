@@ -4,11 +4,14 @@ import { createHash } from 'node:crypto';
 
 const label = process.argv[2] ?? 'baseline';
 const baseUrl = process.env.ENVIRONMENT_REVIEW_URL ?? 'http://127.0.0.1:5186';
-const out = `artifacts/environment-pass/${label}`;
-mkdirSync(out, { recursive: true });
+const rootOut = `artifacts/environment-pass/${label}`;
+const queries = process.env.ENVIRONMENT_QUERY_SWEEP?.split('|') ?? [process.env.ENVIRONMENT_REVIEW_QUERY ?? ''];
 const browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+  for (const [armIndex, query] of queries.entries()) {
+  const out = queries.length === 1 ? rootOut : `${rootOut}/arm-${armIndex}`;
+  mkdirSync(out, { recursive: true });
   const assetOverrides = {};
   if (process.env.ENVIRONMENT_GRASS_ASSET) {
     const grassAsset = readFileSync(process.env.ENVIRONMENT_GRASS_ASSET);
@@ -19,7 +22,7 @@ try {
   page.on('pageerror', error => { errors.push(error.message); console.log('ERROR', error.message); });
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   if (!process.argv.includes('--hamlet')) {
-    const url = `${baseUrl}/environment-lineup.html${process.env.ENVIRONMENT_REVIEW_QUERY ?? ''}`;
+    const url = `${baseUrl}/environment-lineup.html${query}`;
     console.log('Loading', url);
     const cohortResponse = await fetch(`${baseUrl}/__environment_cohort`);
     if (cohortResponse.headers.get('content-type')?.includes('application/json')) {
@@ -31,6 +34,16 @@ try {
       new Promise((_, reject) => page.once('pageerror', reject)),
     ]);
     writeFileSync(`${out}/survey.json`, JSON.stringify(await page.evaluate(() => window.__ENVIRONMENT_GAUNTLET__.survey), null, 2));
+    if (process.env.ENVIRONMENT_CANOPY_LAYERS === '1') {
+      for (const view of ['design', 'meadow', 'ground']) {
+        const { images, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.captureCanopyLayers(view), view);
+        writeFileSync(`${out}/${view}-layers.json`, JSON.stringify(evidence, null, 2));
+        for (const [layer, png] of Object.entries(images)) writeFileSync(`${out}/${view}-${layer}.png`, Buffer.from(png.split(',')[1], 'base64'));
+      }
+      writeFileSync(`${out}/runtime.json`, JSON.stringify({ url, errors }, null, 2));
+      if (errors.length) throw new Error(errors.join('\n'));
+      continue;
+    }
     if (process.env.ENVIRONMENT_GRASS_PAIR) {
       const original = readFileSync('public/assets/textures/vegetation/grass/close-meadow-tuft-greener.png');
       const candidate = readFileSync(process.env.ENVIRONMENT_GRASS_PAIR);
@@ -53,9 +66,11 @@ try {
     const diagnostics = (process.env.ENVIRONMENT_DIAGNOSTICS ?? 'final').split(',');
     if (process.env.ENVIRONMENT_SEASON) await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), process.env.ENVIRONMENT_SEASON);
     if (process.env.ENVIRONMENT_MOTION === '1') {
-      const evidence = await page.evaluate(() => window.__ENVIRONMENT_GAUNTLET__.captureMotion());
-      writeFileSync(`${out}/motion.json`, JSON.stringify(evidence, null, 2));
-      console.log('motion', { gpuMs: evidence.gpuMs, frameMs: evidence.frameMs });
+      for (const phase of ['cold', 'warm']) {
+        const evidence = await page.evaluate(() => window.__ENVIRONMENT_GAUNTLET__.captureMotion());
+        writeFileSync(`${out}/motion-${phase}.json`, JSON.stringify(evidence, null, 2));
+        console.log(`motion-${phase}`, { gpuMs: evidence.gpuMs, frameMs: evidence.frameMs });
+      }
     }
     for (const diagnostic of diagnostics) for (const view of captureViews) {
       const { png, ...evidence } = await page.evaluate(({ view, diagnostic }) => window.__ENVIRONMENT_GAUNTLET__.capture({ view, diagnostic, sampleCount: 480 }), { view, diagnostic });
@@ -63,15 +78,6 @@ try {
       writeFileSync(`${out}/${name}.png`, Buffer.from(png.split(',')[1], 'base64'));
       writeFileSync(`${out}/${name}.json`, JSON.stringify({ ...evidence, assetOverrides }, null, 2));
       console.log(name, { frameMs: evidence.frameMs, gpuMs: evidence.gpuMs, draws: evidence.renderer.calls, triangles: evidence.renderer.triangles });
-    }
-    for (const season of (process.env.ENVIRONMENT_SEASONS ?? '').split(',').filter(Boolean)) {
-      await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), season);
-      for (const view of ['design', 'meadow']) {
-        const { png, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.capture({ view, sampleCount: 240 }), view);
-        writeFileSync(`${out}/${season}-${view}.png`, Buffer.from(png.split(',')[1], 'base64'));
-        writeFileSync(`${out}/${season}-${view}.json`, JSON.stringify(evidence, null, 2));
-        console.log(`${season}-${view}`, { gpuMs: evidence.gpuMs, draws: evidence.renderer.calls });
-      }
     }
     for (const season of (process.env.ENVIRONMENT_SEASONS ?? '').split(',').filter(Boolean)) {
       await page.evaluate(preset => window.__ENVIRONMENT_GAUNTLET__.setConditions(preset), season);
@@ -103,6 +109,10 @@ try {
   }
   writeFileSync(`${out}/runtime.json`, JSON.stringify({ url, errors }, null, 2));
   if (errors.length) console.log('Runtime errors', errors);
+  }
+  page.removeAllListeners('pageerror');
+  page.removeAllListeners('console');
+  await page.unrouteAll();
   }
 } finally {
   await browser.close();

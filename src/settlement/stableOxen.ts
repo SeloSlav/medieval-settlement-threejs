@@ -38,6 +38,8 @@ const OX_SUPPORTED_WORKPLACE_KIND_SET = new Set<BuildingKind>(
 );
 
 const OX_LOGISTICS_ONLY_KIND_SET = new Set<BuildingKind>([
+  'lumber_mill',
+  'woodcutters_lodge',
   'village_storehouse',
   'granary',
   'trading_post',

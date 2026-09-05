@@ -1451,7 +1451,7 @@ export function disposeDeliveryCartMesh(group: THREE.Group): void {
   );
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
-    mesh.geometry?.dispose();
+    if (!mesh.userData.sharedGeometry) mesh.geometry?.dispose();
   });
   for (const material of ownedMaterials) material.dispose();
 }

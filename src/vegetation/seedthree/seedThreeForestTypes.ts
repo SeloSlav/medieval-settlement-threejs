@@ -1,4 +1,4 @@
-import type { Camera } from 'three';
+import type { Camera, Matrix4 } from 'three';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 export type SeedThreeForestStructuralStats = {
@@ -56,6 +56,7 @@ export type SeedThreeForestCameraUpdateResult = {
 export type SeedThreeForestController = {
   hideTree(layoutIndex: number): void;
   showTree(layoutIndex: number): void;
+  setTreeTransform?(layoutIndex: number, worldDelta: Matrix4): void;
   commit(): void;
   updateCamera(
     camera: Camera,

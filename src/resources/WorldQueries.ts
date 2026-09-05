@@ -417,6 +417,30 @@ export class WorldQueries {
     return this.getGameState().livestockHerds.get(pastureId) ?? null;
   }
 
+  getForestryStock(building: BuildingState) {
+    const state = this.getGameState();
+    const area = effectiveTreeWorkArea(building);
+    const stock = { falling: 0, fallen: 0, logs: 0, health: 0, maxHealth: 0, timber: 0, firewood: 0, splitFirewood: 0, availableOxen: 0 };
+    for (const layout of this.getTreeRegistry()?.treesInRadius(area.x, area.z, area.radius) ?? []) {
+      const tree = state.trees.get(layout.id);
+      if (tree?.phase === 'falling') stock.falling++;
+      if (tree?.phase === 'fallen') stock.fallen++;
+      for (const log of tree?.logs ?? []) {
+        if (log.health > 0) stock.logs++;
+        stock.health += log.health;
+        stock.maxHealth += log.maxHealth;
+        stock.timber += Math.floor(log.health / 10);
+        stock.firewood += Math.floor(log.health / 5);
+        stock.splitFirewood += log.firewood;
+      }
+    }
+    for (const ox of state.stableOxen.values()) {
+      const stable = state.buildings.get(ox.stableId);
+      if (stable?.constructionComplete && (!ox.assignedBuildingId || ox.assignedBuildingId === building.id)) stock.availableOxen++;
+    }
+    return stock;
+  }
+
   findGraveyardTarget(graveyardId: string): Extract<InspectableTarget, { kind: 'graveyard' }> | null {
     const state = this.getGameState();
     const graveyard = state.graveyards?.get(graveyardId);

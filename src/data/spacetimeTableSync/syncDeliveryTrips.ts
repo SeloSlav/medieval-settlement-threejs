@@ -74,6 +74,7 @@ export function syncDeliveryTrips(
       pathDistance: Number(row.pathDistance ?? 0),
       travelSpeedMultiplier: Number(row.travelSpeedMultiplier ?? 1),
       routePolylineJson: row.routePolylineJson ?? '',
+      forestrySource: row.forestrySource,
     });
   }
   return deliveryTrips;

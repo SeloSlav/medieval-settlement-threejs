@@ -32,6 +32,8 @@ import {
 } from './deliveryCartWorker.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { OxFollowPose } from '../settlement/OxenRenderer.ts';
+import { createTimberLogMesh, timberLogLayout } from '../forestry/TimberLogVisuals.ts';
+import { timberLogDimensions } from '../forestry/forestry.ts';
 import {
   samplePolylineXZ,
   type PointXZ,
@@ -431,7 +433,9 @@ export class DeliveryAgentRenderer {
   }
 
   private ensureCartMesh(visual: TripVisual, trip: DeliveryTripState): void {
-    const desiredName = trip.destinationKind === 'fire'
+    const desiredName = trip.forestrySource && trip.cargoKind === 'timber'
+      ? `Forestry ox haul ${trip.forestrySource.layoutIndex} ${trip.amount}`
+      : trip.destinationKind === 'fire'
       ? fireBucketCarrierMeshName()
       : deliveryCartMeshName(
           trip.cargoKind,
@@ -465,6 +469,24 @@ export class DeliveryAgentRenderer {
   }
 
   private createCartMesh(trip: DeliveryTripState): THREE.Group {
+    if (trip.forestrySource && trip.cargoKind === 'timber') {
+      const root = new THREE.Group();
+      root.name = `Forestry ox haul ${trip.forestrySource.layoutIndex} ${trip.amount}`;
+      const placement = timberLogLayout(trip.forestrySource.layoutIndex);
+      if (placement && trip.amount > 0) {
+        const { radius, length } = timberLogDimensions(placement);
+        const log = createTimberLogMesh(placement.species, radius, length);
+        log.rotation.x = Math.PI/2;
+        log.position.set(0, radius, -0.45);
+        root.add(log);
+        const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1.5,6), new THREE.MeshStandardMaterial({ color: 0x8b7048, roughness: 1 }));
+        rope.rotation.x = Math.PI/2;
+        rope.position.set(0, radius+0.1, 1.1);
+        root.userData.ownedCartMaterials = [rope.material];
+        root.add(rope);
+      }
+      return root;
+    }
     if (trip.destinationKind === 'fire') {
       return createFireBucketCarrierMesh();
     }

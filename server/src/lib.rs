@@ -30,6 +30,7 @@ mod fire_recovery_policy;
 mod fiscal_policy;
 mod food_demand_policy;
 mod foraging_policy;
+mod forestry_policy;
 mod frontier_economy_policy;
 mod fuel_reserve_policy;
 mod granary_policy;

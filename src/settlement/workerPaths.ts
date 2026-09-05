@@ -51,6 +51,7 @@ import {
 } from '../farming/farmFieldMath.ts';
 import { fieldTaskRank } from '../farming/threshingPriority.ts';
 import { residenceDoorPosition } from './villagerPaths.ts';
+import { treeFallDirection } from '../forestry/forestry.ts';
 import type { ClericDuty } from './clericBehaviors.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
@@ -532,12 +533,31 @@ export function collectWorkerTargets(
   }
 
   if (building.kind === 'lumber_mill' || building.kind === 'woodcutters_lodge') {
-    collectTreeTargets(
-      effectiveTreeWorkArea(building),
-      inputs,
-      (phase) => phase === 'mature',
-      targets,
-    );
+    const area = effectiveTreeWorkArea(building);
+    const trees = inputs.treeRegistry?.treesInRadius(area.x, area.z, area.radius) ?? [];
+    const fallen: WorkerTarget[] = [];
+    const logs: WorkerTarget[] = [];
+    let falling = false;
+    for (const tree of trees) {
+      const entity = inputs.trees.get(tree.id);
+      if (!entity) continue;
+      falling ||= entity.phase === 'falling';
+      if (entity.phase === 'fallen') {
+        const yaw = treeFallDirection(tree.layoutIndex);
+        fallen.push({ id: `${tree.id}:bucking`, kind: 'tree',
+          x: tree.x + Math.sin(yaw)*3 + Math.cos(yaw)*0.6,
+          z: tree.z + Math.cos(yaw)*3 - Math.sin(yaw)*0.6 });
+      }
+      if (entity.phase === 'logs') {
+        entity.logs?.forEach((log,index) => {
+          if (log.health <= 0 || building.kind !== 'woodcutters_lodge') return;
+          logs.push({ id: `${tree.id}:log:${index}`, kind: 'tree', x: log.x+0.6, z: log.z });
+        });
+      }
+    }
+    if (fallen.length) targets.push(...fallen);
+    else if (logs.length) targets.push(...logs);
+    else if (!falling) collectTreeTargets(area, inputs, phase => phase === 'mature', targets);
   } else if (building.kind === 'swineherd') {
     collectTreeTargets(
       { x: building.x, z: building.z, radius },

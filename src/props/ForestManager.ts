@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { treeFallAngle, treeFallDirection, timberLogDimensions, type ForestrySoundEvent } from '../forestry/forestry.ts';
+import { TimberLogVisuals, registerTimberLogMaterials, registerTimberLogLayout } from '../forestry/TimberLogVisuals.ts';
+import type { TimberLogState } from '../resources/types.ts';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { pointWithinBuildingSiteClearance } from '../buildings/BuildingTerrainLayout.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
@@ -105,6 +108,8 @@ export type ForestTreePhaseUpdate = {
   layoutIndex: number;
   phase: TreePhase;
   growthProgress: number;
+  harvestProgress?: number;
+  logs?: readonly TimberLogState[];
 };
 
 export type MixedForestInstances = {
@@ -169,6 +174,13 @@ export class ForestManager {
   private placementClearancePolygonSignature = '';
   private placementClearanceInitialized = false;
   private treePhases = new Map<number, TreePhase>();
+  private readonly fallingTrees = new Map<number, { progress: number; target: number; impact: boolean }>();
+  private readonly forestrySounds: ForestrySoundEvent[] = [];
+  private readonly timberLogs: TimberLogVisuals;
+  private readonly fallMatrix = new THREE.Matrix4();
+  private readonly fallRotation = new THREE.Matrix4();
+  private readonly fallTranslation = new THREE.Matrix4();
+  private readonly fallAxis = new THREE.Vector3();
   private treeGrowthProgress = new Map<number, number>();
   private collisionVersion = 0;
   private undergrowthVisible = true;
@@ -230,6 +242,12 @@ export class ForestManager {
       resolveHarvestStumpBark,
     );
     this.group.add(this.harvestStumps.group);
+    this.timberLogs = new TimberLogVisuals((x, z) => terrain.getHeightAt(x, z));
+    this.group.add(this.timberLogs.group);
+    for (let index = 0; index < this.placements.length; index++) {
+      registerTimberLogMaterials(this.placements[index].species, this.harvestStumps.slots[index].mesh.material);
+      registerTimberLogLayout(index, this.placements[index]);
+    }
   }
 
   getTreeLayouts(): ForestTreeLayout[] {
@@ -349,11 +367,29 @@ export class ForestManager {
   applyTreePhases(updates: Iterable<ForestTreePhaseUpdate>): void {
     let needsCommit = false;
     for (const update of updates) {
+      const prior = this.treePhases.get(update.layoutIndex);
+      const placement = this.placements[update.layoutIndex];
+      if (placement && !this.removedTrees.has(update.layoutIndex)) {
+        if (update.phase === 'falling' || update.phase === 'fallen') {
+          const target = update.phase === 'fallen' ? 1 : update.harvestProgress ?? 0;
+          const existing = this.fallingTrees.get(update.layoutIndex);
+          if (existing) existing.target = target;
+          else {
+            this.fallingTrees.set(update.layoutIndex, { progress: target, target, impact: prior === 'mature' || prior === 'falling' });
+            if (prior === 'mature' && update.phase === 'falling') this.queueForestrySound(update.layoutIndex, 'fall');
+          }
+        } else {
+          this.fallingTrees.delete(update.layoutIndex);
+        }
+      }
       needsCommit = this.applyTreePhaseWithoutCommit(
         update.layoutIndex,
         update.phase,
         update.growthProgress,
       ) || needsCommit;
+      if (placement && !this.removedTrees.has(update.layoutIndex)) {
+        this.timberLogs.sync(update.layoutIndex, placement, update.phase === 'logs' ? update.logs ?? [] : []);
+      }
     }
     if (needsCommit) {
       this.commitTreeInstanceUpdates();
@@ -439,6 +475,14 @@ export class ForestManager {
         this.hideHarvestStump(layoutIndex);
         this.showTree(layoutIndex);
         break;
+      case 'falling':
+      case 'fallen':
+        this.showTree(layoutIndex);
+        this.setTreeForestFloorActive(layoutIndex, false);
+        this.showHarvestStump(layoutIndex);
+        this.applyFallingTreePose(layoutIndex, this.fallingTrees.get(layoutIndex)?.progress ?? (phase === 'fallen' ? 1 : 0));
+        break;
+      case 'logs':
       case 'stump':
       case 'growing':
         // The felled trunk remains a visible harvest-site marker throughout
@@ -491,14 +535,28 @@ export class ForestManager {
     deltaSeconds = 1 / 60,
     closeGroundGpuPrewarmActive = false,
   ): boolean {
-    const shadowCastersChanged = this.seedThreeForest?.updateCamera(
+    let fallChanged = false;
+    for (const [index, fall] of this.fallingTrees) {
+      const before = fall.progress;
+      fall.progress += (fall.target - fall.progress) * Math.min(1, Math.max(0, deltaSeconds) / 0.09);
+      if (fall.target === 1 && fall.progress > 0.995) fall.progress = 1;
+      if (fall.progress !== before) {
+        this.applyFallingTreePose(index, fall.progress);
+        fallChanged = true;
+      }
+      if (fall.progress === 1 && fall.impact) {
+        this.queueForestrySound(index, 'impact');
+        fall.impact = false;
+      }
+    }
+    const shadowCastersChanged = (this.seedThreeForest?.updateCamera(
       camera,
       cameraDistance,
       firstPersonActive,
       casterBounds,
       cameraInteractionActive,
       deltaSeconds,
-    ).shadowCastersChanged ?? false;
+    ).shadowCastersChanged ?? false) || fallChanged;
     const harvestStumpsVisible = shouldShowHarvestStumps(
       this.harvestStumps.group.visible,
       cameraDistance,
@@ -689,6 +747,9 @@ export class ForestManager {
   }
 
   dispose(): void {
+    this.timberLogs.dispose();
+    this.fallingTrees.clear();
+    this.forestrySounds.length = 0;
     disposeHarvestStumpInstances(this.harvestStumps);
     this.disposeResources();
   }
@@ -977,6 +1038,8 @@ export class ForestManager {
   }
 
   private hideTree(treeIndex: number): void {
+    this.fallingTrees.delete(treeIndex);
+    this.timberLogs.remove(treeIndex);
     this.setTreeForestFloorActive(treeIndex, false);
     if (this.seedThreeForest) {
       this.seedThreeForest.hideTree(treeIndex);
@@ -1020,6 +1083,32 @@ export class ForestManager {
       return;
     }
     this.flushTreeInstanceUpdates();
+  }
+
+  drainForestrySoundEvents(): ForestrySoundEvent[] { return this.forestrySounds.splice(0); }
+
+  private queueForestrySound(layoutIndex: number, kind: ForestrySoundEvent['kind']): void {
+    const tree = this.placements[layoutIndex];
+    if (this.forestrySounds.length >= 32) this.forestrySounds.shift();
+    this.forestrySounds.push({ kind, layoutIndex, x: tree.x, z: tree.z, y: this.terrain.getHeightAt(tree.x, tree.z) });
+  }
+
+  private applyFallingTreePose(layoutIndex: number, progress: number): void {
+    const tree = this.placements[layoutIndex];
+    if (!tree || !this.seedThreeForest?.setTreeTransform) return;
+    const yaw = treeFallDirection(layoutIndex);
+    const y = this.terrain.getHeightAt(tree.x, tree.z);
+    const radius = timberLogDimensions(tree).radius;
+    // Sample the downhill/uphill landing along the trunk so it rests on terrain.
+    const distance = 9 * tree.scale;
+    const rise = this.terrain.getHeightAt(tree.x + Math.sin(yaw)*distance, tree.z + Math.cos(yaw)*distance) - y;
+    const landingAngle = Math.PI/2 - Math.atan2(rise, distance);
+    this.fallAxis.set(Math.cos(yaw), 0, -Math.sin(yaw));
+    this.fallRotation.makeRotationAxis(this.fallAxis, treeFallAngle(progress) * landingAngle / (Math.PI/2));
+    this.fallMatrix.makeTranslation(tree.x, y + radius * progress, tree.z)
+      .multiply(this.fallRotation)
+      .multiply(this.fallTranslation.makeTranslation(-tree.x, -y, -tree.z));
+    this.seedThreeForest.setTreeTransform(layoutIndex, this.fallMatrix);
   }
 
   private flushTreeInstanceUpdates(): void {

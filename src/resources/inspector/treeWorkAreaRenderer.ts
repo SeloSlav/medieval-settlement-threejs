@@ -35,7 +35,7 @@ export function renderForestryWorkAreaPanel(
   const defaultRadius = Math.round(effectiveTreeWorkArea(building).radius);
   const workerRule = building.kind === 'reforester'
     ? 'Foresters plant and tend trees only inside the chosen circle.'
-    : 'Laborers fell mature trees only inside the chosen circle.';
+    : 'Laborers fell trees and process fallen logs inside this circle. Overlapping logging and woodcutting areas share the same finite wood.';
   const centerDistance = area
     ? Math.round(Math.hypot(area.x - building.x, area.z - building.z))
     : 0;

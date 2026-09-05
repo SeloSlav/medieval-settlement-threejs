@@ -47,6 +47,7 @@ export function constructionSourceAvailableStock(
   source: ConstructionStockSourceLike,
   material: ConstructionMaterial,
 ): number {
+  if (source.kind === 'lumber_mill' && material === 'timber') return 0;
   const stock = Math.max(0, source[material] ?? 0);
   const serviceReserve = source.kind === 'carpenter'
     ? material === 'timber'

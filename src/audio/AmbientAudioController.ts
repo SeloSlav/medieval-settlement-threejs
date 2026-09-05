@@ -58,6 +58,8 @@ import {
   isMusicEnabled,
 } from './audioPreferences.ts';
 import { ForestWindAudio } from './ForestWindAudio.ts';
+import { ForestryAudio } from './ForestryAudio.ts';
+import type { ForestrySoundEvent } from '../forestry/forestry.ts';
 import { forestWindTargetMix } from './forestWindRules.ts';
 import { setExternalSoundtrackActive } from './audioPlaybackState.ts';
 import {
@@ -69,6 +71,7 @@ import { ProductionPocketAudio } from './ProductionPocketAudio.ts';
 import { buildProductionPocketTargets } from './productionPocketRules.ts';
 
 export type AmbientAudioControllerConfig = {
+  drainForestrySounds?: () => ForestrySoundEvent[];
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
   isFirstPersonActive: () => boolean;
@@ -108,6 +111,7 @@ export class AmbientAudioController {
   private readonly fireAudio: FireAudio;
   private readonly buildingAudio = new BuildingAudio();
   private readonly worldFoley = new WorldFoleyAudio();
+  private readonly forestryAudio = new ForestryAudio();
   private readonly config: AmbientAudioControllerConfig;
   private lastMilitaryOrderSoundId: MilitaryOrderSoundId | null = null;
   private readonly ambientRuleState: AmbientRuleState = {
@@ -211,6 +215,7 @@ export class AmbientAudioController {
   }
 
   tick(dtSeconds: number): void {
+    const forestryEvents = this.config.drainForestrySounds?.() ?? [];
     if (!this.running || !this.audio.getEnabled()) return;
     this.soundtrack.tick(dtSeconds);
     if (this.worldPaused) return;
@@ -285,6 +290,7 @@ export class AmbientAudioController {
     this.buildingAudioView.listenerX = listener.x;
     this.buildingAudioView.listenerZ = listener.z;
     this.buildingAudioView.orbitDistance = this.config.getOrbitDistance();
+    this.forestryAudio.tick(forestryEvents, this.buildingAudioView, this.config.camera);
     this.buildingAudio.tick(dtSeconds);
     this.worldFoley.tick(dtSeconds, {
       view: this.buildingAudioView,
@@ -312,6 +318,7 @@ export class AmbientAudioController {
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
     this.worldFoley.setEnabled(enabled);
+    this.forestryAudio.setEnabled(enabled);
     this.soundtrack.setEnabled(
       enabled && this.musicEnabled && this.gameplayMusicActive,
     );
@@ -359,6 +366,7 @@ export class AmbientAudioController {
   setWorldPaused(paused: boolean): void {
     if (this.worldPaused === paused) return;
     this.worldPaused = paused;
+    if (paused) this.forestryAudio.stop();
     this.audio.setPaused(paused);
     this.forestWind.setPaused(paused);
     this.riverAudio.setPaused(paused);
@@ -380,6 +388,7 @@ export class AmbientAudioController {
   setSoundEffectsVolume(volume: number): void {
     this.buildingAudio.setVolume(volume);
     this.worldFoley.setVolume(volume);
+    this.forestryAudio.setVolume(volume);
     this.fireAudio.setVolume(volume);
     this.uiAudio.setVolume(volume);
     this.agentSelectionAudio.setVolume(volume);
@@ -445,6 +454,7 @@ export class AmbientAudioController {
     this.fireAudio.dispose();
     this.buildingAudio.dispose();
     this.worldFoley.dispose();
+    this.forestryAudio.dispose();
     this.soundtrack.dispose();
     this.uiAudio.dispose();
     this.agentSelectionAudio.dispose();

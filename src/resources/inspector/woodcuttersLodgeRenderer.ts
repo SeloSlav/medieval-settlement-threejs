@@ -1,6 +1,5 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
-import { LODGE_FIREWOOD_PER_CYCLE } from '../../generated/gameBalance.ts';
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import {
   formatLodgeCrewSplit,
@@ -50,6 +49,7 @@ export function renderWoodcuttersLodgeInspector(
   const nextDeliveryTarget = context.worldQueries.getNextFirewoodDeliveryTarget(building);
   const nextTargetLabel = formatNextDeliveryTargetLabel(nextDeliveryTarget);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const wood = context.worldQueries.getForestryStock?.(building);
   const activeTripDistance = activeTrip
     ? context.worldQueries.getActiveTripPathDistance(activeTrip)
     : null;
@@ -120,18 +120,25 @@ export function renderWoodcuttersLodgeInspector(
   return {
     eyebrow: 'Building',
     title: label,
-    statusText,
-    statusState,
+    statusText: activeTrip?.destinationKind === 'forestry'
+      ? (activeTrip.phase === 'inbound' ? 'Cart returning split firewood to the lodge' : 'Cart collecting split firewood in the forest')
+      : wood?.falling ? 'Tree falling — workers stand clear'
+      : wood?.fallen ? 'Workers cutting the fallen trunk into logs'
+      : wood?.logs ? 'Splitting fallen logs into firewood'
+      : statusText,
+    statusState: wood && (wood.logs || wood.fallen || wood.falling) ? 'active' : statusState,
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${crewLabel}</span></li>
-      <li><span>Resource chain</span><span>Nearby mature trees → firewood</span></li>
+      <li><span>Resource chain</span><span>Fallen logs → split firewood → cart → lodge storage → Storehouse</span></li>
+      ${wood ? `<li><span>Shared log stock</span><span>${wood.logs} logs · ${wood.health}/${wood.maxHealth} wood health</span></li>
+      <li><span>Cutting site</span><span>${wood.splitFirewood} firewood awaiting collection · ${wood.firewood} still in logs</span></li>` : ''}
       ${forestryWorkAreaDetailRow(building)}
       <li><span>Household route</span><span>${residenceSummary}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
-      <li><span>Expected yield</span><span>~${LODGE_FIREWOOD_PER_CYCLE} firewood per mature tree · actual tree size varies</span></li>
+      <li><span>Wood conversion</span><span>5 log health per firewood · twice the timber yield</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
       ${deliveryRow}
       ${civilianToolRows(building, context.worldQueries)}

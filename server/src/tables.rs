@@ -597,6 +597,25 @@ pub struct ForagingNode {
     pub anchor_z: f64,
 }
 
+/// A single physical trunk section. Health is unconverted wood mass; split
+/// firewood remains here until a cart collects it. Slots never move or reorder.
+#[derive(spacetimedb::SpacetimeType, Clone, Debug)]
+pub struct TimberLog {
+    pub x: f64,
+    pub z: f64,
+    pub health: f64,
+    pub max_health: f64,
+    pub firewood: f64,
+}
+
+#[derive(spacetimedb::SpacetimeType, Clone, Debug)]
+pub struct ForestrySource {
+    pub tree_id: String,
+    pub log_index: u32,
+    pub layout_index: u32,
+    pub capacity: f64,
+}
+
 #[spacetimedb::table(accessor = tree_entity, public)]
 pub struct TreeEntity {
     #[primary_key]
@@ -604,6 +623,10 @@ pub struct TreeEntity {
     pub layout_index: u32,
     pub phase: String,
     pub growth_progress: f64,
+    pub harvest_progress: f64,
+    pub harvest_owner: Option<Identity>,
+    pub work_building_id: u64,
+    pub logs: Vec<TimberLog>,
     pub wood_yield: f64,
     pub x: f64,
     pub z: f64,
@@ -2158,6 +2181,8 @@ pub struct DeliveryTrip {
     /// speed bonus and never counts toward unloading labor.
     #[default(0u64)]
     pub ox_id: u64,
+    /// Empty outward journey to a forest log; load there, unload at the camp.
+    pub forestry_source: Option<ForestrySource>,
 }
 
 /// A persistent physical bandit base generated independently of frontier raids.
