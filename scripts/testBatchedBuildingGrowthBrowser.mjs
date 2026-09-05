@@ -14,7 +14,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
   await page.route('**/batch-growth-probe', r => r.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
   await page.goto(new URL('batch-growth-probe', server.resolvedUrls.local[0]).href);
-  const result = await page.evaluate(async ({mergeDraws, shadows}) => {
+  const result = await page.evaluate(async ({mergeDraws, shadows, bundles}) => {
     const THREE = await import('/node_modules/three/build/three.module.js');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { BuildingStaticBatches } = await import('/src/buildings/BuildingStaticBatches.ts');
@@ -30,6 +30,7 @@ try {
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x222222);
     const parent = new THREE.Group(); scene.add(parent);
     const batches = new BuildingStaticBatches(parent, { mergeDraws });
+    if (!bundles) batches.group.isBundleGroup = false;
     const reference = new THREE.Scene(); reference.background = scene.background;
     renderer.shadowMap.enabled = shadows;
     for (const s of [scene, reference]) {
@@ -73,7 +74,7 @@ try {
     }
     renderer.dispose();
     return {adapter:backend.adapterEvidence,errors,images};
-  }, {mergeDraws:process.argv.includes('--spatial'), shadows:process.argv.includes('--shadows')});
+  }, {mergeDraws:process.argv.includes('--spatial'), shadows:process.argv.includes('--shadows'), bundles:!process.argv.includes('--no-bundles')});
   mkdirSync('artifacts/city-performance', { recursive: true });
   for(const image of result.images)for(const kind of ['actual','expected','settled'])writeFileSync(`artifacts/city-performance/${label}-${image.name}-${kind}.png`,Buffer.from(image[kind].split(',')[1],'base64'));
   delete result.images;

@@ -385,6 +385,9 @@ export class SceneManager {
     this.materials = materials;
     this.scene = new THREE.Scene();
     installSceneTransformCache(this.scene);
+    // World transforms are committed once after simulation/visual updates.
+    // Nested shadow and color passes consume that same completed snapshot.
+    this.scene.matrixWorldAutoUpdate = false;
     this.scene.background = null;
     this.scene.fog = new THREE.FogExp2(FAIR_DAY_FOG_COLOR, 0.00072);
     this.atmosphere = new SceneAtmosphere(this.scene.fog);
@@ -1267,6 +1270,7 @@ export class SceneManager {
     const shadowRefreshReasons = shadowRefreshRequested
       ? this.snapshotDirectionalShadowReasons()
       : [];
+    this.scene.updateMatrixWorld();
     if (prepareOnly) return;
     if (import.meta.env.VITE_E2E_TEST === '1') {
       // The smoke test exercises the real node-material terrain through the

@@ -10,13 +10,32 @@ const BundleGroup = (WebGPU as unknown as {
 /** Reuse native commands until the actual visible draw set changes. */
 export class StaticRenderBundle extends BundleGroup {
   readonly isCityStaticRenderBundle = true;
-  private readonly views = new WeakMap<THREE.Camera, unknown[]>();
+  private readonly views = new WeakMap<THREE.Camera, { signature: unknown[]; version: number }>();
+  private epoch = 0;
   private readonly frustum = new THREE.Frustum();
   private readonly projection = new THREE.Matrix4();
+  private readonly lastWorld = new THREE.Matrix4();
+  private transformsDirty = true;
 
   constructor() { super(); this.static = false; }
 
-  prepare(camera: THREE.Camera): void {
+  invalidateTransforms(): void { this.transformsDirty = true; }
+
+  selectView(camera: THREE.Camera): void {
+    const view = this.views.get(camera);
+    if (view) this.version = view.version;
+  }
+
+  override updateMatrixWorld(_force?: boolean): void {
+    super.updateWorldMatrix(false, false);
+    if (this.transformsDirty || !this.lastWorld.equals(this.matrixWorld)) {
+      super.updateMatrixWorld(true);
+      this.lastWorld.copy(this.matrixWorld);
+      this.transformsDirty = false;
+    }
+  }
+
+  prepare(camera: THREE.Camera, force: boolean): void {
     this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
     const signature: unknown[] = [];
@@ -32,11 +51,11 @@ export class StaticRenderBundle extends BundleGroup {
         signature.push(material, material.version, material.visible, material.side, material.transparent);
       }
     });
-    const previous = this.views.get(camera);
-    if (!previous || signature.length !== previous.length || signature.some((value, i) => value !== previous[i])) {
-      this.views.set(camera, signature);
-      this.needsUpdate = true;
+    const previous = this.views.get(camera)?.signature;
+    if (force || !previous || signature.length !== previous.length || signature.some((value, i) => value !== previous[i])) {
+      this.views.set(camera, { signature, version: ++this.epoch });
     }
+    this.selectView(camera);
   }
 }
 
@@ -44,11 +63,19 @@ export class StaticRenderBundle extends BundleGroup {
 export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): void {
   type ProjectionRenderer = {
     _projectObject(object: THREE.Object3D, camera: THREE.Camera, ...args: unknown[]): void;
+    _renderBundle(bundle: { bundleGroup: StaticRenderBundle; camera: THREE.Camera }, ...args: unknown[]): void;
   };
   const projectionRenderer = renderer as unknown as ProjectionRenderer;
   const original = projectionRenderer._projectObject;
+  const renderBundle = projectionRenderer._renderBundle;
+  projectionRenderer._renderBundle = function(bundle, ...args) {
+    if (bundle.bundleGroup.isCityStaticRenderBundle) bundle.bundleGroup.selectView(bundle.camera);
+    renderBundle.call(this, bundle, ...args);
+  };
+  const shadowCameras = new WeakSet<THREE.Camera>();
   projectionRenderer._projectObject = function(object, camera, ...args) {
-    if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera);
+    if ((object as THREE.Scene).isScene && ((object as THREE.Scene).overrideMaterial as THREE.Material & { isShadowPassMaterial?: boolean })?.isShadowPassMaterial) shadowCameras.add(camera);
+    if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, shadowCameras.has(camera));
     original.call(this, object, camera, ...args);
   };
 }

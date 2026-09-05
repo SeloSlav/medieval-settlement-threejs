@@ -257,6 +257,7 @@ export class BuildingStaticBatches {
   }
 
   finalizeGeometryBuffers(): void {
+    this.group.invalidateTransforms();
     this.stockInstances?.flush();
     this.spatialShadows?.flush();
     if (!this.dirtyCapacity && !this.dirtyInstanceBounds && !this.dirtyDraws) return;
