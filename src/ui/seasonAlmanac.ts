@@ -5,25 +5,25 @@ export const SEASON_ALMANAC = {
     label: 'Spring',
     months: 'March–May',
     icon: '❀',
-    description: 'Sow spring oats and use the faster crop growth and well recharge, but expect slower dirt roads. Forage and fish recover, livestock breed faster, and apiaries begin storing their Autumn honey crop.',
+    description: 'Sow spring oats while crops, wells, forage, fishing, livestock, and apiaries recover, but expect slower dirt roads.',
   },
   summer: {
     label: 'Summer',
     months: 'June–August',
     icon: '☀',
-    description: 'Harvest maturing crops and cut winter hay while livestock graze and apiaries build their honey crop. Shearing peaks, and homes use less fuel.',
+    description: 'Harvest maturing crops and cut winter hay while livestock graze and apiaries build their honey crop.',
   },
   autumn: {
     label: 'Autumn',
     months: 'September–November',
     icon: '❧',
-    description: 'Finish crops and collect apiary honey, then plough and sow winter fields by November. Thresh oat sheaves into oats; pastoral farmsteads turn them into Animal Feed, while woodland pigs thrive on mast.',
+    description: 'Finish the harvest, collect apiary honey, and plough and sow winter fields by the end of November.',
   },
   winter: {
     label: 'Winter',
     months: 'December–February',
     icon: '❄',
-    description: 'Foraging, fishing, farming, apiary work, shearing, and milking stop; unharvested honey is lost. Stock hay, Animal Feed, and firewood: winter slows carts and doubles home fuel use.',
+    description: 'Most food production stops, so stock hay, Animal Feed, and firewood before carts slow and household fuel use doubles.',
   },
 } as const satisfies Record<Season, {
   label: string;
@@ -33,7 +33,7 @@ export const SEASON_ALMANAC = {
 }>;
 
 const SEVERE_WEATHER_SUMMER_DESCRIPTION =
-  'Harvest maturing crops and cut winter hay while livestock graze and apiaries build their honey crop. Drought may slow crops, cut well recharge, thin pasture and fish, reduce hay, and weaken mills.';
+  'Harvest crops and cut winter hay early, as drought can weaken crops, wells, pasture, fishing, hay, and mills.';
 
 function buildSeasonAlmanacTooltip(severeWeatherEnabled: boolean): string {
   return Object.values(SEASON_ALMANAC)

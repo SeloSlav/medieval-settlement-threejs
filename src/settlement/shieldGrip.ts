@@ -26,7 +26,7 @@ function handFit(size: number, palm: [number, number, number], curls: number[][]
 // Independent fits for the male worker's bare hand and raider's padded glove.
 // These apply only while a shield is mounted on the left hand.
 const handFits = [
-  handFit(.7255025, [.010, .029, -.0071], [[.9, 1.35], [.7, 1.35], [.5, 1.35], [.1, 1.1]], [0, 0, 0]),
+  handFit(.7255025, [.014, .040, -.0071], [[1.2, 1.5], [1.2, 1.5], [1.15, 1.5], [1.0, 1.45]], [-.15, -.15, .15]),
   handFit(1.0345412, [.024, .030, -.0071], [[1.35, .8], [1.4, .6], [1.05, .95], [.65, 1]], [-.15, -.15, .15]),
 ];
 export function shieldHandFit(hand: THREE.Bone): typeof handFits[number] {
@@ -51,11 +51,11 @@ export function createShieldArmStrap(): THREE.BufferGeometry {
     }
     if (i) for (let edge = 0; edge < 4; edge++) {
       const a = (i - 1) * 4 + edge, b = (i - 1) * 4 + (edge + 1) % 4;
-      indices.push(a, b, a + 4, b, b + 4, a + 4);
+      indices.push(a, a + 4, b, b, a + 4, b + 4);
     }
   }
   const last = (path.length - 1) * 4;
-  indices.push(0, 2, 1, 0, 3, 2, last, last + 1, last + 2, last, last + 2, last + 3);
+  indices.push(0, 1, 2, 0, 2, 3, last, last + 2, last + 1, last, last + 3, last + 2);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));

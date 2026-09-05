@@ -58,7 +58,7 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
       assert.ok(wristAngle < .001, `${kind}/${mode}: shield wrist folds instead of following the forearm`);
       const palm = new THREE.Vector3(1, 0, 0).applyQuaternion(handRotation);
       minPalm = Math.min(minPalm, palm.dot(new THREE.Vector3(0, 0, -1).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()))));
-      assert.ok(minPalm > .98, 'shield palm faces the body');
+      assert.ok(minPalm > .85, 'shield palm faces inward while the shield covers the front quarter');
       const grip = shield.localToWorld(new THREE.Vector3(...shield.userData.shieldGripLocal));
       assert.ok(grip.distanceTo(hand.localToWorld(new THREE.Vector3(...shieldHandFit(hand).palm))) < 1e-6, 'hand stays on the authored rear grip');
       assert.ok(elbow.y < rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3()).y - .1, 'elbow stays below the shoulder');
