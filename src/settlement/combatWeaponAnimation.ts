@@ -214,6 +214,10 @@ export type CombatWeaponRig = {
   tool: THREE.Group | null;
   rangedMount: THREE.Group | null;
   shieldMount: THREE.Group | null;
+  carryGripMount: THREE.Group | null;
+  carryGripBaseQuaternion: THREE.Quaternion;
+  carryGripBasePosition: THREE.Vector3;
+  carryGripBasis: THREE.Matrix4;
   nockedArrow: THREE.Group | null;
   bowString: THREE.Line | null;
   bowStringRestCenter: THREE.Vector3 | null;
@@ -317,6 +321,10 @@ export function bindCombatWeaponRig(
     rangedMount,
     shieldMount: mounts?.find(mount => mount.parent === armBones.leftHand
       && mount.userData.workerToolCombatRole === 'always') ?? null,
+    carryGripMount: null,
+    carryGripBaseQuaternion: new THREE.Quaternion(),
+    carryGripBasePosition: new THREE.Vector3(),
+    carryGripBasis: new THREE.Matrix4(),
     nockedArrow,
     bowString,
     bowStringRestCenter,
@@ -356,6 +364,11 @@ function findRigBone(model: THREE.Group, aliases: readonly string[]): THREE.Bone
 
 export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   if (!rig.overlayApplied) return;
+  if (rig.carryGripMount) {
+    rig.carryGripMount.quaternion.copy(rig.carryGripBaseQuaternion);
+    rig.carryGripMount.position.copy(rig.carryGripBasePosition);
+    rig.carryGripMount = null;
+  }
   for (let index = 0; index < rig.ownedBones.length; index += 1) {
     rig.ownedBones[index]!.quaternion.copy(rig.baseQuaternions[index]!);
   }
@@ -384,8 +397,7 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
       ? LOW_BLADE_CARRY : UPRIGHT_CARRY;
   poseCarryArm(rig, primaryLeft, tool === 'crossbow' ? CARRY_CROSSBOW
     : primaryLeft ? CARRY_LEFT : CARRY_RIGHT);
-  orientCarryGrip(rig, primaryLeft ? rig.armBones.leftHand : rig.armBones.rightHand,
-    primaryMount, orientation);
+  orientCarryPalm(rig, primaryLeft, primaryMount, orientation);
   if (tool === 'crossbow') {
     const grip = primaryMount.userData.workerToolSupportGripLocal as readonly [number, number, number] | undefined;
     if (grip) {
@@ -418,6 +430,33 @@ function orientCarryGrip(rig: CombatWeaponRig, hand: THREE.Bone, mount: THREE.Gr
   const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
   const mountInverse = rig.scratchQuaternions[2]!.copy(mount.quaternion).invert();
   hand.quaternion.copy(parentInverse).multiply(desiredWorld).multiply(mountInverse).normalize();
+  hand.updateWorldMatrix(true, true);
+}
+
+/** The rig's palm faces local -Z, fingers extend +Y, and the thumb is on the
+ * right hand's +X side (mirrored on the left). Pose this anatomical frame
+ * first; compensate the weapon mount instead of letting its old rotation
+ * turn the palm outward. The handle then sits inside the palm, not at the guard. */
+function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group, orientation: THREE.Quaternion): void {
+  if (!rig.carryGripMount) {
+    rig.carryGripMount = mount;
+    rig.carryGripBaseQuaternion.copy(mount.quaternion);
+    rig.carryGripBasePosition.copy(mount.position);
+  }
+  const thumb = rig.scratchVectors[14]!.set(0, left ? -1 : 1, 0).applyQuaternion(orientation);
+  const back = rig.scratchVectors[15]!.set(left ? 1 : -1, 0, 0);
+  const fingers = rig.scratchVectors[13]!.crossVectors(back, thumb).normalize();
+  const handModel = rig.scratchQuaternions[3]!.setFromRotationMatrix(
+    rig.carryGripBasis.makeBasis(thumb, fingers, back));
+  const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
+  const handWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(handModel);
+  const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
+  hand.quaternion.copy(parentInverse).multiply(handWorld).normalize();
+  mount.quaternion.copy(handModel).invert().multiply(orientation).normalize();
+  const grip = mount.userData.workerToolGripLocal as readonly [number, number, number] | undefined;
+  const offset = rig.scratchVectors[14]!.set(...(grip ?? [0, 0, 0] as const))
+    .multiply(mount.scale).applyQuaternion(mount.quaternion);
+  mount.position.copy(rig.carryGripBasePosition).sub(offset);
   hand.updateWorldMatrix(true, true);
 }
 

@@ -905,6 +905,10 @@ function configureMount(
   mount.userData.workerToolCombatRole = combatRole;
   const held = combatRole === 'melee-held' || combatRole === 'ranged-held';
   if (held) {
+    // Model-space handle center, distinct from the assembly's origin/guard.
+    mount.userData.workerToolGripLocal = kind === 'sidearm' || kind === 'sidearm-shield' || kind === 'sword-shield'
+      ? [0, -0.085, 0]
+      : kind === 'crossbow' && combatRole === 'ranged-held' ? [0, -0.14, 0] : [0, 0, 0];
     const supportGrip = supportGripFor(kind, combatRole);
     if (supportGrip) mount.userData.workerToolSupportGripLocal = supportGrip;
     const muzzle = muzzleFor(kind, combatRole);

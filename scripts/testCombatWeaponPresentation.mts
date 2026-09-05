@@ -72,11 +72,20 @@ for (const [kind, source] of Object.entries(sources)) {
     legs.quaternion.setFromEuler(new THREE.Euler(Math.sin(frame)*0.6,0,0));
     model.rotation.y=frame*0.08;
     const before = rig.ownedBones.map(b=>b.quaternion.clone());
+    const mountBefore = {position:tool.position.clone(),quaternion:tool.quaternion.clone()};
     const legBefore = legs.quaternion.clone();
     assert.equal(applyMilitaryCarryPose(rig,source.kind,frame%2 ? 'run':'walk'),true);
     const orientation = tool.getWorldQuaternion(new THREE.Quaternion());
     orientation.premultiply(model.getWorldQuaternion(new THREE.Quaternion()).invert());
     mountRotations.push(orientation.normalize());
+    const palmFacing = new THREE.Vector3(0,0,-1)
+      .applyQuaternion(primaryHand.getWorldQuaternion(new THREE.Quaternion()))
+      .applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()).invert());
+    assert.ok(palmFacing.dot(new THREE.Vector3(source.kind==='bow' ? -1 : 1,0,0))>0.999,
+      `${kind}: the carrying palm must face inward toward the body`);
+    const handle = tool.localToWorld(new THREE.Vector3(...tool.userData.workerToolGripLocal));
+    const palm = primaryHand.localToWorld(mountBefore.position.clone());
+    assert.ok(handle.distanceTo(palm)<1e-6,`${kind}: handle center must stay seated inside the palm`);
     assert.ok(legs.quaternion.angleTo(legBefore)<1e-7,'carrying must not freeze the legs');
     assert.ok(rig.torsoBones.spineUpper!.quaternion.angleTo(before[9]!)<1e-7,'torso gait stays animated');
     if (source.kind==='spear' || source.kind==='pike-kit' || source.kind==='halberd' || source.kind==='sidearm') {
@@ -84,6 +93,9 @@ for (const [kind, source] of Object.entries(sources)) {
     }
     assert.ok(primaryHand.position.length()>0,'the wrist remains on its original skeleton');
     restoreCombatWeaponPose(rig);
+    assert.ok(tool.position.distanceTo(mountBefore.position)<1e-9,'carry must release the mount position for combat');
+    assert.ok(tool.quaternion.clone().normalize().angleTo(mountBefore.quaternion.clone().normalize())<1e-7,
+      'carry must release the original weapon rotation for combat');
     rig.ownedBones.forEach((b,i)=>assert.ok(b.quaternion.angleTo(before[i]!)<1e-7,'next frame restores the mixer pose'));
   }
   const carryAngle = Math.max(...mountRotations.map(q=>q.angleTo(mountRotations[0]!)));
