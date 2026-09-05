@@ -1,0 +1,8 @@
+[
+ {"name":"crossbow-after-load","weapon":"crossbow","variant":"man","mode":"attack","phase":0.5,"view":"front"},
+ {"name":"crossbow-after-raise","weapon":"crossbow","variant":"man","mode":"attack","phase":0.78,"view":"front"},
+ {"name":"crossbow-after-fire","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"front"},
+ {"name":"crossbow-after-elbow","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"elbow-right"},
+ {"name":"crossbow-after-side","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"side"},
+ {"name":"crossbow-after-raider","weapon":"crossbow","variant":"raider","mode":"attack","phase":0.95,"view":"front"}
+]

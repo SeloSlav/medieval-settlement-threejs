@@ -120,9 +120,6 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
   const sidearmAssembly = optimizeAssembly(createSword(materials, false));
   const bowAssembly = optimizeAssembly(createBow(materials));
   const fallbackDaggerAssembly = optimizeAssembly(createFallbackDagger(materials));
-  const fallbackScabbardAssembly = optimizeAssembly(
-    createFallbackDaggerScabbard(materials),
-  );
   return {
     spear: source('spear', spearAssembly, UPRIGHT_RIGHT_HAND),
     'spear-shield': source('spear-shield', spearAssembly.clone(true), UPRIGHT_RIGHT_HAND, [
@@ -131,7 +128,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND),
     crossbow: source('crossbow', crossbowAssembly, FORWARD_RIGHT_HAND, [
       mount(
-        createBoltCase(materials, ammunitionMaterial),
+        createCrossbowQuiver(materials, ammunitionMaterial),
         ['Spine02', 'Spine2', 'Spine01', 'Spine'],
         0.54,
         [0.065, 0.02, 0.085],
@@ -139,7 +136,6 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
       ),
       mount(crossbowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 0.95, [0.07, 0.015, 0.105], [0.08, -0.22, 0.82], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
-      mount(fallbackScabbardAssembly.clone(true), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held'),
     sidearm: source('sidearm', sidearmAssembly, NATURAL_RIGHT_HAND),
     'sidearm-shield': source('sidearm-shield', sidearmAssembly.clone(true), NATURAL_RIGHT_HAND, [
@@ -658,14 +654,10 @@ function createQuiver(materials: Materials, arrowCount: number, arrowLength: num
   return group;
 }
 
-function createBoltCase(materials: Materials, ammunitionMaterial: THREE.MeshStandardMaterial): THREE.Group {
+function createCrossbowQuiver(materials: Materials, ammunitionMaterial: THREE.MeshStandardMaterial): THREE.Group {
   const group = createQuiver(materials, 5, 0.34, ammunitionMaterial);
-  add(group, new RoundedBoxGeometry(0.026, 0.32, 0.022, 2, 0.006), materials.bluedSteel, 'Crossbow kit · belt-carried cranequin rack', [0.13, 0.21, 0.02], [0, 0, -0.08]);
-  add(group, new THREE.TorusGeometry(0.046, 0.012, 6, 16), materials.brass, 'Crossbow kit · cranequin gear housing', [0.13, 0.34, 0.035]);
-  add(group, new RoundedBoxGeometry(0.16, 0.018, 0.018, 2, 0.005), materials.bluedSteel, 'Crossbow kit · folding cranequin crank', [0.18, 0.38, 0.04], [0, 0, -0.42]);
-  add(group, new THREE.CylinderGeometry(0.015, 0.015, 0.085, 7), materials.walnut, 'Crossbow kit · cranequin crank handle', [0.25, 0.345, 0.04], [0, 0, -0.42]);
   group.scale.setScalar(0.82);
-  group.name = 'Procedural crossbow bolt case';
+  group.name = 'Procedural crossbow bolt quiver';
   group.userData.equipmentIdentity = 'crossbow-bolt-kit';
   return group;
 }
@@ -689,18 +681,6 @@ function createFallbackDagger(materials: Materials): THREE.Group {
   add(group, new THREE.SphereGeometry(0.028, 9, 6), materials.brass, 'Ranged fallback dagger · small pommel', [0, -0.065, 0]);
   group.name = 'Procedural ranged fallback dagger';
   group.userData.equipmentIdentity = 'ranged-fallback-dagger';
-  return group;
-}
-
-function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(group, new RoundedBoxGeometry(0.052, 0.35, 0.036, 3, 0.009), materials.leather, 'Ranged fallback dagger · belt scabbard', [0, 0.12, 0]);
-  add(group, new THREE.ConeGeometry(0.033, 0.065, 8), materials.brass, 'Ranged fallback dagger · scabbard chape', [0, -0.087, 0], [0, 0, Math.PI]);
-  add(group, new THREE.TorusGeometry(0.029, 0.005, 5, 10), materials.brass, 'Ranged fallback dagger · scabbard throat', [0, 0.292, 0], [Math.PI / 2, 0, 0]);
-  add(group, new THREE.BoxGeometry(0.12, 0.018, 0.026), materials.bluedSteel, 'Ranged fallback dagger · visible guard', [0, 0.31, 0]);
-  add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.11, 9), materials.leather, 'Ranged fallback dagger · visible grip', [0, 0.365, 0]);
-  group.name = 'Procedural ranged fallback dagger scabbard';
-  group.userData.equipmentIdentity = 'ranged-fallback-dagger-scabbard';
   return group;
 }
 
@@ -891,8 +871,8 @@ export function setMilitaryEquipmentCombatStance(
 
 /**
  * Separates a casualty's held weapon from the bone-mounted kit without
- * discarding equipment that still belongs on the body (quiver, scabbard,
- * bolt case, and similar harness pieces). The matching ground object is owned
+ * discarding equipment that still belongs on the body (quivers and similar
+ * harness pieces). The matching ground object is owned
  * by BattlefieldWeaponDropRenderer; this flag only prevents the hand-mounted
  * copy from drawing through the clamped death pose.
  */

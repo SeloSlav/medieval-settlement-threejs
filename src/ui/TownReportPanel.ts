@@ -13,6 +13,14 @@ export type TownReportPanelOptions = {
   onRename?: (settlementId: string) => void;
 };
 
+export function shouldDismissTownReport(
+  button: number,
+  panelHidden: boolean,
+  targetIsOutsidePanel: boolean,
+): boolean {
+  return button === 0 && !panelHidden && targetIsOutsidePanel;
+}
+
 export class TownReportPanel {
   private readonly options: TownReportPanelOptions;
   private readonly panel: HTMLElement;
@@ -39,6 +47,7 @@ export class TownReportPanel {
     this.panel.querySelector<HTMLButtonElement>('[data-town-report-close]')
       ?.addEventListener('click', () => this.close());
     this.panel.addEventListener('click', (event) => this.handleClick(event));
+    window.addEventListener('pointerdown', this.onOutsidePointerDown, { capture: true });
   }
 
   open(settlementId: string): void {
@@ -117,9 +126,21 @@ export class TownReportPanel {
   }
 
   dispose(): void {
+    window.removeEventListener('pointerdown', this.onOutsidePointerDown, { capture: true });
     this.options.uiRoot.classList.remove('is-town-report-open');
     this.panel.remove();
   }
+
+  private readonly onOutsidePointerDown = (event: PointerEvent): void => {
+    const target = event.target;
+    const targetIsOutsidePanel = target instanceof Node && !this.panel.contains(target);
+    if (!shouldDismissTownReport(
+      event.button,
+      this.panel.hidden !== false,
+      targetIsOutsidePanel,
+    )) return;
+    this.close();
+  };
 
   private invalidate(): void {
     this.lastSettlements = null;

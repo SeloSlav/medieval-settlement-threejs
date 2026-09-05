@@ -43,9 +43,9 @@ const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
     targetLength: 0.95,
     primaryBone: 'R_Hand',
     primaryRole: 'ranged-held',
-    secondaryBones: ['Spine02', 'Spine02', 'R_Hand', 'Waist'],
-    secondaryLengths: [0.54, 0.95, 0.42, 0.46],
-    secondaryRoles: ['always', 'ranged-stowed', 'melee-held', 'melee-stowed'],
+    secondaryBones: ['Spine02', 'Spine02', 'R_Hand'],
+    secondaryLengths: [0.54, 0.95, 0.42],
+    secondaryRoles: ['always', 'ranged-stowed', 'melee-held'],
   },
   sidearm: { targetLength: 0.82, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
   'sidearm-shield': { targetLength: 0.82, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.34], secondaryRoles: ['always'] },
@@ -65,7 +65,7 @@ const REQUIRED_CRAFT_DETAILS: Record<MilitaryEquipmentKind, readonly string[]> =
   spear: ['reinforcing langet', 'central blade ridge', 'socket binding'],
   'spear-shield': ['reinforcing langet', 'convex laminated', 'peened rim rivet'],
   'pike-kit': ['reinforcing langet', 'forged head ridge', 'lower-hand grip binding'],
-  crossbow: ['antler rotating nut', 'spring bolt retainer', 'belt-carried cranequin rack'],
+  crossbow: ['antler rotating nut', 'spring bolt retainer', 'leather quiver with lined mouth', 'goose-feather vanes'],
   sidearm: ['tapered double-edged blade', 'fitted guard collar', 'peened tang'],
   'sidearm-shield': ['tapered double-edged blade', 'convex laminated', 'boss neck collar'],
   'sword-shield': ['tapered double-edged blade', 'convex laminated', 'rolled and riveted forged rim'],
@@ -134,12 +134,21 @@ for (const kind of EXPECTED_KINDS) {
     .flatMap((assembly) => assembly.userData.semanticWeaponParts as string[])
     .join('\n')
     .toLowerCase();
-  if (kind === 'bow' || kind === 'pike-kit') {
+  if (kind === 'bow' || kind === 'crossbow' || kind === 'pike-kit') {
     assert.equal(
       craftEvidence.includes('scabbard'),
       false,
       `${kind} must not carry a sidearm scabbard`,
     );
+  }
+  if (kind === 'crossbow') {
+    for (const removedPart of ['cranequin rack', 'gear housing', 'cranequin crank']) {
+      assert.equal(
+        craftEvidence.includes(removedPart),
+        false,
+        `crossbow quiver must not retain the removed ${removedPart}`,
+      );
+    }
   }
   for (const detail of REQUIRED_CRAFT_DETAILS[kind]) {
     assert.equal(

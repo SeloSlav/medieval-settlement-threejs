@@ -47,6 +47,18 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
     const delta=hand.quaternion.clone().multiply(rig.referenceQuaternions.get(hand)!.clone().invert());
     assert.ok(2*Math.atan2(Math.abs(delta.y),Math.abs(delta.w))<.12,'bow wrist must not absorb a large axial twist');
    }
+   if(kind==='crossbow' && (frame===0 || frame>=86)){
+    const shoulder=rig.armBones.rightUpperArm.getWorldPosition(new THREE.Vector3());
+    const elbow=rig.armBones.rightForearm.getWorldPosition(new THREE.Vector3());
+    const wrist=rig.armBones.rightHand.getWorldPosition(new THREE.Vector3());
+    const bodyInverse=model.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const upper=elbow.clone().sub(shoulder).applyQuaternion(bodyInverse);
+    const lower=wrist.clone().sub(elbow).applyQuaternion(bodyInverse);
+    assert.ok(upper.y < -rig.armLength*.15,`${name}/${frame}: crossbow trigger elbow must stay below the shoulder at fire`);
+    assert.ok(lower.y > rig.armLength*.2,`${name}/${frame}: crossbow forearm must rise naturally to the trigger`);
+    const bodyElbow=elbow.clone().sub(rig.bodyCenter).applyQuaternion(bodyInverse);
+    assert.ok(bodyElbow.x < 0,`${name}/${frame}: crossbow trigger elbow must stay on the right side, not invert across the chest`);
+   }
    if(kind==='bow' && rig.nockedArrow?.visible){
     const draw=rig.armBones.rightHand.localToWorld(new THREE.Vector3(-.026,.056,-.0071)
       .multiplyScalar(Number(rig.armBones.rightHand.userData.militaryGripScale??1)));

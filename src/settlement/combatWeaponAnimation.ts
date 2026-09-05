@@ -917,7 +917,7 @@ const THRUST_SUPPORT_FRAME = new THREE.Quaternion().setFromAxisAngle(new THREE.V
 /** A hand reaches a physical contact point. The wrist is behind that point by
  * the actual palm offset; the weapon never derives its aim from an elbow. */
 function solveAttackHand(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3,
-  handWorld: THREE.Quaternion, drawing = false, supportStock = false, spanningAmount = 0): void {
+  handWorld: THREE.Quaternion, drawing = false, supportStock = false, crossbowTrigger = false): void {
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const size = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
   const offset = rig.scratchVectors[14]!;
@@ -927,7 +927,7 @@ function solveAttackHand(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   const wristTarget = rig.scratchVectors[13]!.copy(contact).sub(offset);
   if (drawing) rig.elbowHandDirection.set(1, .5, 1).applyQuaternion(rig.bodyOrientation);
   else rig.elbowHandDirection.set(0, 1, 0).applyQuaternion(handWorld);
-  if (spanningAmount > 0) rig.elbowHandDirection.lerp(rig.scratchVectors[14]!.set(0, 1, 0).applyQuaternion(rig.bodyOrientation), spanningAmount).normalize();
+  if (crossbowTrigger) rig.elbowHandDirection.set(.9, 1, -.15).applyQuaternion(rig.bodyOrientation);
   rig.solveWithHandDirection = true;
   solveArmToWorld(rig, left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm,
     left ? rig.armBones.leftForearm : rig.armBones.rightForearm, hand, wristTarget, left ? 1 : -1, 'upright');
@@ -944,7 +944,7 @@ function attackContact(rig: CombatWeaponRig, local: readonly [number, number, nu
  * cosine rule gives the forearm's cone about shoulder-to-wrist. Intersect
  * that cone with the grip's cone instead of folding the wrist to a guessed
  * roll. Two cheap refinements account for the wrist-to-contact offset. */
-function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3, handWorld: THREE.Quaternion, stockGrip = false): void {
+function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3, handWorld: THREE.Quaternion): void {
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const upper = left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm;
   const forearm = left ? rig.armBones.leftForearm : rig.armBones.rightForearm;
@@ -975,9 +975,7 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
     const b = Math.atan2(Math.sin(align - around), Math.cos(align - around));
     // Keep one anatomical branch for the complete cycle. Selecting whichever
     // roll is momentarily closest flips the elbow when the two costs cross.
-    // The crossbow's horizontal stock needs the outward branch for the right
-    // elbow; the melee branch folds that arm across the chest as it rises.
-    const roll = left || stockGrip ? b : a;
+    const roll = left ? b : a;
     handWorld.premultiply(rig.scratchQuaternions[3]!.setFromAxisAngle(axis, roll)).normalize();
   }
 }
@@ -1028,6 +1026,44 @@ function alignBowArmFrame(rig: CombatWeaponRig, bone: THREE.Bone, direction: THR
   const world = rig.scratchQuaternions[0]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(side, direction, up));
   bone.quaternion.copy(bone.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(world).normalize();
   bone.updateWorldMatrix(true, false);
+}
+
+/** Extend the supporting arm as the crossbow rises, then seat the stock in
+ * that palm. The authored hinge reaches zero at fire without an IK clamp. */
+function poseCrossbowSupportArm(rig: CombatWeaponRig, grip: readonly [number, number, number],
+  handWorld: THREE.Quaternion, extension: number): void {
+  const { leftUpperArm: upper, leftForearm: forearm, leftHand: hand } = rig.armBones;
+  solveAttackHand(rig, true, attackContact(rig, grip), handWorld, false, true);
+  if (extension === 0) return;
+  const shoulder = upper.getWorldPosition(rig.scratchVectors[0]!);
+  const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
+  const wrist = hand.getWorldPosition(rig.scratchVectors[2]!);
+  const upperDirection = rig.scratchVectors[3]!.copy(elbow).sub(shoulder);
+  const lowerDirection = rig.scratchVectors[4]!.copy(wrist).sub(elbow);
+  const upperLength = upperDirection.length(), lowerLength = lowerDirection.length();
+  const flex = upperDirection.angleTo(lowerDirection) * (1 - extension);
+  const direction = rig.scratchVectors[5]!.copy(wrist).sub(shoulder).normalize();
+  const reach = Math.sqrt(upperLength * upperLength + lowerLength * lowerLength + 2 * upperLength * lowerLength * Math.cos(flex));
+  const along = (upperLength * upperLength - lowerLength * lowerLength + reach * reach) / (2 * reach);
+  const bendDistance = upperLength * lowerLength * Math.sin(flex) / reach;
+  const bend = upperDirection.addScaledVector(direction, -upperDirection.dot(direction)).normalize();
+  const elbowTarget = rig.scratchVectors[13]!.copy(shoulder).addScaledVector(direction, along).addScaledVector(bend, bendDistance);
+  const wristTarget = rig.scratchVectors[14]!.copy(shoulder).addScaledVector(direction, reach);
+  aimBoneAt(rig, upper, forearm, elbowTarget, true);
+  upper.updateWorldMatrix(true, false);
+  aimBoneAt(rig, forearm, hand, wristTarget, true);
+  forearm.updateWorldMatrix(true, false);
+  const forward = hand.getWorldPosition(rig.scratchVectors[13]!)
+    .sub(forearm.getWorldPosition(rig.scratchVectors[14]!)).normalize();
+  const palmBack = rig.scratchVectors[14]!.set(0, 1, 0).applyQuaternion(rig.bodyOrientation);
+  palmBack.addScaledVector(forward, -palmBack.dot(forward)).normalize();
+  const thumb = rig.scratchVectors[15]!.crossVectors(palmBack, forward).normalize();
+  handWorld.slerp(rig.scratchQuaternions[3]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(palmBack, forward, thumb)), extension);
+  hand.quaternion.copy(hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(handWorld).normalize();
+  hand.updateWorldMatrix(true, false);
+  hand.localToWorld(rig.attackOrigin.set(.014, .0383, -.0071));
+  rig.attackOrigin.sub(rig.scratchVectors[13]!.set(...grip).multiply(rig.attackScale).applyQuaternion(rig.attackOrientation));
+  rig.attackMatrix.compose(rig.attackOrigin, rig.attackOrientation, rig.attackScale);
 }
 
 function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline, logicalMode: string): void {
@@ -1085,42 +1121,47 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
     }
     for (let i = 0; i < 8; i++) rig.gripBones[i]?.quaternion.copy(STRING_FINGER_POSES[i]!);
     rig.gripBones[8]?.quaternion.copy(CLOSED_THUMB_POSE);
+  } else if (timeline.family === 'crossbow') {
+    const extension = timeline.poseProgress < .22 ? 1 - smoothstep(timeline.poseProgress, 0, .22)
+      : smoothstep(timeline.poseProgress, .66, .86);
+    handWorld.copy(rig.attackOrientation).multiply(STOCK_HAND_FRAME);
+    if (supportGrip) poseCrossbowSupportArm(rig, supportGrip, handWorld, extension);
+    const contact = attackContact(rig, primaryGrip);
+    const handOff = smoothstep(timeline.poseProgress, .14, .34) * (1 - smoothstep(timeline.poseProgress, .52, .72));
+    const spanning = rig.scratchVectors[15]!.set(0, THREE.MathUtils.lerp(CROSSBOW_FRAME.stringTipY, CROSSBOW_FRAME.nutY, motion.reload), CROSSBOW_FRAME.stringZ)
+      .applyMatrix4(rig.attackMatrix);
+    contact.lerp(spanning, handOff);
+    handWorld.copy(rig.bodyOrientation).multiply(PALM_WEAPON_FRAME);
+    // The trigger arm always bends out and down, including its transitions
+    // to the string. Fit the wrist to that limb instead of rolling the elbow
+    // around the stock and through the torso to satisfy a melee shaft grip.
+    solveAttackHand(rig, false, contact, handWorld, false, false, true);
+    for (let iteration = 0; iteration < 3; iteration++) {
+      const forward = arms.rightHand.getWorldPosition(rig.scratchVectors[15]!)
+        .sub(arms.rightForearm.getWorldPosition(rig.scratchVectors[14]!)).normalize();
+      const palmBack = rig.scratchVectors[14]!.set(-1, 0, 0).applyQuaternion(rig.bodyOrientation);
+      palmBack.addScaledVector(forward, -palmBack.dot(forward)).normalize();
+      const thumb = rig.scratchVectors[13]!.crossVectors(palmBack, forward).normalize();
+      handWorld.setFromRotationMatrix(rig.carryGripBasis.makeBasis(palmBack, forward, thumb));
+      solveAttackHand(rig, false, contact, handWorld, false, false, true);
+    }
+    closeWeaponHand(rig, true);
   } else {
-    const diagonal = timeline.family === 'sword-shield' || timeline.family === 'crossbow' || timeline.family === 'spear-pike';
+    const diagonal = timeline.family === 'sword-shield' || timeline.family === 'spear-pike';
     handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
     if (diagonal) handWorld.multiply(SWORD_GRIP_CANT);
     if (timeline.family === 'spear-pike') handWorld.copy(rig.attackOrientation).multiply(THRUST_HAND_FRAME);
     const contact = attackContact(rig, primaryGrip);
-    alignAttackGrip(rig, false, contact, handWorld, timeline.family === 'crossbow');
-    let handOff = 0;
-    if (timeline.family === 'crossbow' && timeline.poseProgress > .14 && timeline.poseProgress < .72) {
-      handOff = smoothstep(timeline.poseProgress, .14, .34) * (1 - smoothstep(timeline.poseProgress, .52, .72));
-      const spanning = rig.scratchVectors[15]!.set(0, THREE.MathUtils.lerp(CROSSBOW_FRAME.stringTipY, CROSSBOW_FRAME.nutY, motion.reload), CROSSBOW_FRAME.stringZ)
-        .applyMatrix4(rig.attackMatrix);
-      contact.lerp(spanning, handOff);
-    }
-    solveAttackHand(rig, false, contact, handWorld, false, false, handOff);
-    if (handOff > 0) {
-      const carrying = rig.scratchQuaternions[5]!.copy(handWorld);
-      for (let iteration = 0; iteration < 2; iteration++) {
-        const forward = arms.rightHand.getWorldPosition(rig.scratchVectors[15]!)
-          .sub(arms.rightForearm.getWorldPosition(rig.scratchVectors[14]!)).normalize();
-        const palmBack = rig.scratchVectors[14]!.set(-1, 0, 0).applyQuaternion(rig.bodyOrientation);
-        palmBack.addScaledVector(forward, -palmBack.dot(forward)).normalize();
-        const thumb = rig.scratchVectors[13]!.crossVectors(palmBack, forward).normalize();
-        const spanning = rig.scratchQuaternions[3]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(palmBack, forward, thumb));
-        handWorld.copy(carrying).slerp(spanning, handOff);
-        solveAttackHand(rig, false, contact, handWorld, false, false, handOff);
-      }
-    }
+    alignAttackGrip(rig, false, contact, handWorld);
+    solveAttackHand(rig, false, contact, handWorld);
     closeWeaponHand(rig, diagonal);
     if (supportGrip) {
-      handWorld.copy(rig.attackOrientation).multiply(timeline.family === 'crossbow' ? STOCK_HAND_FRAME : PALM_WEAPON_FRAME);
+      handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
       if (timeline.family === 'spear-pike') handWorld.copy(rig.attackOrientation).multiply(THRUST_SUPPORT_FRAME);
       if (timeline.family === 'halberd') handWorld.multiply(SWORD_GRIP_CANT);
-      if (timeline.family !== 'crossbow') alignAttackGrip(rig, true, attackContact(rig, supportGrip), handWorld);
-      solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld, false, timeline.family === 'crossbow');
-      if (timeline.family !== 'crossbow') closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
+      alignAttackGrip(rig, true, attackContact(rig, supportGrip), handWorld);
+      solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld);
+      closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
     } else if (rig.shieldMount) {
       poseShieldArm(rig, true);
     } else poseCarryArm(rig, true, CARRY_SWORD);

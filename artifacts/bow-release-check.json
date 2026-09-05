@@ -1,0 +1,6 @@
+[
+ {"name":"bow-release-side","weapon":"bow","variant":"man","mode":"attack","phase":0.999,"view":"side"},
+ {"name":"bow-release-front","weapon":"bow","variant":"man","mode":"attack","phase":0.999,"view":"front"},
+ {"name":"bow-release-elbow","weapon":"bow","variant":"man","mode":"attack","phase":0.999,"view":"elbow-left"},
+ {"name":"bow-recovery-side","weapon":"bow","variant":"man","mode":"attack","phase":0.12,"view":"side"}
+]

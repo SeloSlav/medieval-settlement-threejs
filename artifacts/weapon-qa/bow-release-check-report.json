@@ -1,0 +1,397 @@
+{
+  "errors": [],
+  "captures": [
+    {
+      "file": "bow-release-side.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.999,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 3,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06266924788236522,
+          1.3116505209008817,
+          0.07339953333377933
+        ],
+        "leftUpperArm": [
+          0.07789930205782197,
+          1.3518176717224275,
+          0.21864180347064407
+        ],
+        "leftForearm": [
+          0.0779379181987089,
+          1.3804740612852453,
+          0.5051354608376025
+        ],
+        "leftHand": [
+          0.07793796449900359,
+          1.4016441197063148,
+          0.7168602898376726
+        ],
+        "rightClavicle": [
+          0.048199567766776315,
+          1.3110057633920384,
+          0.008937089027577942
+        ],
+        "rightUpperArm": [
+          0.03618357793735997,
+          1.3183198873836304,
+          -0.13765741641242793
+        ],
+        "rightForearm": [
+          -0.249421242506791,
+          1.4072239961631494,
+          -0.11364868579731877
+        ],
+        "rightHand": [
+          -0.14268602730778124,
+          1.484348894411476,
+          0.024831884459914827
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 6,
+      "triangles": 24020,
+      "memory": {
+        "attributes": 128,
+        "attributesSize": 4311956,
+        "geometries": 42,
+        "indexAttributes": 6,
+        "indexAttributesSize": 503280,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 67,
+        "programsSize": 304367,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3637248,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 931696,
+        "total": 116078149
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "bow-release-front.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.999,
+        "time": 0.35,
+        "view": "front",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 19,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06266924788236522,
+          1.3116505209008817,
+          0.07339953333377933
+        ],
+        "leftUpperArm": [
+          0.07789930205782197,
+          1.3518176717224275,
+          0.21864180347064407
+        ],
+        "leftForearm": [
+          0.0779379181987089,
+          1.3804740612852453,
+          0.5051354608376025
+        ],
+        "leftHand": [
+          0.07793796449900359,
+          1.4016441197063148,
+          0.7168602898376726
+        ],
+        "rightClavicle": [
+          0.048199567766776315,
+          1.3110057633920384,
+          0.008937089027577942
+        ],
+        "rightUpperArm": [
+          0.03618357793735997,
+          1.3183198873836304,
+          -0.13765741641242793
+        ],
+        "rightForearm": [
+          -0.249421242506791,
+          1.4072239961631494,
+          -0.11364868579731877
+        ],
+        "rightHand": [
+          -0.14268602730778124,
+          1.484348894411476,
+          0.024831884459914827
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 38,
+      "triangles": 25548,
+      "memory": {
+        "attributes": 128,
+        "attributesSize": 4311956,
+        "geometries": 42,
+        "indexAttributes": 6,
+        "indexAttributesSize": 503280,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 67,
+        "programsSize": 304367,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3637248,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 931696,
+        "total": 116078149
+      },
+      "camera": {
+        "position": [
+          -1.232325605587796,
+          1.61,
+          3.4589745866107435
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.571414285685714,
+        "yaw": 1.9328837344886252,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "bow-release-elbow.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.999,
+        "time": 0.35,
+        "view": "elbow-left",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 38,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.06266924788236522,
+          1.3116505209008817,
+          0.07339953333377933
+        ],
+        "leftUpperArm": [
+          0.07789930205782197,
+          1.3518176717224275,
+          0.21864180347064407
+        ],
+        "leftForearm": [
+          0.0779379181987089,
+          1.3804740612852453,
+          0.5051354608376025
+        ],
+        "leftHand": [
+          0.07793796449900359,
+          1.4016441197063148,
+          0.7168602898376726
+        ],
+        "rightClavicle": [
+          0.048199567766776315,
+          1.3110057633920384,
+          0.008937089027577942
+        ],
+        "rightUpperArm": [
+          0.03618357793735997,
+          1.3183198873836304,
+          -0.13765741641242793
+        ],
+        "rightForearm": [
+          -0.249421242506791,
+          1.4072239961631494,
+          -0.11364868579731877
+        ],
+        "rightHand": [
+          -0.14268602730778124,
+          1.484348894411476,
+          0.024831884459914827
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 76,
+      "triangles": 25548,
+      "memory": {
+        "attributes": 128,
+        "attributesSize": 4311956,
+        "geometries": 42,
+        "indexAttributes": 6,
+        "indexAttributesSize": 503280,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 67,
+        "programsSize": 304367,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3637248,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 931696,
+        "total": 116078149
+      },
+      "camera": {
+        "position": [
+          0.457937918198709,
+          1.5004740612852454,
+          0.8851354608376025
+        ],
+        "target": [
+          0.0779379181987089,
+          1.3804740612852453,
+          0.5051354608376025
+        ],
+        "distance": 0.5506359959174482,
+        "yaw": 0.7853981633974483,
+        "userAdjusted": false
+      }
+    },
+    {
+      "file": "bow-recovery-side.png",
+      "ready": true,
+      "state": {
+        "weapon": "bow",
+        "variant": "man",
+        "mode": "attack",
+        "phase": 0.12,
+        "time": 0.35,
+        "view": "side",
+        "seed": 431,
+        "paused": true,
+        "standard": false
+      },
+      "frame": 80,
+      "errors": [],
+      "bones": {
+        "leftClavicle": [
+          0.07258191067710665,
+          1.311264685796186,
+          0.06308344831868923
+        ],
+        "leftUpperArm": [
+          0.16655522995332592,
+          1.3481841246455275,
+          0.1759844886346753
+        ],
+        "leftForearm": [
+          0.047138353195205096,
+          1.2777804236402903,
+          0.428338949518232
+        ],
+        "leftHand": [
+          -0.03574668355243986,
+          1.3114144429899617,
+          0.6214047913125438
+        ],
+        "rightClavicle": [
+          0.024574424199975665,
+          1.3119874651680994,
+          0.017696731459745735
+        ],
+        "rightUpperArm": [
+          -0.06722286669201719,
+          1.3225946040256549,
+          -0.09697052815943172
+        ],
+        "rightForearm": [
+          -0.18341972721217323,
+          1.3272793499287028,
+          0.17966415226311086
+        ],
+        "rightHand": [
+          -0.10367307266161835,
+          1.3808105693468382,
+          0.3448682455512893
+        ]
+      },
+      "backend": "WebGPUBackend",
+      "drawCalls": 160,
+      "triangles": 25408,
+      "memory": {
+        "attributes": 128,
+        "attributesSize": 4311956,
+        "geometries": 42,
+        "indexAttributes": 6,
+        "indexAttributesSize": 503280,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 67,
+        "programsSize": 304367,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 1,
+        "storageAttributes": 8,
+        "storageAttributesSize": 3637248,
+        "textures": 25,
+        "texturesSize": 106389602,
+        "uniformBuffers": 118,
+        "uniformBuffersSize": 931696,
+        "total": 116078149
+      },
+      "camera": {
+        "position": [
+          -3.282325605587796,
+          1.4100000000000001,
+          0.3089745866107439
+        ],
+        "target": [
+          0.017674394412204142,
+          1.06,
+          0.1589745866107436
+        ],
+        "distance": 3.321897048374618,
+        "yaw": 3.096169374168216,
+        "userAdjusted": false
+      }
+    }
+  ]
+}

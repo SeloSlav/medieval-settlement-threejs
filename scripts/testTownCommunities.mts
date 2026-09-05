@@ -245,6 +245,21 @@ assert.match(
   'the town report must publish its open state for responsive HUD collision handling',
 );
 assert.match(
+  townReportPanel,
+  /window\.addEventListener\('pointerdown', this\.onOutsidePointerDown, \{ capture: true \}\)[\s\S]*?targetIsOutsidePanel[\s\S]*?this\.close\(\)/,
+  'primary pointer presses outside the town report must dismiss it',
+);
+assert.match(
+  townReportPanel,
+  /removeEventListener\('pointerdown', this\.onOutsidePointerDown, \{ capture: true \}\)/,
+  'disposing the town report must release its outside-pointer listener',
+);
+assert.match(
+  townReportStyles,
+  /\.town-report-panel__rename\s*\{[\s\S]*?padding:\s*5px 9px 6px;/,
+  'the editable town-name control must keep breathing room inside its decorative border',
+);
+assert.match(
   townReportStyles,
   /\.town-report-panel\s*\{[\s\S]*?right:\s*auto;[\s\S]*?left:\s*14px;[\s\S]*?width:\s*min\(520px, calc\(100vw - 340px\)\)/,
   'the town report must use the left inspection rail and reserve the lord report rail',
@@ -273,6 +288,11 @@ assert.match(
 const { computeSettlementResourceReport } = await import(
   '../src/resources/settlementResourceReport.ts'
 );
+const { shouldDismissTownReport } = await import('../src/ui/TownReportPanel.ts');
+assert.equal(shouldDismissTownReport(0, false, true), true);
+assert.equal(shouldDismissTownReport(2, false, true), false);
+assert.equal(shouldDismissTownReport(0, true, true), false);
+assert.equal(shouldDismissTownReport(0, false, false), false);
 const { RESOURCE_KINDS } = await import('../src/resources/types.ts');
 
 const westSettlement = { id: 'settlement-west', unhousedFounders: 1 };
