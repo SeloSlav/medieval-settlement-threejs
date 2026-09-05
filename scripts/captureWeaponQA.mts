@@ -9,6 +9,11 @@ try{
  const page=await browser.newPage({viewport:{width:1280,height:1000},deviceScaleFactor:1,
   ...(process.argv.includes('--video')?{recordVideo:{dir:output,size:{width:1280,height:1000}}}:{})});
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ const modelFlag=process.argv.indexOf('--male-model');
+ if(modelFlag>=0){
+  const body=await fs.readFile(process.argv[modelFlag+1]!);
+  await page.route('**/worker-male-common-01-v002.glb',route=>route.fulfill({contentType:'model/gltf-binary',body}));
+ }
  await page.goto('http://127.0.0.1:5175/artifacts/weapon-review.html');
  await page.waitForFunction(()=>Boolean((window as any).weaponReview?.stats().ready),null,{timeout:60000});
  const options=process.argv[2]?JSON.parse(await fs.readFile(process.argv[2],'utf8')):[{}];

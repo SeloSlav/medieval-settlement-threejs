@@ -1,0 +1,9 @@
+[
+ {"name":"elbow-aligned-shield","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-aligned-shield-back","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"elbow-left-back"},
+ {"name":"elbow-aligned-bow","weapon":"bow","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-aligned-crossbow","weapon":"crossbow","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"elbow-aligned-bow-aim","weapon":"bow","variant":"man","mode":"attack","phase":0.95,"view":"left-front"},
+ {"name":"elbow-aligned-crossbow-aim","weapon":"crossbow","variant":"man","mode":"attack","phase":0.95,"view":"left-front"},
+ {"name":"elbow-aligned-whole","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"left-front"}
+]
