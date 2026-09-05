@@ -33,12 +33,6 @@ assertSameRenderableIdentity(
   sources.bow.secondaryMounts[2]!.scene,
   'ranged fallback dagger',
 );
-assertSameRenderableIdentity(
-  sources.crossbow.secondaryMounts[3]!.scene,
-  sources.bow.secondaryMounts[3]!.scene,
-  'ranged fallback dagger scabbard',
-);
-
 const defaultVisibleBatchKeys = new Set<string>();
 for (const source of Object.values(sources)) {
   const stance = source.kind === 'bow' || source.kind === 'crossbow'
@@ -55,15 +49,15 @@ for (const source of Object.values(sources)) {
 }
 assert.equal(
   defaultVisibleBatchKeys.size,
-  70,
-  'the rebuilt default equipment catalog must collapse exact shared parts to 70 mesh draws',
+  63,
+  'the simplified quivers and scabbard-free bow/pike kits must collapse to 63 mesh draws',
 );
 
 for (const source of Object.values(sources)) disposeMilitaryEquipmentSource(source);
 
 console.log(
   'Military equipment exact geometry sharing passed '
-  + '(70 identity batches; no visual substitutions).',
+  + '(63 identity batches; no visual substitutions).',
 );
 
 function assertSameRenderableIdentity(

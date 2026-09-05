@@ -38,7 +38,7 @@ const EXPECTED_KINDS = [
 const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
   spear: { targetLength: 2.35, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
   'spear-shield': { targetLength: 2.65, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['L_Hand'], secondaryLengths: [0.56], secondaryRoles: ['always'] },
-  'pike-kit': { targetLength: 4.7, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: ['Waist'], secondaryLengths: [0.82], secondaryRoles: ['always'] },
+  'pike-kit': { targetLength: 4.7, primaryBone: 'R_Hand', primaryRole: 'melee-held', secondaryBones: [], secondaryLengths: [], secondaryRoles: [] },
   crossbow: {
     targetLength: 0.95,
     primaryBone: 'R_Hand',
@@ -55,22 +55,22 @@ const EXPECTED_KITS: Record<MilitaryEquipmentKind, ExpectedKit> = {
     targetLength: 1.88,
     primaryBone: 'L_Hand',
     primaryRole: 'ranged-held',
-    secondaryBones: ['Spine02', 'Spine02', 'R_Hand', 'Waist'],
-    secondaryLengths: [0.86, 1.88, 0.42, 0.46],
-    secondaryRoles: ['always', 'ranged-stowed', 'melee-held', 'melee-stowed'],
+    secondaryBones: ['Spine02', 'Spine02', 'R_Hand'],
+    secondaryLengths: [0.86, 1.88, 0.42],
+    secondaryRoles: ['always', 'ranged-stowed', 'melee-held'],
   },
 };
 
 const REQUIRED_CRAFT_DETAILS: Record<MilitaryEquipmentKind, readonly string[]> = {
   spear: ['reinforcing langet', 'central blade ridge', 'socket binding'],
   'spear-shield': ['reinforcing langet', 'convex laminated', 'peened rim rivet'],
-  'pike-kit': ['reinforcing langet', 'forged head ridge', 'katzbalger · latten scabbard chape'],
+  'pike-kit': ['reinforcing langet', 'forged head ridge', 'lower-hand grip binding'],
   crossbow: ['antler rotating nut', 'spring bolt retainer', 'belt-carried cranequin rack'],
   sidearm: ['tapered double-edged blade', 'fitted guard collar', 'peened tang'],
   'sidearm-shield': ['tapered double-edged blade', 'convex laminated', 'boss neck collar'],
   'sword-shield': ['tapered double-edged blade', 'convex laminated', 'rolled and riveted forged rim'],
   halberd: ['front socket langet', 'beveled axe cheek', 'peened head rivet'],
-  bow: ['tapered d-section stave', 'upper horn nock', 'stitched suspension strap'],
+  bow: ['tapered d-section stave', 'upper horn nock', 'leather quiver with lined mouth'],
 };
 
 const sorted = <T extends string>(values: readonly T[]): T[] => [...values].sort();
@@ -134,6 +134,13 @@ for (const kind of EXPECTED_KINDS) {
     .flatMap((assembly) => assembly.userData.semanticWeaponParts as string[])
     .join('\n')
     .toLowerCase();
+  if (kind === 'bow' || kind === 'pike-kit') {
+    assert.equal(
+      craftEvidence.includes('scabbard'),
+      false,
+      `${kind} must not carry a sidearm scabbard`,
+    );
+  }
   for (const detail of REQUIRED_CRAFT_DETAILS[kind]) {
     assert.equal(
       craftEvidence.includes(detail),

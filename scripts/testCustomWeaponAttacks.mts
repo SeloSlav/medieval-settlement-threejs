@@ -34,6 +34,18 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-
    assert.ok(rig.ownedBones.every(b=>b.quaternion.toArray().every(Number.isFinite)),`${name}/${kind}: nonfinite pose`);
    if(frame===0)firstPose=rig.ownedBones.map(b=>b.getWorldQuaternion(new THREE.Quaternion()));
    if(frame===100)rig.ownedBones.forEach((b,i)=>{const angle=b.getWorldQuaternion(new THREE.Quaternion()).normalize().angleTo(firstPose[i]!.clone().normalize());assert.ok(angle<1e-4,`${name}/${kind}/${b.name}: recovery seam ${angle} radians`);});
+   if(kind==='bow'){
+    const shoulder=rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3());
+    const elbow=rig.armBones.leftForearm.getWorldPosition(new THREE.Vector3()).sub(shoulder);
+    const reach=rig.armBones.leftHand.getWorldPosition(new THREE.Vector3()).sub(shoulder).normalize();
+    const up=new THREE.Vector3(0,1,0).applyQuaternion(rig.attackOrientation);
+    const bend=elbow.clone().addScaledVector(reach,-elbow.dot(reach));
+    assert.ok(bend.dot(up)<1e-4,`${name}/${frame}: bow elbow must flex downward rather than hyperextend (${bend.dot(up)})`);
+    assert.ok(Math.abs(bend.dot(new THREE.Vector3().crossVectors(reach,up).normalize()))<1e-4,'bow elbow cannot kink sideways toward the torso');
+    const hand=rig.armBones.leftHand;
+    const delta=hand.quaternion.clone().multiply(rig.referenceQuaternions.get(hand)!.clone().invert());
+    assert.ok(2*Math.atan2(Math.abs(delta.y),Math.abs(delta.w))<.12,'bow wrist must not absorb a large axial twist');
+   }
    if(kind==='bow' && rig.nockedArrow?.visible){
     const draw=rig.armBones.rightHand.localToWorld(new THREE.Vector3(-.026,.056,-.0071)
       .multiplyScalar(Number(rig.armBones.rightHand.userData.militaryGripScale??1)));
@@ -44,8 +56,15 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-
     const rest=local.addScaledVector(direction,-local.z/direction.z);
     assert.ok(rest.y>.0625 && rest.x>.02,'arrow passes above and beside the bow grip');
     if(frame>=72){
+     const shoulder=rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3());
+     const elbow=rig.armBones.leftForearm.getWorldPosition(new THREE.Vector3());
+     const wrist=rig.armBones.leftHand.getWorldPosition(new THREE.Vector3());
+     const extension=shoulder.distanceTo(wrist)/(shoulder.distanceTo(elbow)+elbow.distanceTo(wrist));
+     assert.ok(Math.abs(extension-1)<1e-6,`${name}: aiming bow arm must be completely straight (${extension})`);
      const head=model.getObjectByName('Head')!.getWorldPosition(new THREE.Vector3());
      assert.ok(draw.x<head.x-.025 && draw.z>head.z,'full draw anchors on the right side in front of the head');
+     assert.ok(draw.z-head.z<rig.armLength*.15,'drawing hand must come back to the cheek');
+     assert.ok(Math.abs(wrist.x-shoulder.x)<.002,'straight bow arm must aim forward from the shoulder, not across the chest');
     }
    }
    const hand=kind==='bow'?rig.armBones.leftHand:rig.armBones.rightHand;
@@ -85,7 +104,8 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['worker-female-
   assert.ok(supportError<.002,`${name}/${kind}: supporting hand cannot reach the handle`);
   assert.ok(maxWrist<30,`${name}/${kind}: wrist folded ${maxWrist} degrees at ${worstFrame}`);
   assert.ok(maxOther<30,`${name}/${kind}: supporting/drawing wrist folded ${maxOther} degrees at ${otherFrame}`);
-  assert.ok(maxStep<22,`${name}/${kind}: elbow/grip solution jumped between adjacent attack phases`);
+  assert.ok(maxStep<22,`${name}/${kind}: elbow/grip solution jumped ${maxStep} degrees at phase ${stepFrame/100}`);
+  if(kind==='bow')assert.ok(maxStep<8,`${name}: bow draw must remain smooth through loading and full extension`);
   console.log(`${name}/${kind}: primary=${primaryError.toFixed(4)}m support=${supportError.toFixed(4)}m wrist=${maxWrist.toFixed(1)}deg @ ${worstFrame}, other=${maxOther.toFixed(1)} @ ${otherFrame}, step=${maxStep.toFixed(1)} @ ${stepFrame}`);
  }
 }

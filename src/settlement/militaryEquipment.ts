@@ -124,9 +124,7 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
     'spear-shield': source('spear-shield', spearAssembly.clone(true), UPRIGHT_RIGHT_HAND, [
       mount(createShield('medium', materials), ['PalmL', 'L_Hand'], 0.56, LEFT_PALM_POSITION, [0, 0, 0], FORWARD_LEFT_HAND),
     ]),
-    'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND, [
-      mount(createKatzbalgerScabbard(materials), ['Waist', 'Hips', 'Pelvis'], 0.82, [0.1, 0, 0.015], [0, 0, Math.PI - 0.18]),
-    ]),
+    'pike-kit': source('pike-kit', createPike(materials), UPRIGHT_RIGHT_HAND),
     crossbow: source('crossbow', crossbowAssembly, FORWARD_RIGHT_HAND, [
       mount(
         createBoltCase(materials),
@@ -157,7 +155,6 @@ export function createMilitaryEquipmentSources(): MilitaryEquipmentSources {
       ),
       mount(bowAssembly.clone(true), ['Spine02', 'Spine2', 'Spine01', 'Spine'], 1.88, [0.08, 0.02, 0.105], [0.04, -0.2, 0.18], undefined, 'ranged-stowed'),
       mount(fallbackDaggerAssembly.clone(true), ['PalmR', 'R_Hand'], 0.42, RIGHT_PALM_POSITION, [0, 0, 0], NATURAL_RIGHT_HAND, 'melee-held'),
-      mount(fallbackScabbardAssembly.clone(true), ['Waist', 'Hips', 'Pelvis'], 0.46, [0.11, 0, 0.02], [0, 0, Math.PI - 0.2], undefined, 'melee-stowed'),
     ], 'ranged-held', ['PalmL', 'L_Hand'], LEFT_PALM_POSITION),
   };
 }
@@ -397,7 +394,7 @@ function createPike(materials: Materials): THREE.Group {
   }
   add(group, new THREE.CylinderGeometry(0.0195, 0.0195, 0.045, 10), materials.bluedSteel, 'Pike · blunt iron shoe', [0, -0.495, 0]);
   group.name = 'Procedural Landsknecht pike';
-  group.userData.equipmentIdentity = 'mercenary-pike-and-katzbalger';
+  group.userData.equipmentIdentity = 'mercenary-pike';
   return group;
 }
 
@@ -629,19 +626,26 @@ function createArrow(materials: Materials, length: number): THREE.Group {
 
 function createQuiver(materials: Materials, arrowCount: number, arrowLength: number): THREE.Group {
   const group = new THREE.Group();
-  add(group, new THREE.CylinderGeometry(0.09, 0.075, 0.5, 14, 1, true), materials.leather, 'Bow kit · leather quiver', [0, 0.19, 0]);
-  add(group, new THREE.CylinderGeometry(0.076, 0.076, 0.022, 14), materials.oxblood, 'Bow kit · reinforced quiver floor', [0, -0.068, 0]);
-  add(group, new THREE.TorusGeometry(0.09, 0.009, 6, 18), materials.brass, 'Bow kit · latten-bound quiver mouth', [0, 0.44, 0], [Math.PI / 2, 0, 0]);
-  add(group, new THREE.TorusGeometry(0.08, 0.008, 6, 16), materials.oxblood, 'Bow kit · lower leather binding', [0, -0.045, 0], [Math.PI / 2, 0, 0]);
-  add(group, new RoundedBoxGeometry(0.035, 0.48, 0.016, 2, 0.005), materials.oxblood, 'Bow kit · stitched suspension strap', [0.085, 0.2, -0.03], [0.08, 0, -0.08]);
-  for (const y of [0.04, 0.2, 0.36]) {
-    addRivet(group, materials.brass, 'Bow kit · suspension rivet', [0.087, y, -0.02], 0.007);
-  }
+  // One continuous leather shell: closed floor, tapered outside, rolled rim,
+  // and a visible inner wall. No oversized backing strip or metal decoration.
+  const profile = [[0, -.06], [.061, -.06], [.075, .435], [.074, .443],
+    [.069, .443], [.068, .435], [.055, -.047], [0, -.047]];
+  const shell = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r!, y!)), 18);
+  // Lathe's default V follows profile indices, which stretches the leather
+  // over the long wall. Match vertical texture density to the circumference.
+  const uv = shell.getAttribute('uv'), positions = shell.getAttribute('position');
+  for (let i = 0; i < uv.count; i++) uv.setY(i, (positions.getY(i) + .06) / (2 * Math.PI * .075));
+  add(group, shell, materials.leather, 'Bow kit · leather quiver with lined mouth', [0, 0, 0]);
+  add(group, new THREE.TorusGeometry(0.062, 0.004, 5, 18), materials.leather,
+    'Bow kit · leather base seam', [0, -0.036, 0], [Math.PI / 2, 0, 0]);
   for (let index = 0; index < arrowCount; index += 1) {
     const angle = index / arrowCount * Math.PI * 2;
     const arrow = createArrow(materials, arrowLength);
-    arrow.position.set(Math.cos(angle) * 0.045, Math.max(0.56, arrowLength - 0.04) + (index % 3) * 0.012, Math.sin(angle) * 0.045);
-    arrow.rotation.z = Math.PI + (index - arrowCount * 0.5) * 0.008;
+    arrow.position.set(Math.cos(angle) * .038, Math.max(.56, arrowLength + .005) + (index % 3) * .006, Math.sin(angle) * .038);
+    // Nocks fan out gently; the points converge inside the floor instead of
+    // piercing the tapered wall or protruding through the bottom.
+    arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(-Math.cos(angle) * .016, -arrowLength - .04, -Math.sin(angle) * .016).normalize());
     group.add(arrow);
   }
   group.name = 'Procedural bowman quiver and arrows';
@@ -692,27 +696,6 @@ function createFallbackDaggerScabbard(materials: Materials): THREE.Group {
   add(group, new THREE.CylinderGeometry(0.02, 0.024, 0.11, 9), materials.leather, 'Ranged fallback dagger · visible grip', [0, 0.365, 0]);
   group.name = 'Procedural ranged fallback dagger scabbard';
   group.userData.equipmentIdentity = 'ranged-fallback-dagger-scabbard';
-  return group;
-}
-
-function createKatzbalgerScabbard(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(group, new RoundedBoxGeometry(0.075, 0.67, 0.048, 3, 0.012), materials.leather, 'Katzbalger · leather scabbard', [0, 0.24, 0]);
-  add(group, new THREE.ConeGeometry(0.044, 0.095, 8), materials.brass, 'Katzbalger · latten scabbard chape', [0, -0.145, 0], [0, 0, Math.PI]);
-  add(group, new THREE.TorusGeometry(0.04, 0.006, 5, 11), materials.brass, 'Katzbalger · reinforced scabbard throat', [0, 0.575, 0], [Math.PI / 2, 0, 0]);
-  for (const y of [0.22, 0.43]) {
-    add(group, new THREE.TorusGeometry(0.042, 0.006, 5, 11), materials.oxblood, 'Katzbalger · suspension band', [0, y, 0], [Math.PI / 2, 0, 0]);
-    add(group, new THREE.TorusGeometry(0.024, 0.005, 5, 10), materials.brass, 'Katzbalger · belt suspension ring', [0.052, y, 0], [0, Math.PI / 2, 0]);
-  }
-  add(group, new THREE.CylinderGeometry(0.027, 0.03, 0.16, 10), materials.oxblood, 'Katzbalger · visible grip', [0, 0.65, 0]);
-  const guard = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.16, 0.56, 0), new THREE.Vector3(-0.08, 0.6, 0.02),
-    new THREE.Vector3(0, 0.58, 0), new THREE.Vector3(0.08, 0.6, 0.02), new THREE.Vector3(0.16, 0.56, 0),
-  ]);
-  add(group, new THREE.TubeGeometry(guard, 24, 0.012, 7, false), materials.bluedSteel, 'Katzbalger · S-curved guard');
-  add(group, new THREE.SphereGeometry(0.038, 10, 7), materials.brass, 'Katzbalger · pommel', [0, 0.75, 0]);
-  group.name = 'Procedural Landsknecht Katzbalger scabbard';
-  group.userData.equipmentIdentity = 'landsknecht-katzbalger';
   return group;
 }
 

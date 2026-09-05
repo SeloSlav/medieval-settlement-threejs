@@ -7,6 +7,7 @@ export type WeaponAttackMotion = {
   lean: number;
   turn: number;
   draw: number;
+  extension: number;
   reload: number;
 };
 
@@ -39,22 +40,26 @@ function rotation(x: number, y: number, z: number): THREE.Quaternion {
 function key(grip: [number, number, number], orientation: THREE.Quaternion, lean: number, turn: number) {
   return { grip: new THREE.Vector3(...grip), orientation, lean, turn };
 }
-const bowAim = key([-.15, .12, 1.1], rotation(0, 0, 0), -.01, -.95);
-const bowNock = key([-.1, -.16, .78], rotation(.18, 0, -.05), .025, -.95);
+const bowAim = key([-.15, .12, 1.1], rotation(0, 0, 0), -.01, -1.35);
+const bowNock = key([-.1, -.16, .78], rotation(.18, 0, -.05), .025, -.55);
 const crossbowAim = key([-.12, .22, .54], horizontal, -.01, -.38);
 const crossbowLoad = key([-.1, -.32, .36], horizontal.clone().multiply(rotation(-.5, 0, 0)), .08, -.45);
 
 export function createWeaponAttackMotion(): WeaponAttackMotion {
-  return { grip: new THREE.Vector3(), orientation: new THREE.Quaternion(), lean: 0, turn: 0, draw: 0, reload: 0 };
+  return { grip: new THREE.Vector3(), orientation: new THREE.Quaternion(), lean: 0, turn: 0, draw: 0, extension: 0, reload: 0 };
 }
 
 export function sampleWeaponAttackMotion(family: AttackMotionFamily, progress: number, out: WeaponAttackMotion): WeaponAttackMotion {
   const p = THREE.MathUtils.clamp(progress, 0, 1);
-  out.draw = 0; out.reload = 0;
+  out.draw = 0; out.extension = 0; out.reload = 0;
   if (family === 'bow') {
     const lower = p < .18 ? smooth(p, 0, .18) : 1 - smooth(p, .18, .4);
     mix(bowAim, bowNock, lower, out);
-    out.draw = p < .12 ? 1 - smooth(p, 0, .12) : smooth(p, .34, .72);
+    out.draw = p < .18 ? 1 - smooth(p, 0, .18) : smooth(p, .34, .72);
+    out.extension = out.draw;
+    // Open the stance with the draw, so the string hand can still reach the
+    // bow during loading instead of chasing it from behind a turned shoulder.
+    out.turn = THREE.MathUtils.lerp(bowNock.turn, bowAim.turn, out.draw);
   } else if (family === 'crossbow') {
     const lower = p < .18 ? smooth(p, 0, .18) : 1 - smooth(p, .66, .86);
     mix(crossbowAim, crossbowLoad, lower, out);

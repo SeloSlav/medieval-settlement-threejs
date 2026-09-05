@@ -6511,7 +6511,7 @@ function combatEquipmentLabel(combat: CombatAgentState): string {
     case 'militia': return 'Ordinary spear and clothing';
     case 'crossbow': return 'Steel crossbow, bolt case, and padded coat';
     case 'bowman': return 'War bow, quiver, arrows, and light clothing';
-    case 'mercenary-spear': return 'Long pike, Katzbalger sidearm, and field kit';
+    case 'mercenary-spear': return 'Long pike and field kit';
     case 'spearman': return 'Short spear, round shield, and quilted jack';
     case 'hussar': return 'Lance, sidearm, small shield, padded coat, and pasture horse';
     case 'armored-lancer': return 'Lance, sidearm, mail harness, and pasture horse';

@@ -886,7 +886,7 @@ function bodyPoint(rig: CombatWeaponRig, point: THREE.Vector3, out: THREE.Vector
   return out.copy(point).multiplyScalar(rig.armLength).applyQuaternion(rig.bodyOrientation).add(rig.bodyCenter);
 }
 
-const BOW_CHEEK_ANCHOR = new THREE.Vector3(-.2, .28, .28);
+const BOW_CHEEK_ANCHOR = new THREE.Vector3(-.22, .28, .06);
 const STOCK_HAND_FRAME = PALM_WEAPON_FRAME.clone().invert().multiply(CROSSBOW_SUPPORT_HAND);
 const THRUST_HAND_FRAME = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2)
   .multiply(PALM_WEAPON_FRAME).multiply(SWORD_GRIP_CANT);
@@ -959,6 +959,51 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   }
 }
 
+/** The bow arm has one bend plane and a neutral wrist. Turning the shoulder
+ * carries the palm inward; asking the wrist alone to do that twists the cuff.
+ * Resolve the limb first, then place the bow at the resulting palm contact. */
+function poseBowHoldingArm(rig: CombatWeaponRig, grip: readonly [number, number, number], handWorld: THREE.Quaternion): void {
+  const { leftUpperArm: upper, leftForearm: forearm, leftHand: hand } = rig.armBones;
+  const shoulder = upper.getWorldPosition(rig.scratchVectors[0]!);
+  const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
+  const wrist = hand.getWorldPosition(rig.scratchVectors[2]!);
+  const upperLength = shoulder.distanceTo(elbow), lowerLength = elbow.distanceTo(wrist);
+  const offset = rig.scratchVectors[3]!.set(.005, .0383, -.0071)
+    .multiply(hand.getWorldScale(rig.scratchVectors[4]!)).applyQuaternion(handWorld);
+  const target = rig.scratchVectors[13]!.copy(attackContact(rig, grip)).sub(offset).sub(shoulder);
+  // Aim forward from the leading shoulder rather than across the chest.
+  const aim = rig.scratchVectors[4]!.set(0, .1, 1).normalize().applyQuaternion(rig.bodyOrientation);
+  target.normalize().lerp(aim, rig.attackMotion.extension).normalize();
+  // Author the hinge angle directly. It reaches exactly zero at aim without
+  // an IK clamp or the square-root snap of a distance approaching full reach.
+  const flex = (1 - rig.attackMotion.extension) * .55;
+  const reach = Math.sqrt(upperLength * upperLength + lowerLength * lowerLength + 2 * upperLength * lowerLength * Math.cos(flex));
+  const along = (upperLength * upperLength - lowerLength * lowerLength + reach * reach) / (2 * reach);
+  const bendDistance = upperLength * lowerLength * Math.sin(flex) / reach;
+  const bend = rig.scratchVectors[3]!.set(0, -1, 0).applyQuaternion(rig.attackOrientation);
+  bend.addScaledVector(target, -bend.dot(target)).normalize();
+  const upperDirection = rig.scratchVectors[14]!.copy(target).multiplyScalar(along).addScaledVector(bend, bendDistance).divideScalar(upperLength);
+  const lowerDirection = rig.scratchVectors[15]!.copy(target).multiplyScalar(reach)
+    .addScaledVector(upperDirection, -upperLength).divideScalar(lowerLength);
+  alignBowArmFrame(rig, upper, upperDirection);
+  alignBowArmFrame(rig, forearm, lowerDirection);
+  hand.quaternion.identity();
+  hand.updateWorldMatrix(true, false);
+  rig.attackOrigin.set(.005, .0383, -.0071);
+  hand.localToWorld(rig.attackOrigin);
+  rig.attackOrigin.sub(rig.scratchVectors[0]!.set(...grip).multiply(rig.attackScale).applyQuaternion(rig.attackOrientation));
+  rig.attackMatrix.compose(rig.attackOrigin, rig.attackOrientation, rig.attackScale);
+}
+
+function alignBowArmFrame(rig: CombatWeaponRig, bone: THREE.Bone, direction: THREE.Vector3): void {
+  const up = rig.scratchVectors[0]!.set(0, 1, 0).applyQuaternion(rig.attackOrientation);
+  const side = rig.scratchVectors[1]!.crossVectors(direction, up).normalize();
+  up.crossVectors(side, direction).normalize();
+  const world = rig.scratchQuaternions[0]!.setFromRotationMatrix(rig.carryGripBasis.makeBasis(side, direction, up));
+  bone.quaternion.copy(bone.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(world).normalize();
+  bone.updateWorldMatrix(true, false);
+}
+
 function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline, logicalMode: string): void {
   const motion = sampleWeaponAttackMotion(timeline.family, timeline.poseProgress, rig.attackMotion);
   if (logicalMode === 'fight') {
@@ -992,8 +1037,7 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
   const handWorld = rig.scratchQuaternions[4]!;
   if (timeline.family === 'bow') {
     handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
-    alignAttackGrip(rig, true, attackContact(rig, primaryGrip), handWorld);
-    solveAttackHand(rig, true, attackContact(rig, primaryGrip), handWorld);
+    poseBowHoldingArm(rig, primaryGrip, handWorld);
     closeSupportFingers(rig);
     const restNock = attackContact(rig, [0, .068, -.135]);
     const cheek = bodyPoint(rig, BOW_CHEEK_ANCHOR, rig.scratchVectors[15]!);
