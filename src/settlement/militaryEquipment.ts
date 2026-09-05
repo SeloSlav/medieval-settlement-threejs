@@ -408,13 +408,13 @@ function createSword(materials: Materials, longSword: boolean): THREE.Group {
   add(
     group,
     shapeGeometry([
-      [-bladeWidth, 0],
+      [-bladeWidth, -0.135],
       [-bladeWidth, bladeLength * 0.12],
       [-bladeWidth * 0.82, bladeLength * 0.72],
       [0, bladeLength],
       [bladeWidth * 0.78, bladeLength * 0.72],
       [bladeWidth, bladeLength * 0.12],
-      [bladeWidth, 0],
+      [bladeWidth, -0.135],
     ], longSword ? 0.021 : 0.019, 0.005),
     materials.steel,
     longSword ? 'Longsword · tapered double-edged blade' : 'Sidearm · tapered double-edged blade',

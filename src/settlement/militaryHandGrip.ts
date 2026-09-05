@@ -72,12 +72,16 @@ export function installMilitaryHandGrip(root: THREE.Group): void {
         const joint = oldJoints.getComponent(vertex, slot);
         const weight = oldWeights.getComponent(vertex, slot);
         if (weight <= 0) continue;
-        // The thumb lies on +Z; leave its authored opposing pose intact.
-        if (joint !== handIndex || local.z > 0.022 || local.y <= 0.042) {
+        if (joint !== handIndex || local.y <= 0.042) {
           influences.push([joint, weight]);
           continue;
         }
-        const curl = THREE.MathUtils.smoothstep(local.y, 0.042, 0.055);
+        // The thumb lies on +Z and ends before the long fingers. Blend its
+        // webbing smoothly; a hard Z cutoff leaves strips of the index finger
+        // unbent (especially the female model's glove and rings).
+        const thumb = THREE.MathUtils.smoothstep(local.z, 0.012, 0.027)
+          * (1 - THREE.MathUtils.smoothstep(local.y, 0.062, 0.078));
+        const curl = THREE.MathUtils.smoothstep(local.y, 0.042, 0.055) * (1 - thumb);
         const tip = THREE.MathUtils.smoothstep(local.y, 0.071, 0.088);
         influences.push([handIndex, weight * (1 - curl)],
           [originalBoneCount, weight * curl * (1 - tip)],
