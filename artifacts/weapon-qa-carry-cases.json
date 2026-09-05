@@ -1,0 +1,7 @@
+[
+ {"name":"carry-01-sword-front","weapon":"sidearm","mode":"walk","phase":0.5,"view":"front"},
+ {"name":"carry-01-sword-side","weapon":"sidearm","mode":"walk","view":"side"},
+ {"name":"carry-01-sword-grip","weapon":"sidearm","mode":"walk","view":"grip"},
+ {"name":"carry-01-sword-inside","weapon":"sidearm","mode":"walk","view":"grip-inside"},
+ {"name":"carry-01-spear-grip","weapon":"spear","mode":"walk","view":"grip-inside"}
+]

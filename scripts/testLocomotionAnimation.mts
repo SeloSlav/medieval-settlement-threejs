@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { locomotionAnimationTimeScale } from '../src/settlement/locomotionAnimation.ts';
 
 assert.equal(locomotionAnimationTimeScale('run', 0), 0.38);
-assert.equal(locomotionAnimationTimeScale('flee', 0), 0.44);
+assert.equal(locomotionAnimationTimeScale('flee', 0), 0.38);
 assert.ok(locomotionAnimationTimeScale('run', 1.2) < 0.6);
 assert.ok(locomotionAnimationTimeScale('run', 2.35) < 1.1);
 assert.ok(locomotionAnimationTimeScale('run', 2.35) > 1.05);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WorkerToolKind } from './workerTools.ts';
 import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
 import { MILITARY_GRIP_BONES } from './militaryHandGrip.ts';
+import { CROSSBOW_FRAME } from './militaryWeaponGeometry.ts';
 
 export type CombatWeaponFamily =
   | 'spear-pike'
@@ -383,10 +384,17 @@ export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
 const CARRY_RIGHT: ArmTarget = [-0.12, -0.42, 0.5];
 const CARRY_LEFT: ArmTarget = [0.12, -0.42, 0.5];
 const CARRY_CROSSBOW: ArmTarget = [0.15, -0.45, 0.38];
-const CARRY_SWORD: ArmTarget = [-0.12, -0.93, 0.12];
+const CARRY_SWORD: ArmTarget = [-0.08, -0.985, 0.075];
+const SWORD_GRIP_CANT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 4);
+const SWORD_FINGER_AXIS = new THREE.Vector3(0, Math.SQRT1_2, Math.SQRT1_2);
+const POLE_FINGER_AXIS = new THREE.Vector3(0, 0, 1);
 const UPRIGHT_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.06);
 const LOW_BLADE_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.1);
-const CROSSBOW_CARRY = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.35, 0.7, 0, 'YXZ'));
+const PALM_WEAPON_FRAME = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+  new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)));
+const CROSSBOW_CARRY = PALM_WEAPON_FRAME.clone()
+  .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.12))
+  .premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.65));
 const CROSSBOW_SUPPORT_HAND = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
   new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)));
 const SHIELD_CARRY = new THREE.Quaternion();
@@ -408,8 +416,10 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
     : primaryLeft ? CARRY_LEFT : CARRY_RIGHT);
   orientCarryPalm(rig, primaryLeft, primaryMount, orientation);
   if (!primaryLeft) {
-    if (rig.gripBones[0]) rig.gripBones[0].rotation.z = 1.2;
-    if (rig.gripBones[1]) rig.gripBones[1].rotation.z = 1.45;
+    const axis = orientation === LOW_BLADE_CARRY || tool === 'crossbow' ? SWORD_FINGER_AXIS : POLE_FINGER_AXIS;
+    if (rig.gripBones[0]) rig.gripBones[0].quaternion.setFromAxisAngle(axis, 0.65);
+    if (rig.gripBones[1]) rig.gripBones[1].quaternion.setFromAxisAngle(axis, 1.5);
+    if (rig.gripBones[2]) rig.gripBones[2].rotation.y = -0.55;
   }
   if (tool === 'crossbow') {
     const grip = primaryMount.userData.workerToolSupportGripLocal as readonly [number, number, number] | undefined;
@@ -469,12 +479,8 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
     rig.carryGripBaseQuaternion.copy(mount.quaternion);
     rig.carryGripBasePosition.copy(mount.position);
   }
-  const thumb = rig.scratchVectors[14]!.set(0, 1, 0)
-    .applyQuaternion(orientation === CROSSBOW_CARRY ? UPRIGHT_CARRY : orientation);
-  const back = rig.scratchVectors[15]!.set(-1, 0, 0);
-  const fingers = rig.scratchVectors[13]!.crossVectors(thumb, back).normalize();
-  const handModel = rig.scratchQuaternions[3]!.setFromRotationMatrix(
-    rig.carryGripBasis.makeBasis(back, fingers, thumb));
+  const handModel = rig.scratchQuaternions[3]!.copy(orientation).multiply(PALM_WEAPON_FRAME);
+  if (orientation === LOW_BLADE_CARRY || orientation === CROSSBOW_CARRY) handModel.multiply(SWORD_GRIP_CANT);
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const handWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(handModel);
   const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
@@ -483,7 +489,8 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
   const grip = mount.userData.workerToolGripLocal as readonly [number, number, number] | undefined;
   const offset = rig.scratchVectors[14]!.set(...(grip ?? [0, 0, 0] as const))
     .multiply(mount.scale).applyQuaternion(mount.quaternion);
-  mount.position.set(left ? 0.005 : -0.01, left ? 0.0383 : 0.06, -0.0071).sub(offset);
+  const handSize = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
+  mount.position.set(left ? 0.005 : -0.01, left ? 0.0383 : 0.044, -0.0071).multiplyScalar(handSize).sub(offset);
   hand.updateWorldMatrix(true, true);
 }
 
@@ -711,23 +718,23 @@ function createLoadedCrossbowBolt(parent: THREE.Group): THREE.Group {
   const bolt = new THREE.Group();
   bolt.name = 'Combat crossbow · loaded bolt';
   const shaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.006, 0.006, 0.56, 7),
+    new THREE.CylinderGeometry(0.004, 0.004, 0.36, 7),
     new THREE.MeshStandardMaterial({
       color: 0x8c6335,
       roughness: 0.86,
       metalness: 0,
     }),
   );
-  shaft.position.set(0, 0.12, 0.052);
+  shaft.position.set(0, CROSSBOW_FRAME.nutY + 0.18, CROSSBOW_FRAME.muzzle[2]);
   const point = new THREE.Mesh(
-    new THREE.ConeGeometry(0.018, 0.05, 6),
+    new THREE.ConeGeometry(0.009, 0.025, 6),
     new THREE.MeshStandardMaterial({
       color: 0xaab0b3,
       roughness: 0.38,
       metalness: 0.72,
     }),
   );
-  point.position.set(0, 0.425, 0.052);
+  point.position.set(0, CROSSBOW_FRAME.nutY + 0.3725, CROSSBOW_FRAME.muzzle[2]);
   for (const mesh of [shaft, point]) {
     mesh.castShadow = false;
     mesh.receiveShadow = false;

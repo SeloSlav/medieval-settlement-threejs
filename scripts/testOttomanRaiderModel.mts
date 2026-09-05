@@ -48,7 +48,7 @@ for (const [mode, clip] of [
   ['gather', 'lift_heavy'],
   ['hurt', 'hit_to_body_01'],
   ['fall', 'fall'],
-  ['flee', 'flee_01'],
+  ['flee', 'run'],
   ['run', 'run'],
   ['talk', 'angry_01'],
   ['laugh', 'cheer'],

@@ -50,12 +50,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   [...new Set(Object.values(CLERIC_SOURCE_CLIP_BY_MODE))].sort(),
-  [...CLERIC_AUTHORED_ANIMATION_NAMES].sort(),
-  'every authored cleric clip must be reachable through at least one game animation mode',
+  CLERIC_AUTHORED_ANIMATION_NAMES.filter((name) => name !== 'flee_01').sort(),
+  'every authored cleric clip except the unused cartoonish flee take must be reachable',
 );
 const gameClips = createClericClipSet(gltf.animations);
 assert.equal(gameClips.sermon.name, 'greet_04:cleric-sermon');
-assert.equal(gameClips.flee.name, 'flee_01:cleric-flee');
+assert.equal(gameClips.flee.name, 'run:cleric-flee');
 assert.equal(gameClips.run.name, 'run:cleric-run');
 
 const chapel = building('parish-chapel', 'chapel', 0, 0, 1);

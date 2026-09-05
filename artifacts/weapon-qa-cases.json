@@ -1,0 +1,7 @@
+[
+ {"name":"baseline-sword-walk","weapon":"sidearm","mode":"walk","view":"side"},
+ {"name":"baseline-sword-attack","weapon":"sidearm","mode":"attack","phase":0.92,"view":"front"},
+ {"name":"baseline-spear-attack","weapon":"spear","mode":"attack","phase":0.92,"view":"front"},
+ {"name":"baseline-crossbow-aim","weapon":"crossbow","mode":"attack","phase":0.9,"view":"front"},
+ {"name":"baseline-crossbow-mesh","weapon":"crossbow","view":"weapon"}
+]

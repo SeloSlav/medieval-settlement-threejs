@@ -1678,7 +1678,7 @@ export function createSemanticWorkerClipSet(
     carry: forMode('lift_heavy', 'carry'),
     hurt: forMode('hit_to_body_01', 'hurt'),
     fall: forMode('fall', 'fall'),
-    flee: forMode('flee_01', 'flee'),
+    flee: forMode('run', 'flee'),
     run: forMode('run', 'run'),
   };
 }
@@ -1710,7 +1710,7 @@ export const RAIDER_SOURCE_CLIP_BY_MODE = {
   carry: 'lift_heavy',
   hurt: 'hit_to_body_01',
   fall: 'fall',
-  flee: 'flee_01',
+  flee: 'run',
   run: 'run',
 } as const satisfies Record<VillagerRenderMode, string>;
 
@@ -1757,7 +1757,7 @@ export const CLERIC_SOURCE_CLIP_BY_MODE = {
   carry: 'lift_heavy',
   hurt: 'hit_to_body_01',
   fall: 'fall',
-  flee: 'flee_01',
+  flee: 'run',
   run: 'run',
 } as const satisfies Record<VillagerRenderMode, ClericAuthoredAnimationName>;
 

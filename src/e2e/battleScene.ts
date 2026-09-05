@@ -472,7 +472,7 @@ function clipForPose(faction: Faction, pose: FighterPose): string {
     case 'slash': return 'slash';
     case 'hit': return 'hit_to_body_01';
     case 'fall': return 'fall';
-    case 'flee': return 'flee_01';
+    case 'flee': return 'run';
     case 'angry': return faction === 'ottoman' ? 'angry_01' : 'wait';
   }
 }

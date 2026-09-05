@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { CROSSBOW_FRAME, createRealisticCrossbow, createRealisticSword } from './militaryWeaponGeometry.ts';
 import {
   createMilitaryEquipmentMaterials,
   type MilitaryEquipmentMaterials,
@@ -87,7 +88,7 @@ const TARGET_LENGTHS: Record<MilitaryEquipmentKind, number> = {
   spear: 2.35,
   'spear-shield': 2.65,
   'pike-kit': 4.7,
-  crossbow: 0.74,
+  crossbow: 0.95,
   sidearm: 0.82,
   'sidearm-shield': 0.82,
   'sword-shield': 1.08,
@@ -364,7 +365,7 @@ function createSpear(materials: Materials): THREE.Group {
   for (let index = 0; index < 3; index += 1) {
     add(group, new THREE.TorusGeometry(0.0225, 0.003, 5, 10), materials.leather, 'Spear · socket binding', [0, 1.19 - index * 0.016, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.ConeGeometry(0.034, 0.11, 10), materials.bluedSteel, 'Spear · iron butt cap', [0, -0.52, 0], [0, 0, Math.PI]);
+  add(group, new THREE.CylinderGeometry(0.021, 0.021, 0.04, 10), materials.bluedSteel, 'Spear · blunt iron ferrule', [0, -0.49, 0]);
   group.name = 'Procedural leaf spear';
   group.userData.equipmentIdentity = 'ordinary-leaf-spear';
   return group;
@@ -394,63 +395,14 @@ function createPike(materials: Materials): THREE.Group {
   for (let index = 0; index < 4; index += 1) {
     add(group, new THREE.TorusGeometry(0.0185, 0.003, 5, 10), materials.leather, 'Pike · lower-hand grip binding', [0, 0.18 + index * 0.022, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.ConeGeometry(0.024, 0.1, 8), materials.bluedSteel, 'Pike · iron shoe', [0, -0.55, 0], [0, 0, Math.PI]);
+  add(group, new THREE.CylinderGeometry(0.0195, 0.0195, 0.045, 10), materials.bluedSteel, 'Pike · blunt iron shoe', [0, -0.495, 0]);
   group.name = 'Procedural Landsknecht pike';
   group.userData.equipmentIdentity = 'mercenary-pike-and-katzbalger';
   return group;
 }
 
 function createSword(materials: Materials, longSword: boolean): THREE.Group {
-  const group = new THREE.Group();
-  const bladeLength = longSword ? 0.77 : 0.61;
-  const bladeWidth = longSword ? 0.026 : 0.023;
-  const guardSpan = longSword ? 0.17 : 0.145;
-  add(
-    group,
-    shapeGeometry([
-      [-bladeWidth, -0.135],
-      [-bladeWidth, bladeLength * 0.12],
-      [-bladeWidth * 0.82, bladeLength * 0.72],
-      [0, bladeLength],
-      [bladeWidth * 0.78, bladeLength * 0.72],
-      [bladeWidth, bladeLength * 0.12],
-      [bladeWidth, -0.135],
-    ], longSword ? 0.021 : 0.019, 0.005),
-    materials.steel,
-    longSword ? 'Longsword · tapered double-edged blade' : 'Sidearm · tapered double-edged blade',
-    [0, 0.17, 0],
-  );
-  for (const side of [-1, 1]) {
-    const fuller = add(
-      group,
-      new RoundedBoxGeometry(0.016, bladeLength * 0.63, 0.0035, 2, 0.0015),
-      materials.bluedSteel,
-      side > 0 ? 'Sword · front recessed fuller' : 'Sword · rear recessed fuller',
-      [0, 0.21 + bladeLength * 0.32, side * (longSword ? 0.012 : 0.011)],
-    );
-    fuller.scale.x = longSword ? 1.16 : 0.92;
-  }
-  add(group, new RoundedBoxGeometry(bladeWidth * 1.72, 0.075, 0.024, 2, 0.004), materials.bluedSteel, 'Sword · reinforced ricasso', [0, 0.2, 0]);
-  const guardCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-guardSpan, 0.015, 0),
-    new THREE.Vector3(-guardSpan * 0.48, 0.046, 0),
-    new THREE.Vector3(0, 0.032, 0),
-    new THREE.Vector3(guardSpan * 0.48, 0.046, 0),
-    new THREE.Vector3(guardSpan, 0.015, 0),
-  ]);
-  add(group, new THREE.TubeGeometry(guardCurve, 18, 0.014, 8, false), materials.bluedSteel, 'Sword · swept quillon guard');
-  add(group, new RoundedBoxGeometry(0.085, 0.038, 0.044, 3, 0.01), materials.brass, 'Sword · guard block and rain collar', [0, 0.025, 0]);
-  add(group, new THREE.CylinderGeometry(0.027, 0.031, 0.19, 10), materials.leather, 'Sword · leather-bound grip', [0, -0.085, 0]);
-  for (let index = 0; index < 5; index += 1) {
-    add(group, new THREE.TorusGeometry(0.03, 0.004, 5, 12), materials.brass, 'Sword · grip wire', [0, -0.015 - index * 0.035, 0], [Math.PI / 2, 0, 0]);
-  }
-  const pommel = add(group, new THREE.SphereGeometry(longSword ? 0.048 : 0.042, 14, 9), materials.brass, 'Sword · wheel pommel', [0, -0.2, 0]);
-  pommel.scale.z = 0.52;
-  addRivet(group, materials.bluedSteel, 'Sword · front pommel peen', [0, -0.2, 0.025], longSword ? 0.012 : 0.01);
-  addRivet(group, materials.bluedSteel, 'Sword · rear pommel peen', [0, -0.2, -0.025], longSword ? 0.012 : 0.01);
-  group.name = longSword ? 'Procedural longsword' : 'Procedural arming sword';
-  group.userData.equipmentIdentity = longSword ? 'mail-company-longsword' : 'infantry-sidearm';
-  return group;
+  return createRealisticSword(materials, longSword);
 }
 
 function shieldOutline(kind: 'small' | 'medium' | 'large'): Array<readonly [number, number]> {
@@ -605,7 +557,7 @@ function createHalberd(materials: Materials): THREE.Group {
   for (let index = 0; index < 5; index += 1) {
     add(group, new THREE.TorusGeometry(0.0245, 0.003, 5, 10), materials.leather, 'Halberd · lower-hand grip wrap', [0, 0.05 + index * 0.021, 0], [Math.PI / 2, 0, 0]);
   }
-  add(group, new THREE.ConeGeometry(0.033, 0.1, 10), materials.bluedSteel, 'Halberd · iron butt cap', [0, -0.55, 0], [0, 0, Math.PI]);
+  add(group, new THREE.CylinderGeometry(0.0265, 0.0265, 0.04, 10), materials.bluedSteel, 'Halberd · blunt iron ferrule', [0, -0.495, 0]);
   group.name = 'Procedural Gorski Kotar halberd';
   group.userData.equipmentIdentity = 'armor-breaking-halberd';
   return group;
@@ -650,55 +602,7 @@ function createBow(materials: Materials): THREE.Group {
 }
 
 function createCrossbow(materials: Materials): THREE.Group {
-  const group = new THREE.Group();
-  add(
-    group,
-    shapeGeometry([
-      [-0.045, -0.36], [-0.066, -0.27], [-0.052, 0.25], [-0.034, 0.4],
-      [0.034, 0.4], [0.052, 0.25], [0.066, -0.27], [0.045, -0.36],
-    ], 0.072, 0.012),
-    materials.walnut,
-    'Crossbow · sculpted walnut tiller',
-  );
-  add(group, new RoundedBoxGeometry(0.14, 0.17, 0.065, 3, 0.014), materials.leather, 'Crossbow · shouldered stock', [0, -0.36, 0.012], [0, 0, -0.13]);
-  add(group, new RoundedBoxGeometry(0.024, 0.59, 0.012, 2, 0.003), materials.bluedSteel, 'Crossbow · bolt groove and top rail', [0, 0.08, 0.044]);
-  add(group, new RoundedBoxGeometry(0.11, 0.035, 0.075, 2, 0.006), materials.brass, 'Crossbow · worn butt cap', [0, -0.435, 0.01], [0, 0, -0.13]);
-  const prod = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.32, 0.31, 0),
-    new THREE.Vector3(-0.22, 0.27, 0.005),
-    new THREE.Vector3(0, 0.3, 0.012),
-    new THREE.Vector3(0.22, 0.27, 0.005),
-    new THREE.Vector3(0.32, 0.31, 0),
-  ]);
-  add(group, new THREE.TubeGeometry(prod, 36, 0.015, 8, false), materials.bluedSteel, 'Crossbow · forged steel prod');
-  add(group, new THREE.CylinderGeometry(0.043, 0.043, 0.085, 14), materials.bone, 'Crossbow · antler rotating nut', [0, 0.02, 0.025], [0, 0, Math.PI / 2]);
-  addRivet(group, materials.bluedSteel, 'Crossbow · nut axle cap', [0.047, 0.02, 0.025], 0.011);
-  add(group, new RoundedBoxGeometry(0.018, 0.16, 0.025, 3, 0.006), materials.bluedSteel, 'Crossbow · trigger lever', [0, -0.1, 0.055], [0.25, 0, 0]);
-  const triggerGuard = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.028, -0.04, 0.052),
-    new THREE.Vector3(-0.045, -0.13, 0.075),
-    new THREE.Vector3(0, -0.19, 0.07),
-    new THREE.Vector3(0.04, -0.12, 0.055),
-  ]);
-  add(group, new THREE.TubeGeometry(triggerGuard, 14, 0.006, 6, false), materials.bluedSteel, 'Crossbow · forged trigger bow');
-  add(group, new THREE.TorusGeometry(0.07, 0.01, 6, 18, Math.PI * 1.4), materials.bluedSteel, 'Crossbow · spanning stirrup', [0, 0.41, 0], [Math.PI / 2, 0, -0.2]);
-  add(group, new RoundedBoxGeometry(0.016, 0.16, 0.008, 2, 0.002), materials.steel, 'Crossbow · spring bolt clip', [0, 0.18, 0.055], [-0.05, 0, 0]);
-  for (let index = 0; index < 5; index += 1) {
-    add(group, new THREE.TorusGeometry(0.036 + index * 0.002, 0.003, 5, 10), materials.leather, 'Crossbow · prod binding', [0, 0.29 + index * 0.012, 0], [Math.PI / 2, 0, 0]);
-  }
-  const string = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.32, 0.31, 0.012),
-      new THREE.Vector3(0, 0.02, 0.012),
-      new THREE.Vector3(0.32, 0.31, 0.012),
-    ]),
-    materials.cord,
-  );
-  semantic(string, 'Crossbow · drawn cord');
-  group.add(string);
-  group.name = 'Procedural military crossbow';
-  group.userData.equipmentIdentity = 'armor-piercing-crossbow';
-  return group;
+  return createRealisticCrossbow(materials);
 }
 
 function createArrow(materials: Materials, length: number): THREE.Group {
@@ -733,8 +637,8 @@ function createQuiver(materials: Materials, arrowCount: number, arrowLength: num
   for (let index = 0; index < arrowCount; index += 1) {
     const angle = index / arrowCount * Math.PI * 2;
     const arrow = createArrow(materials, arrowLength);
-    arrow.position.set(Math.cos(angle) * 0.045, 0.36, Math.sin(angle) * 0.045);
-    arrow.rotation.z = (index - arrowCount * 0.5) * 0.008;
+    arrow.position.set(Math.cos(angle) * 0.045, Math.max(0.56, arrowLength - 0.04) + (index % 3) * 0.012, Math.sin(angle) * 0.045);
+    arrow.rotation.z = Math.PI + (index - arrowCount * 0.5) * 0.008;
     group.add(arrow);
   }
   group.name = 'Procedural bowman quiver and arrows';
@@ -906,9 +810,8 @@ function configureMount(
   const held = combatRole === 'melee-held' || combatRole === 'ranged-held';
   if (held) {
     // Model-space handle center, distinct from the assembly's origin/guard.
-    mount.userData.workerToolGripLocal = kind === 'sidearm' || kind === 'sidearm-shield' || kind === 'sword-shield'
-      ? [0, -0.085, 0]
-      : kind === 'crossbow' && combatRole === 'ranged-held' ? [0, -0.14, 0] : [0, 0, 0];
+    mount.userData.workerToolGripLocal = mount.userData.modelGripLocal
+      ?? (combatRole === 'melee-held' && (kind === 'bow' || kind === 'crossbow') ? [0, 0.01, 0] : [0, 0, 0]);
     const supportGrip = supportGripFor(kind, combatRole);
     if (supportGrip) mount.userData.workerToolSupportGripLocal = supportGrip;
     const muzzle = muzzleFor(kind, combatRole);
@@ -931,7 +834,7 @@ function supportGripFor(
     case 'spear': return [0, 0.42, 0];
     case 'pike-kit': return [0, 0.5, 0];
     case 'halberd': return [0, 0.46, 0];
-    case 'crossbow': return role === 'ranged-held' ? [0, 0.18, 0.025] : null;
+    case 'crossbow': return role === 'ranged-held' ? CROSSBOW_FRAME.support : null;
     default: return null;
   }
 }
@@ -940,7 +843,7 @@ function muzzleFor(
   kind: MilitaryEquipmentKind,
   role: MilitaryEquipmentCombatRole,
 ): readonly [number, number, number] | null {
-  if (kind === 'crossbow' && role === 'ranged-held') return [0, 0.46, 0.052];
+  if (kind === 'crossbow' && role === 'ranged-held') return CROSSBOW_FRAME.muzzle;
   return null;
 }
 

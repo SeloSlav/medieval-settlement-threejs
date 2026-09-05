@@ -1,0 +1,8 @@
+[
+ {"name":"mesh-01-sword","weapon":"sidearm","mode":"walk","view":"weapon"},
+ {"name":"mesh-01-crossbow","weapon":"crossbow","mode":"walk","view":"weapon"},
+ {"name":"mesh-01-crossbow-carry","weapon":"crossbow","mode":"walk","view":"front"},
+ {"name":"grip-02-sword","weapon":"sidearm","mode":"walk","view":"grip"},
+ {"name":"grip-02-sword-inside","weapon":"sidearm","mode":"walk","view":"grip-inside"},
+ {"name":"grip-02-spear","weapon":"spear","mode":"walk","view":"grip-inside"}
+]

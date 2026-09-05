@@ -33,4 +33,45 @@ and ordinary villager animation intact.
 - Source tests and typecheck/build plus recorded visual evidence; green tests
   alone are not completion.
 
-Status: in progress. No requirement is accepted from the previous turn alone.
+## Current iteration
+
+- Added `src/dev/weapon-review.ts`, `artifacts/weapon-review.html` and
+  `scripts/captureWeaponQA.mts`. Review supports frozen clip/attack phase,
+  model, weapon and view selections; actual production crowd/attachment batches.
+- Own Vite review server on 5175, current exec session 24443. User's 5173 server
+  is separate. CUA review tab 20 is open, variable `weaponReviewTab`.
+- Automated capture MUST use installed Chrome (`channel: 'chrome'`). Bundled
+  headless Chromium produced invalid GPU skinning; installed Chrome matches
+  the in-app rendering. Captures in `artifacts/weapon-qa/`, JSON case files in
+  artifacts. Run capture via approved escalated command prefix
+  `node --import tsx scripts/captureWeaponQA.mts` to save files.
+- Native PowerShell `ReadAllText`/`WriteAllText` edits existing source files
+  successfully; apply_patch also works. Apply_patch sometimes partially applies
+  and then reports a retry error: inspect before retrying.
+- Baseline screenshots prove spears attack backwards, hands open, crossbow
+  upside down. Prior pass is not sufficient for any attack state.
+- Sword carry now near-straight arm; introduced a 45-degree diagonal hilt grip
+  instead of forcing polearm hand orientation. Arm looks better in
+  `carry-01-sword-side.png`. Full attack rewrite is still untouched.
+- Polearm butts changed to flat ferrules; arrows now nock-up in quivers.
+- New `militaryWeaponGeometry.ts` builds a slender crossbow and thin fuller
+  sword blade / smaller realistic hilt. Connected model grip metadata and
+  crossbow frame. Removed old crossbow and sword assembly functions (delegates
+  call new builders). Steel/wood/leather normal and color variation reduced.
+- Crossbow carry now uses +Y downrange, +Z top correctly (previously upside
+  down). Ammo size updated, but animation/string lifecycle still old and wrong.
+- Crossbow reference: https://www.metmuseum.org/art/collection/search/23336
+  (slender tiller, long release lever, ~95.6 cm length /75.5 cm span).
+- Latest QA `mesh-01-*` and `grip-02-*` show better silhouettes, BUT thumb
+  penetration and finger wrap still wrong. Crossbow support hand floats below
+  stock. Standalone weapon view is cut by ground at y=0; lift standalone group
+  before accepting mesh QA. UI selectors don't yet reflect API changes.
+- Added a thumb hinge, right hand now 3 extra bones. Current idea: replace the
+  shared two-finger hinges with four separate finger pairs plus thumb, so pinky
+  doesn't dangle and diagonal sword grip can close accurately. Unarmed pose
+  preservation must be re-tested after this change.
+- Typecheck passed after current geometry/carry changes. Other existing tests
+  have stale grip constants / assumed 2 hinges and haven't been updated yet.
+
+Status: in progress. No requirement is fully accepted yet; further mesh,
+grip, all-attack, transition, visual and performance work remains.

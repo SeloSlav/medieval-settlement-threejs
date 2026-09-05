@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
-export const MILITARY_GRIP_BONES = ['R_GripFingers', 'R_GripTips'] as const;
+export const MILITARY_GRIP_BONES = ['R_GripFingers', 'R_GripTips', 'R_GripThumb'] as const;
 
-/** Add two finger hinges to the worker's otherwise rigid, open right hand.
+/** Add finger and thumb hinges to the worker's otherwise rigid, open right hand.
  * This runs once on the shared source. Existing vertices, UVs and materials
  * are retained; neutral hinges reproduce the original skinning exactly.
  * Every soldier then closes the grip through the existing bone palette. */
@@ -32,11 +32,14 @@ export function installMilitaryHandGrip(root: THREE.Group): void {
   }
   if (handLength < 0.01) return;
   const size = handLength / 0.102;
+  hand.userData.militaryGripScale = size;
   const fingers = new THREE.Bone(); fingers.name = MILITARY_GRIP_BONES[0];
   fingers.position.set(0.01 * size, 0.048 * size, 0);
   const tips = new THREE.Bone(); tips.name = MILITARY_GRIP_BONES[1];
   tips.position.set(0, 0.025 * size, 0);
-  hand.add(fingers); fingers.add(tips);
+  const thumbBone = new THREE.Bone(); thumbBone.name = MILITARY_GRIP_BONES[2];
+  thumbBone.position.set(0.003 * size, 0.028 * size, 0.016 * size);
+  hand.add(fingers, thumbBone); fingers.add(tips);
   root.updateMatrixWorld(true);
 
   // All material layers share this rig, including its inverse-bind layout.
@@ -46,9 +49,9 @@ export function installMilitaryHandGrip(root: THREE.Group): void {
     const original = mesh.skeleton;
     let replacement = replacements.get(original);
     if (!replacement) {
-      replacement = new THREE.Skeleton([...original.bones, fingers, tips], [
+      replacement = new THREE.Skeleton([...original.bones, fingers, tips, thumbBone], [
         ...original.boneInverses,
-        fingers.matrixWorld.clone().invert(), tips.matrixWorld.clone().invert(),
+        fingers.matrixWorld.clone().invert(), tips.matrixWorld.clone().invert(), thumbBone.matrixWorld.clone().invert(),
       ]);
       replacements.set(original, replacement);
     }
@@ -72,7 +75,7 @@ export function installMilitaryHandGrip(root: THREE.Group): void {
         const joint = oldJoints.getComponent(vertex, slot);
         const weight = oldWeights.getComponent(vertex, slot);
         if (weight <= 0) continue;
-        if (joint !== handIndex || local.y <= 0.042) {
+        if (joint !== handIndex || local.y <= 0.032) {
           influences.push([joint, weight]);
           continue;
         }
@@ -82,10 +85,12 @@ export function installMilitaryHandGrip(root: THREE.Group): void {
         const thumb = THREE.MathUtils.smoothstep(local.z, 0.012, 0.027)
           * (1 - THREE.MathUtils.smoothstep(local.y, 0.062, 0.078));
         const curl = THREE.MathUtils.smoothstep(local.y, 0.042, 0.055) * (1 - thumb);
+        const thumbWeight = thumb * THREE.MathUtils.smoothstep(local.y, 0.032, 0.05);
         const tip = THREE.MathUtils.smoothstep(local.y, 0.071, 0.088);
-        influences.push([handIndex, weight * (1 - curl)],
+        influences.push([handIndex, weight * (1 - curl - thumbWeight)],
           [originalBoneCount, weight * curl * (1 - tip)],
-          [originalBoneCount + 1, weight * curl * tip]);
+          [originalBoneCount + 1, weight * curl * tip],
+          [originalBoneCount + 2, weight * thumbWeight]);
       }
       influences.sort((a, b) => b[1] - a[1]);
       const total = influences.slice(0, 4).reduce((sum, item) => sum + item[1], 0);
