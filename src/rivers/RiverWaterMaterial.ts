@@ -1,27 +1,21 @@
 import * as THREE from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
-import { vec4 } from 'three/tsl';
+import { vec4, uniform } from 'three/tsl';
+import * as TSL from 'three/tsl';
 import type { RiverWaterShoreMaps } from './riverWaterShoreMaps.ts';
 import { RIVER_WATER_PROFILE, type WaterSurfaceProfile } from './WaterSurfaceProfile.ts';
 import { buildWaterOptics, waterLight, WATER_OPTICAL_MODES, type WaterOpticalMode } from './WaterOptics.ts';
 import { acquireWaterSpectrum } from './WaterSpectrumRuntime.ts';
-import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
+import { retainWaterSurfaceNoise } from './WaterSurfaceNoise.ts';
 import type { WebGPURenderer } from 'three/webgpu';
 
 export type RiverWaterDebugMode = WaterOpticalMode;
 export const RIVER_WATER_SURFACE_STYLE = { qualityTier: 'hydraulic-flow-screen-optics', refractionStrength: 0.023 } as const;
-export const RIVER_WATER_TRANSMISSION = RIVER_WATER_PROFILE.transmission;
-export const RIVER_WATER_ATTENUATION_DISTANCE = RIVER_WATER_PROFILE.attenuationDistance;
-export const RIVER_DEEP_BACKDROP_STABILITY = 1;
-export const RIVER_VISUAL_SHORE_EXPONENT = 3.8;
-export const RIVER_OPTICAL_SHORE_EXPONENT = 2;
-export const RIVER_BANK_BED_REVEAL = 0.72;
-export const RIVER_FLOW_ROUGHNESS_FLOOR = 0.315;
-export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.072;
-export const RIVER_OPEN_WATER_HIGHLIGHT_STRENGTH = 0.052;
-export const RIVER_SKY_RETURN_STRENGTH = 0.16;
 
 let sharedWaterMaterial: MeshPhysicalNodeMaterial | null = null;
+const materialInputs = new WeakMap<THREE.Material,{maps:RiverWaterShoreMaps;profile:WaterSurfaceProfile}>();
+/** Read-only authoring/QA access; weak ownership never extends resource lifetime. */
+export function getWaterMaterialInputs(material:THREE.Material) { return materialInputs.get(material); }
 let sharedShoreMaps: RiverWaterShoreMaps | null = null;
 let sharedWaterProfile: WaterSurfaceProfile | null = null;
 let activeDebugMode: RiverWaterDebugMode = 'final';
@@ -39,9 +33,11 @@ export function getSharedRiverWaterMaterial(maps: RiverWaterShoreMaps, profile =
 }
 
 export function createRiverWaterMaterial(maps: RiverWaterShoreMaps, profile = RIVER_WATER_PROFILE): MeshPhysicalNodeMaterial {
+  const releaseNoise = retainWaterSurfaceNoise();
   const spectrum = acquireWaterSpectrum(profile.id);
   const nodes = buildWaterOptics(maps,profile,spectrum?.binding);
   const material = new MeshPhysicalNodeMaterial();
+  materialInputs.set(material,{maps,profile});
   material.name = profile.id === 'coastal' ? 'CoastalWaterMaterial' : profile.id === 'inland' ? 'InlandWaterMaterial' : 'RiverWaterMaterial';
   // Explicit optical composite owns Fresnel/absorption. Disabling built-in
   // transmission removes duplicate scene rendering and physical BRDF work.
@@ -52,21 +48,35 @@ export function createRiverWaterMaterial(maps: RiverWaterShoreMaps, profile = RI
   material.side = THREE.FrontSide;
   material.ior = 1.333;
   material.roughness = profile.roughness;
-  material.attenuationDistance = profile.attenuationDistance;
-  material.attenuationColor.setRGB(...profile.attenuationColor);
   material.polygonOffset = true;
   material.polygonOffsetFactor = material.polygonOffsetUnits = -1;
   material.positionNode = nodes.position;
   material.normalNode = nodes.normal;
-  material.fragmentNode = vec4(nodes.colors[activeDebugMode], nodes.alpha);
+  const fragments = Object.fromEntries(WATER_OPTICAL_MODES.map(mode=>[mode,vec4(nodes.colors[mode],nodes.alpha)]));
+  material.fragmentNode = fragments[activeDebugMode];
+  // A custom fragment bypasses NodeMaterial's MRT branch. Preserve the real
+  // scene pass's attachment contract without evaluating a second water BRDF.
+  // Water already composites the opaque bed; its indirect channel is zero so
+  // the post AO pass cannot darken that radiance a second time.
+  const nodeMaterial = material as any;
+  const setupOutput = nodeMaterial.setupOutput.bind(material);
+  nodeMaterial.setupOutput = (builder:any,fragment:any) => {
+    const color = setupOutput(builder,fragment);
+    const sceneMrt = builder.renderer.getMRT();
+    if (!builder.renderer.getRenderTarget() || !sceneMrt) return color;
+    const outputs:Record<string,any> = {output:color};
+    if (sceneMrt.has('normal')) outputs.normal = vec4(nodes.normal,1);
+    if (sceneMrt.has('indirect')) outputs.indirect = vec4(0);
+    return sceneMrt.merge((TSL as unknown as Record<string,any>).mrt(outputs));
+  };
   material.userData.waterQualityTier = RIVER_WATER_SURFACE_STYLE.qualityTier;
   material.userData.waterSurfaceProfile = profile.id;
   material.userData.waterDebugModes = WATER_OPTICAL_MODES;
   material.userData.channelRockCount = maps.channelRockCount ?? 0;
   material.userData.waterColorNodes = nodes.colors;
   material.userData.waterAlpha = nodes.alpha;
+  material.userData.waterFragmentNodes = fragments;
   material.onBeforeRender = (_renderer,scene) => {
-    spectrum?.update(_renderer as unknown as WebGPURenderer,worldAnimationTime.value);
     if (!lights.has(scene)) {
       let key: THREE.DirectionalLight | null = null;
       scene.traverse(object => {
@@ -86,7 +96,15 @@ export function createRiverWaterMaterial(maps: RiverWaterShoreMaps, profile = RI
     else if (scene.background instanceof THREE.Color) waterLight.horizon.value.copy(scene.background);
     waterLight.zenith.value.copy(waterLight.horizon.value).multiply(skyRatio);
   };
-  if(spectrum)material.addEventListener('dispose',()=>spectrum.dispose());
+  // WebGPURenderer calls Object3D hooks, but not Material.onBeforeRender.
+  // A retained node update makes the optical state part of the real node graph.
+  const updateNode = (uniform(0) as any).onObjectUpdate((frame:{renderer:WebGPURenderer;scene:THREE.Scene}) => {
+    spectrum?.markVisible(frame.renderer);
+    material.onBeforeRender(frame.renderer as never,frame.scene,null as never,null as never,null as never,null as never);
+    return 0;
+  });
+  material.positionNode = nodes.position.add(updateNode);
+  material.addEventListener('dispose',()=>{spectrum?.dispose();releaseNoise();});
   return material;
 }
 
@@ -96,10 +114,13 @@ export function normalizeRiverWaterNightAmount(amount: number): number {
 export function setSharedRiverWaterNightAmount(amount: number): void {
   waterLight.night.value = normalizeRiverWaterNightAmount(amount);
 }
+export function setSharedWaterRainAmount(amount:number):void {
+  waterLight.rain.value = normalizeRiverWaterNightAmount(amount);
+}
 export function setSharedRiverWaterDebugMode(mode: RiverWaterDebugMode): void {
   activeDebugMode = mode;
   if (!sharedWaterMaterial) return;
-  sharedWaterMaterial.fragmentNode = vec4(sharedWaterMaterial.userData.waterColorNodes[mode], sharedWaterMaterial.userData.waterAlpha);
+  sharedWaterMaterial.fragmentNode = sharedWaterMaterial.userData.waterFragmentNodes[mode];
   sharedWaterMaterial.needsUpdate = true;
 }
 export function disposeSharedRiverWaterMaterial(): void {

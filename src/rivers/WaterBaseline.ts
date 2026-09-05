@@ -32,7 +32,8 @@ import type { RiverWaterShoreMaps } from './riverWaterShoreMaps.ts';
 import {
   RIVER_WATER_PROFILE,
   type WaterSurfaceProfile,
-} from './WaterSurfaceProfile.ts';
+  WATER_BASELINE_PROFILES,
+} from './WaterBaselineProfile.ts';
 import { worldAnimationTime } from '../scene/worldAnimationTime.ts';
 
 type TslNode = {
@@ -704,8 +705,9 @@ let activeDebugMode: RiverWaterDebugMode = 'final';
 
 export function getSharedRiverWaterMaterial(
   shoreMaps: RiverWaterShoreMaps,
-  profile: WaterSurfaceProfile = RIVER_WATER_PROFILE,
+  inputProfile: Pick<WaterSurfaceProfile,'id'> = RIVER_WATER_PROFILE,
 ): MeshPhysicalNodeMaterial {
+  const profile = WATER_BASELINE_PROFILES[inputProfile.id];
   if (
     sharedWaterMaterial
     && sharedShoreMaps === shoreMaps
@@ -732,8 +734,9 @@ export function getSharedRiverWaterMaterial(
  */
 export function createRiverWaterMaterial(
   shoreMaps: RiverWaterShoreMaps,
-  profile: WaterSurfaceProfile = RIVER_WATER_PROFILE,
+  inputProfile: Pick<WaterSurfaceProfile,'id'> = RIVER_WATER_PROFILE,
 ): MeshPhysicalNodeMaterial {
+  const profile = WATER_BASELINE_PROFILES[inputProfile.id];
 
   const nodes = buildRiverWaterShaderNodes(shoreMaps, profile);
   const material = new MeshPhysicalNodeMaterial();

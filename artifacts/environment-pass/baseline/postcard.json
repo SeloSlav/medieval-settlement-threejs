@@ -1,0 +1,216 @@
+{
+  "fixtureId": "gorski-kotar-parish-lane-1550",
+  "seed": 357566883,
+  "view": "postcard",
+  "renderer": "webgpu",
+  "residences": 17,
+  "residenceRoof": "tier-1-bundled-thatch",
+  "roadArms": 3,
+  "fields": 4,
+  "trees": 0,
+  "visibleTrees": 0,
+  "forestDraws": 0,
+  "forestEdgeLayer": {
+    "layout": "tapered-shrub-sapling-belt-256",
+    "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+    "sourceSlots": 1651,
+    "reallocatedSlots": 256,
+    "retainedSlots": 1395,
+    "eligibleBroadleafDonors": 300,
+    "clusterCount": 132,
+    "maximumClusterSize": 4,
+    "bandMeters": {
+      "minimum": 2.75,
+      "maximum": 20,
+      "observedMinimum": 2.75,
+      "observedMaximum": 20
+    },
+    "variants": {
+      "broadleafSaplings": 80,
+      "broadleafShrubCards": 64,
+      "broadleafMixedCrowns": 112
+    },
+    "clearance": {
+      "roadMeters": 10,
+      "settlementMeters": 8,
+      "observedRoadMinimum": 10.190591151755049,
+      "observedSettlementMinimum": 8.043942462717451
+    },
+    "budget": {
+      "treeSlotDelta": 0,
+      "speciesPresetDelta": 0,
+      "instanceCapacityDelta": 0,
+      "textureAssetDelta": 0,
+      "forestDrawBudget": 20,
+      "forestDrawDelta": 0,
+      "trianglePolicy": "all-reallocated-slots-capped-to-existing-overview-card-detail",
+      "maximumTriangleBudgetDelta": "non-positive"
+    }
+  },
+  "underCanopyGround": {
+    "schemaVersion": 2,
+    "query": {
+      "parameter": "forestGround",
+      "value": "existing-terrain",
+      "defaultWhenAbsent": "existing-terrain"
+    },
+    "mode": "round-55-accepted-terrain-unchanged",
+    "source": {
+      "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+      "vegetationSlots": 1651,
+      "edgeSlots": 256,
+      "denseCrownSlots": 112,
+      "footprintBasis": "accepted-interior-crown-overlap-density-clearance-and-mottle"
+    },
+    "footprint": {
+      "terrainVertices": 50369,
+      "candidateVertices": 0,
+      "densityQualifiedVertices": 0,
+      "modifiedVertices": 0,
+      "modifiedPercent": 0,
+      "weightedCoverageSquareMeters": 0,
+      "bounds": null,
+      "maximumRadiusMeters": 12.319048575703054,
+      "innerRadiusRatio": 0.2,
+      "densityStart": 1.05,
+      "densityFull": 2.65,
+      "peakCrownDensity": 0,
+      "requiredMinimumAdjoiningCrowns": 2,
+      "observedMinimumAdjoiningCrowns": null,
+      "coverageMethod": "not-applied",
+      "interpolationHaloMeters": 0,
+      "clearance": {
+        "requiredRoadVertexMeters": 10,
+        "requiredSettlementVertexMeters": 8,
+        "featherMeters": 7,
+        "observedRoadVertexMinimumMeters": null,
+        "observedSettlementVertexMinimumMeters": null,
+        "guaranteedRoadFragmentMinimumMeters": null,
+        "guaranteedSettlementFragmentMinimumMeters": null,
+        "rejectedRoadVertices": 0,
+        "rejectedSettlementVertices": 0,
+        "roadContaminationVertices": 0,
+        "parcelContaminationVertices": 0,
+        "roadContaminationTriangles": 0,
+        "parcelContaminationTriangles": 0
+      }
+    },
+    "tone": {
+      "maximumBlend": 0.9,
+      "targetLuminanceRatio": 0.7,
+      "darkTargetWeights": {
+        "meadow": 0,
+        "dense": 1,
+        "dry": 0
+      },
+      "litterTargetWeights": {
+        "meadow": 0.01,
+        "dense": 0.75,
+        "dry": 0.24
+      },
+      "meanStableLuminanceBefore": null,
+      "meanStableLuminanceAfter": null,
+      "meanStableLuminanceReductionPercent": 0,
+      "minimumStableLuminanceReductionPercent": 0,
+      "maximumStableLuminanceReductionPercent": 0,
+      "stableLuminanceReductionStandardDeviationPercent": 0,
+      "mottling": {
+        "basis": "not-applied",
+        "meanAppliedBlend": 0,
+        "appliedBlendStandardDeviation": 0,
+        "minimumAppliedBlend": 0,
+        "maximumAppliedBlend": 0,
+        "darkBasinVertices": 0,
+        "leafLitterVertices": 0,
+        "lighterChannelVertices": 0
+      }
+    },
+    "budget": {
+      "forestSlotDelta": 0,
+      "forestDrawDelta": 0,
+      "terrainDrawDelta": 0,
+      "textureAssetDelta": 0,
+      "meshDelta": 0,
+      "materialDelta": 0,
+      "geometryVertexDelta": 0,
+      "geometryIndexDelta": 0,
+      "vertexAttributeDelta": 0,
+      "colorBufferByteDelta": 0,
+      "shaderDelta": 0,
+      "perFrameWorkDelta": 0,
+      "startupColorWrites": 0,
+      "geometry": {
+        "vertices": 50369,
+        "indices": 299520,
+        "attributes": 10,
+        "colorBufferBytes": 604428
+      }
+    },
+    "seedThreeAudit": {
+      "classification": "hamlet-specific-terrain-weighting",
+      "reusableSeedThreeBehaviorAdded": false,
+      "gitlinkChangeRequired": false,
+      "reason": "footprint-and-clearance-depend-on-hamlet-road-parcel-and-edge-composition"
+    }
+  },
+  "drawCalls": 55,
+  "triangles": 215838,
+  "staticBatching": {
+    "roads": {
+      "sourceMeshes": 8,
+      "batches": 3,
+      "sourceTriangles": 4896,
+      "batchedTriangles": 4896
+    },
+    "settlement": {
+      "sourceMeshes": 934,
+      "batches": 35,
+      "sourceTriangles": 63806,
+      "batchedTriangles": 63806
+    },
+    "fields": {
+      "sourceMeshes": 4,
+      "batches": 4,
+      "sourceTriangles": 8348,
+      "batchedTriangles": 8348
+    },
+    "structureShadows": {
+      "proxies": 0,
+      "boxInstances": 0,
+      "cylinderInstances": 0,
+      "shadowDraws": 0
+    }
+  },
+  "motion": {
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "status": "idle",
+    "elapsedMs": 0,
+    "durationMs": 21000,
+    "progress": 0,
+    "segmentIndex": 0,
+    "fromKeyframeId": "strategic-start",
+    "toKeyframeId": "strategic-start",
+    "distanceMeters": 240,
+    "cameraPosition": [
+      128.158569,
+      148.921039,
+      -138.211756
+    ],
+    "cameraTarget": [
+      0,
+      3.2,
+      3
+    ],
+    "cameraOrientation": [
+      -0.11544281,
+      0.88366516,
+      0.29897719,
+      0.34120592
+    ],
+    "lod": {
+      "forest": "overview",
+      "groundcover": "hidden",
+      "building": "strategic"
+    }
+  }
+}

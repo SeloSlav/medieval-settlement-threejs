@@ -24,6 +24,20 @@ export function deflectWaterAroundRock(
     * Math.exp(-((cross / (radius * 0.9)) ** 2));
   ux *= 1 - lee * 0.78;
   uz *= 1 - lee * 0.78;
+  // A sheltered pair of lee eddies adds recirculation to the separated wake.
+  // Derivatives of one local streamfunction keep this addition divergence
+  // free. Its ramp and derivative both vanish at the rock's downstream pole,
+  // preserving the impermeable contact boundary above.
+  const q = Math.max(0, Math.min(1, along / radius - 1));
+  const ramp = q * q * (3 - 2 * q);
+  const rampDerivative = q > 0 && q < 1 ? 6 * q * (1 - q) / radius : 0;
+  const alongSigma2 = (radius * 1.4) ** 2, crossSigma2 = (radius * 0.85) ** 2;
+  const center = along - radius * 2.4;
+  const eddy = 0.65 * Math.hypot(vx, vz) * Math.exp(-center * center / alongSigma2 - cross * cross / crossSigma2);
+  const localU = -eddy * ramp * (1 - 2 * cross * cross / crossSigma2);
+  const localW = eddy * cross * (rampDerivative - 2 * ramp * center / alongSigma2);
+  ux += localU * rock.flowX - localW * rock.flowZ;
+  uz += localU * rock.flowZ + localW * rock.flowX;
   const speed = Math.hypot(ux, uz);
   const limit = speed > 3.8 ? 3.8 / speed : 1;
   return [ux * limit, uz * limit];

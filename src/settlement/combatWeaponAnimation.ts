@@ -8,6 +8,7 @@ import { SHIELD_HAND_FRAME, shieldHandFit } from './shieldGrip.ts';
 import { acquireAmmunitionAssets, type AmmunitionKind } from './rangedAmmunition.ts';
 import { createWeaponAttackMotion, sampleWeaponAttackMotion, type WeaponAttackMotion } from './weaponAttackMotion.ts';
 import { applyMeleeBodyPose, bindMeleeBodyRig, restoreMeleeBodyPose, type MeleeBodyRig } from './meleeBodyPose.ts';
+import { meleeHandGrip, meleePalmLocal, meleeShieldHandGrip, MELEE_FREE_HAND_GRIP } from './meleeHandGrip.ts';
 
 export type CombatWeaponFamily =
   | 'spear-pike'
@@ -523,15 +524,34 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
 /** Mirror the approved crossbow carrying arm: same relaxed reach, tucked
  * elbow and neutral wrist. Fit the shield to that hand without stretching
  * the sleeve or moving the authored elbow/skinning pivots. */
-function poseShieldArm(rig: CombatWeaponRig, raised = false): void {
-  poseCarryArm(rig, true, raised ? [-.38, -.10, .58] : CARRY_SHIELD);
+function poseShieldArm(rig: CombatWeaponRig, raised = false, tool: WorkerToolKind = 'sidearm-shield'): void {
+  if (raised) resetArm(rig, true);
+  else poseCarryArm(rig, true, CARRY_SHIELD);
   const mount = rig.shieldMount!, arm = rig.armBones;
   const upperDirection = arm.leftForearm.getWorldPosition(rig.scratchVectors[13]!)
-    .sub(arm.leftUpperArm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+    .sub(arm.leftUpperArm.getWorldPosition(rig.scratchVectors[0]!));
   const forearmDirection = arm.leftHand.getWorldPosition(rig.scratchVectors[14]!)
-    .sub(arm.leftForearm.getWorldPosition(rig.scratchVectors[0]!)).normalize();
+    .sub(arm.leftForearm.getWorldPosition(rig.scratchVectors[0]!));
+  const upperLength=upperDirection.length(),lowerLength=forearmDirection.length();
+  upperDirection.normalize();forearmDirection.normalize();
   const hinge = rig.scratchVectors[15]!.crossVectors(upperDirection, forearmDirection).normalize();
+  if (raised) {
+    // Put elbow and wrist in the same frontal plane. The forearm crosses
+    // behind the board and the neutral palm faces back, so the shield faces
+    // the threat instead of remaining edge-on like the carrying pose.
+    const length=upperLength+lowerLength, x=-.32*length, y=-.12*length, z=.50*length;
+    const distance=Math.hypot(x,y);
+    const radius2=Math.max(0,upperLength*upperLength-z*z);
+    const along=(radius2-lowerLength*lowerLength+distance*distance)/(2*distance);
+    const height=Math.sqrt(Math.max(0,radius2-along*along));
+    const ex=(x*along-y*height)/distance,ey=(y*along+x*height)/distance;
+    const body=rig.model.getWorldQuaternion(rig.scratchQuaternions[5]!);
+    upperDirection.set(ex,ey,z).normalize().applyQuaternion(body);
+    forearmDirection.set(x-ex,y-ey,0).normalize().applyQuaternion(body);
+    hinge.crossVectors(upperDirection,forearmDirection).normalize();
+  }
   alignShieldBone(rig, arm.leftUpperArm, upperDirection, hinge);
+  if(raised)hinge.set(0,0,-1).applyQuaternion(rig.scratchQuaternions[5]!);
   alignShieldBone(rig, arm.leftForearm, forearmDirection, hinge);
   arm.leftHand.quaternion.identity();
   arm.leftHand.updateWorldMatrix(true, false);
@@ -540,8 +560,21 @@ function poseShieldArm(rig: CombatWeaponRig, raised = false): void {
   const gripOffset = rig.scratchVectors[13]!.set(...grip).multiply(mount.scale).applyQuaternion(mount.quaternion);
   const fit = shieldHandFit(arm.leftHand);
   mount.position.set(...fit.palm).sub(gripOffset);
-  for (let i = 0; i < 8; i++) rig.leftGripBones[i]?.quaternion.copy(fit.fingers[i]!);
-  rig.leftGripBones[8]?.quaternion.copy(fit.thumb);
+  const fingers=raised?meleeShieldHandGrip(arm.leftHand,tool):fit;
+  for (let i = 0; i < 8; i++) rig.leftGripBones[i]?.quaternion.copy(fingers.fingers[i]!);
+  rig.leftGripBones[8]?.quaternion.copy(fingers.thumb);
+}
+
+function poseMeleeFreeHand(rig:CombatWeaponRig,mounted:boolean):void {
+  poseCarryArm(rig,true,mounted?[-.12,-.65,.55]:[.12,-.45,.55]);
+  const arm=rig.armBones;
+  const direction=arm.leftHand.getWorldPosition(rig.scratchVectors[13]!)
+    .sub(arm.leftForearm.getWorldPosition(rig.scratchVectors[14]!)).normalize();
+  const palm=rig.scratchVectors[15]!.set(-1,0,0).applyQuaternion(rig.model.getWorldQuaternion(rig.scratchQuaternions[5]!));
+  alignShieldBone(rig,arm.leftForearm,direction,palm);
+  arm.leftHand.quaternion.identity();
+  for(let i=0;i<8;i++)rig.leftGripBones[i]?.quaternion.copy(MELEE_FREE_HAND_GRIP.fingers[i]!);
+  rig.leftGripBones[8]?.quaternion.copy(MELEE_FREE_HAND_GRIP.thumb);
 }
 
 function alignShieldBone(rig: CombatWeaponRig, bone: THREE.Bone, direction: THREE.Vector3, palmDirection: THREE.Vector3): void {
@@ -737,7 +770,7 @@ export function applyCombatWeaponPose(
   applyTimelinePose(rig, timeline, input);
   updateRangedAmmoVisuals(rig, timeline);
 
-  const event = timeline.releaseEdge && !input.defensive
+  const event = timeline.releaseEdge && !(input.defensive && rig.shieldMount)
     ? {
         sequence: ++rig.eventSequence,
         family: combatPresentation.family,
@@ -893,6 +926,12 @@ function closeWeaponHand(rig: CombatWeaponRig, diagonal: boolean): void {
   for (let i = 0; i < 8; i++) rig.gripBones[i]?.quaternion.copy(poses[i]!);
   rig.gripBones[8]?.quaternion.copy(CLOSED_THUMB_POSE);
 }
+function closeMeleeHand(rig: CombatWeaponRig, left: boolean, tool: WorkerToolKind): void {
+  const bones=left?rig.leftGripBones:rig.gripBones;
+  const fit=meleeHandGrip(left?rig.armBones.leftHand:rig.armBones.rightHand,tool,left);
+  for(let i=0;i<8;i++)bones[i]?.quaternion.copy(fit.fingers[i]!);
+  bones[8]?.quaternion.copy(fit.thumb);
+}
 function resetArm(rig: CombatWeaponRig, left: boolean): void {
   for (const bone of left ? rig.twistBones.left : rig.twistBones.right) bone.quaternion.copy(rig.referenceQuaternions.get(bone)!);
   for (const key of left ? LEFT_ARM_KEYS : RIGHT_ARM_KEYS) {
@@ -937,13 +976,17 @@ const THRUST_SUPPORT_FRAME = new THREE.Quaternion().setFromAxisAngle(new THREE.V
 /** A hand reaches a physical contact point. The wrist is behind that point by
  * the actual palm offset; the weapon never derives its aim from an elbow. */
 function solveAttackHand(rig: CombatWeaponRig, left: boolean, contact: THREE.Vector3,
-  handWorld: THREE.Quaternion, drawing = false, supportStock = false, crossbowTrigger = false): void {
+  handWorld: THREE.Quaternion, drawing = false, supportStock = false, crossbowTrigger = false, meleeHinge = false): void {
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const size = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
   const offset = rig.scratchVectors[14]!;
-  if (drawing) offset.set(...STRING_GRIP_LOCAL);
-  else offset.set(left ? supportStock ? .014 : .005 : -.01, left ? .0383 : .044, -.0071);
-  offsetMilitaryHandGrip(hand, offset.multiplyScalar(size)).multiply(hand.getWorldScale(rig.scratchVectors[15]!)).applyQuaternion(handWorld);
+  if(meleeHinge)meleePalmLocal(hand,left,offset);
+  else {
+    if (drawing) offset.set(...STRING_GRIP_LOCAL);
+    else offset.set(left ? supportStock ? .014 : .005 : -.01, left ? .0383 : .044, -.0071);
+    offsetMilitaryHandGrip(hand,offset.multiplyScalar(size));
+  }
+  offset.multiply(hand.getWorldScale(rig.scratchVectors[15]!)).applyQuaternion(handWorld);
   const wristTarget = rig.scratchVectors[13]!.copy(contact).sub(offset);
   if (drawing) rig.elbowHandDirection.set(1, .5, 1).applyQuaternion(rig.bodyOrientation);
   else rig.elbowHandDirection.set(0, 1, 0).applyQuaternion(handWorld);
@@ -951,7 +994,7 @@ function solveAttackHand(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   if (crossbowTrigger) rig.elbowHandDirection.set(.9, 1, -.15).applyQuaternion(rig.bodyOrientation);
   rig.solveWithHandDirection = true;
   solveArmToWorld(rig, left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm,
-    left ? rig.armBones.leftForearm : rig.armBones.rightForearm, hand, wristTarget, left ? 1 : -1, 'upright', crossbowTrigger ? .2 : 0);
+    left ? rig.armBones.leftForearm : rig.armBones.rightForearm, hand, wristTarget, left ? 1 : -1, 'upright', crossbowTrigger ? .2 : 0, meleeHinge);
   rig.solveWithHandDirection = false;
   hand.quaternion.copy(hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert()).multiply(handWorld).normalize();
   hand.updateWorldMatrix(true, false);
@@ -975,10 +1018,8 @@ function alignAttackGrip(rig: CombatWeaponRig, left: boolean, contact: THREE.Vec
   const upperLength = shoulder.distanceTo(elbow), lowerLength = elbow.distanceTo(wrist);
   const axis = rig.scratchVectors[3]!.set(0, 1, 0).applyQuaternion(rig.attackOrientation);
   const scale = hand.getWorldScale(rig.scratchVectors[4]!);
-  const size = left ? 1 : Number(hand.userData.militaryGripScale ?? 1);
   for (let iteration = 0; iteration < 2; iteration++) {
-    const offset = offsetMilitaryHandGrip(hand, rig.scratchVectors[5]!.set(left ? .005 : -.01, left ? .0383 : .044, -.0071)
-      .multiplyScalar(size)).multiply(scale).applyQuaternion(handWorld);
+    const offset = meleePalmLocal(hand,left,rig.scratchVectors[5]!).multiply(scale).applyQuaternion(handWorld);
     const direction = rig.scratchVectors[6]!.copy(contact).sub(offset).sub(shoulder);
     const distance = Math.max(1e-5, direction.length()); direction.divideScalar(distance);
     const fingers = rig.scratchVectors[7]!.set(0, 1, 0).applyQuaternion(handWorld);
@@ -1100,7 +1141,6 @@ function alignCrossbowSupportBone(rig: CombatWeaponRig, bone: THREE.Bone,
 function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline, input: CombatWeaponPoseInput): void {
   const motion = sampleWeaponAttackMotion(timeline.family, timeline.poseProgress, rig.attackMotion, {
     mounted: input.mounted, shield: Boolean(rig.shieldMount),
-    dagger: !timeline.ranged && (input.tool === 'bow' || input.tool === 'crossbow'),
     defensive: input.defensive && Boolean(rig.shieldMount),
   });
   if (input.logicalMode === 'fight') {
@@ -1190,18 +1230,18 @@ function applyTimelinePose(rig: CombatWeaponRig, timeline: CombatAttackTimeline,
     if (timeline.family === 'spear-pike') handWorld.copy(rig.attackOrientation).multiply(THRUST_HAND_FRAME);
     const contact = attackContact(rig, primaryGrip);
     alignAttackGrip(rig, false, contact, handWorld);
-    solveAttackHand(rig, false, contact, handWorld);
-    closeWeaponHand(rig, diagonal);
+    solveAttackHand(rig, false, contact, handWorld, false, false, false, true);
+    closeMeleeHand(rig, false, input.tool);
     if (supportGrip) {
       handWorld.copy(rig.attackOrientation).multiply(PALM_WEAPON_FRAME);
       if (timeline.family === 'spear-pike') handWorld.copy(rig.attackOrientation).multiply(THRUST_SUPPORT_FRAME);
       if (timeline.family === 'halberd') handWorld.multiply(SWORD_GRIP_CANT);
       alignAttackGrip(rig, true, attackContact(rig, supportGrip), handWorld);
-      solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld);
-      closeSupportFingers(rig, timeline.family === 'spear-pike' || timeline.family === 'halberd');
+      solveAttackHand(rig, true, attackContact(rig, supportGrip), handWorld, false, false, false, true);
+      closeMeleeHand(rig, true, input.tool);
     } else if (rig.shieldMount) {
-      poseShieldArm(rig, true);
-    } else poseCarryArm(rig, true, CARRY_SWORD);
+      poseShieldArm(rig, true, input.tool);
+    } else poseMeleeFreeHand(rig,Boolean(input.mounted));
   }
   // Attachment still belongs to its original hand for shared batching/drop
   // ownership. Compensate that parent after both anatomical arm solutions.
@@ -1274,6 +1314,7 @@ function solveArmToWorld(
   sideSign: 1 | -1,
   carrying: 'upright' | 'low' | false = false,
   minimumFlex = 0,
+  meleeHinge = false,
 ): void {
   const shoulder = upper.getWorldPosition(rig.scratchVectors[0]!);
   const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
@@ -1312,6 +1353,17 @@ function solveArmToWorld(
   const elbowTarget = rig.scratchVectors[9]!.copy(shoulder)
     .addScaledVector(direction, along)
     .addScaledVector(preferredBend, bendDistance);
+  if (meleeHinge) {
+    // Both segments share the elbow's hinge frame. Independent shortest-arc
+    // rotations from bind pose can roll a forearm through 180 degrees even
+    // while the hand and weapon follow a perfectly smooth path.
+    const upperDirection=rig.scratchVectors[13]!.copy(elbowTarget).sub(shoulder).normalize();
+    const lowerDirection=rig.scratchVectors[14]!.copy(shoulder).addScaledVector(direction,distance).sub(elbowTarget).normalize();
+    const hinge=rig.scratchVectors[15]!.crossVectors(upperDirection,lowerDirection).normalize();
+    alignCrossbowSupportBone(rig,upper,upperDirection,hinge);
+    alignCrossbowSupportBone(rig,forearm,lowerDirection,hinge);
+    return;
+  }
   aimBoneAt(rig, upper, forearm, elbowTarget, Boolean(carrying));
   upper.updateWorldMatrix(true, false);
   const reachableTarget = rig.scratchVectors[6]!.copy(shoulder).addScaledVector(direction, distance);

@@ -432,6 +432,14 @@ const maps = createRiverWaterShoreMaps(field);
 const mapElapsedMs = performance.now() - mapStartedAt;
 assert.equal(maps.channelRockCount, rocks.length);
 const pixels = maps.shoreTexture.image.data as Uint8Array;
+const hydraulicPixels = maps.hydraulicTexture!.image.data as Uint16Array;
+const cellMeters = (field.stepX + field.stepZ) * 0.5;
+for (let i=0;i<field.organicSignedDistance.length;i+=127) {
+  const expected=field.organicSignedDistance[i]! * cellMeters;
+  const actual=THREE.DataUtils.fromHalfFloat(hydraulicPixels[i*4+3]!);
+  assert.ok(Math.abs(actual-expected)<=Math.max(0.002,Math.abs(expected)*0.001),
+    'hydraulic shore distance must use metres, including half-float rounding');
+}
 let rapidPixels = 0;
 let peakRapid = 0;
 for (let index = 1; index < pixels.length; index += 4) {
@@ -447,6 +455,7 @@ assert.equal(
   'shore, rapid source, and flow must remain one RGBA8 lookup',
 );
 maps.shoreTexture.dispose();
+maps.hydraulicTexture!.dispose();
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const waterMaterialSource = readFileSync(
@@ -465,23 +474,9 @@ const textureSource = readFileSync(
   `${projectRoot}src/utils/propTextureLoad.ts`,
   'utf8',
 );
-assert.match(waterMaterialSource, /rapidFoamSource[\s\S]*?flowAlong[\s\S]*?frameTime/);
-assert.match(
-  waterMaterialSource,
-  /advectedAlong[\s\S]*?curledCross[\s\S]*?primaryFilament[\s\S]*?travellingParcels/,
-  'obstacle foam must advect as curled longitudinal filaments with broken travelling parcels',
-);
-assert.doesNotMatch(
-  waterMaterialSource,
-  /rapidCarrier[\s\S]*?rapidFilament[\s\S]*?eddyPulse/,
-  'obstacle foam must not regress to transverse periodic carrier bars',
-);
-assert.match(waterMaterialSource, /'foam-field'/);
-assert.equal(
-  (waterMaterialSource.match(/\btexture\(/g) ?? []).length,
-  1,
-  'obstacle foam must stay packed into the existing surface-field lookup',
-);
+assert.match(waterMaterialSource, /buildWaterOptics/);
+assert.match(surfaceMapSource, /deflectWaterAroundRock/);
+assert.match(surfaceMapSource, /hydraulicTexture/);
 assert.match(
   surfaceMapSource,
   /RAPID_SOURCE_TEXEL_TAPS[\s\S]*?Math\.sqrt\(peak \* coverage\)/,

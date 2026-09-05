@@ -1,0 +1,52 @@
+{
+  "models": [
+    "http://127.0.0.1:5175/assets/models/villagers/worker-female-common-01-v001.glb",
+    "http://127.0.0.1:5175/assets/models/villagers/worker-male-common-01-v002.glb",
+    "http://127.0.0.1:5175/assets/models/villagers/cleric-monk-common-01-v001.glb",
+    "http://127.0.0.1:5175/assets/models/villagers/ottoman-raider-common-01-v001.glb",
+    "http://127.0.0.1:5175/assets/models/worker-tools/kenney-tool-hatchet.glb",
+    "http://127.0.0.1:5175/assets/models/worker-tools/kenney-tool-pickaxe.glb",
+    "http://127.0.0.1:5175/assets/models/worker-tools/kenney-tool-hammer.glb",
+    "http://127.0.0.1:5175/assets/models/worker-tools/kenney-tool-hoe.glb",
+    "http://127.0.0.1:5175/assets/models/worker-tools/kenney-tool-shovel.glb"
+  ],
+  "errors": [],
+  "motion": [
+    {
+      "weapon": "crossbow",
+      "mode": "walk",
+      "frames": 580,
+      "errors": []
+    },
+    {
+      "weapon": "crossbow",
+      "mode": "attack",
+      "frames": 580,
+      "errors": []
+    },
+    {
+      "weapon": "bow",
+      "mode": "walk",
+      "frames": 567,
+      "errors": []
+    },
+    {
+      "weapon": "bow",
+      "mode": "attack",
+      "frames": 579,
+      "errors": []
+    },
+    {
+      "weapon": "sidearm-shield",
+      "mode": "walk",
+      "frames": 563,
+      "errors": []
+    },
+    {
+      "weapon": "sidearm-shield",
+      "mode": "attack",
+      "frames": 579,
+      "errors": []
+    }
+  ]
+}

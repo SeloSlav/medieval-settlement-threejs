@@ -122,7 +122,7 @@ export class TerrainHorizonWorld {
     const waterGeometry = createOuterWaterGeometry(this, options);
     if (waterGeometry.getIndex()?.count) {
       this.shoreMaps = options.settings.terrainPreset === 'vinodol_coast'
-        ? createCoastalShoreMaps(options)
+        ? createCoastalShoreMaps(this, options)
         : this.outerRiverLayout
           ? createHorizonRiverFlowMaps(this, options)
           : null;
@@ -654,6 +654,7 @@ function createOuterWaterGeometry(
   geometry.setAttribute('simDelta', new THREE.Float32BufferAttribute(simDelta, 1));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
+  if (geometry.boundingSphere) geometry.boundingSphere.radius += 3;
   return geometry;
 }
 
@@ -700,12 +701,18 @@ function appendCoastalGeometry(
     const z = THREE.MathUtils.lerp(-options.outerHalfExtent, options.outerHalfExtent, zIndex / zSegments);
     maximumShoreX = Math.max(maximumShoreX, layout.getCoastalShoreX(z) ?? maximumShoreX);
   }
-  for (let zIndex = 0; zIndex < zSegments; zIndex++) {
-    const z0 = THREE.MathUtils.lerp(-options.outerHalfExtent, options.outerHalfExtent, zIndex / zSegments);
-    const z1 = THREE.MathUtils.lerp(-options.outerHalfExtent, options.outerHalfExtent, (zIndex + 1) / zSegments);
-    for (let xIndex = 0; xIndex < xSegments; xIndex++) {
-      const x0 = THREE.MathUtils.lerp(-options.outerHalfExtent, maximumShoreX, xIndex / xSegments);
-      const x1 = THREE.MathUtils.lerp(-options.outerHalfExtent, maximumShoreX, (xIndex + 1) / xSegments);
+  // Split the coarse grid exactly at the playable square. Rejecting only by
+  // quad centre otherwise leaves gaps or double transparent water at the join.
+  const cuts=(minimum:number,maximum:number,segments:number)=>[...new Set([
+    ...Array.from({length:segments+1},(_,i)=>THREE.MathUtils.lerp(minimum,maximum,i/segments)),
+    ...[-options.innerHalfExtent,options.innerHalfExtent].filter(v=>v>minimum&&v<maximum),
+  ])].sort((a,b)=>a-b);
+  const xs=cuts(-options.outerHalfExtent,maximumShoreX,xSegments);
+  const zs=cuts(-options.outerHalfExtent,options.outerHalfExtent,zSegments);
+  for (let zIndex = 0; zIndex < zs.length-1; zIndex++) {
+    const z0 = zs[zIndex]!, z1 = zs[zIndex+1]!;
+    for (let xIndex = 0; xIndex < xs.length-1; xIndex++) {
+      const x0 = xs[xIndex]!, x1 = xs[xIndex+1]!;
       const centerX = (x0 + x1) * 0.5;
       const centerZ = (z0 + z1) * 0.5;
       const shoreX = layout.getCoastalShoreX(centerZ) ?? maximumShoreX;
@@ -806,10 +813,12 @@ function createHorizonRiverFlowMaps(
   };
 }
 
-function createCoastalShoreMaps(options: TerrainHorizonWorldOptions): RiverWaterShoreMaps {
+function createCoastalShoreMaps(world: TerrainHorizonWorld, options: TerrainHorizonWorldOptions): RiverWaterShoreMaps {
   const resolution = 128;
   const span = options.outerHalfExtent * 2;
   const data = new Uint8Array(resolution * resolution * 4);
+  const hydraulic = new Uint16Array(resolution * resolution * 4);
+  const waterY = options.riverLayout?.getWaterSurfaceOverride(0, 0) ?? -4.4;
   for (let iz = 0; iz < resolution; iz++) {
     const z = THREE.MathUtils.lerp(-options.outerHalfExtent, options.outerHalfExtent, iz / (resolution - 1));
     const shoreX = options.riverLayout?.getCoastalShoreX(z) ?? -options.innerHalfExtent * 0.55;
@@ -817,6 +826,8 @@ function createCoastalShoreMaps(options: TerrainHorizonWorldOptions): RiverWater
       const x = THREE.MathUtils.lerp(-options.outerHalfExtent, options.outerHalfExtent, ix / (resolution - 1));
       const signedWaterDistance = shoreX - x;
       const offset = (iz * resolution + ix) * 4;
+      hydraulic[offset + 2] = THREE.DataUtils.toHalfFloat(Math.max(0, waterY - world.getHeightAt(x, z)));
+      hydraulic[offset + 3] = THREE.DataUtils.toHalfFloat(signedWaterDistance);
       data[offset] = Math.round(computeWaterFeatherAlpha(signedWaterDistance) * 255);
       data[offset + 1] = 0;
       data[offset + 2] = 128;
@@ -837,8 +848,14 @@ function createCoastalShoreMaps(options: TerrainHorizonWorldOptions): RiverWater
   shoreTexture.magFilter = THREE.LinearFilter;
   shoreTexture.generateMipmaps = false;
   shoreTexture.needsUpdate = true;
+  const hydraulicTexture = new THREE.DataTexture(hydraulic, resolution, resolution, THREE.RGBAFormat, THREE.HalfFloatType);
+  hydraulicTexture.minFilter = hydraulicTexture.magFilter = THREE.LinearFilter;
+  hydraulicTexture.needsUpdate = true;
   return {
     shoreTexture,
+    hydraulicTexture,
+    meshSpacing: span / 22,
+    hasFlow: false,
     originX: -options.outerHalfExtent,
     originZ: -options.outerHalfExtent,
     invSpanX: 1 / span,

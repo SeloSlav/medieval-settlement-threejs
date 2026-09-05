@@ -246,6 +246,7 @@ if (query.get('baseline') === '1') {
   const baselineMaps = createRiverWaterShoreMaps(riverField);
   river.group.traverse(object => {
     if (!(object instanceof THREE.Mesh) || !object.userData.water) return;
+    object.geometry.setAttribute('simDelta',new THREE.BufferAttribute(new Float32Array(object.geometry.getAttribute('position').count),1));
     object.material = baseline.createRiverWaterMaterial(baselineMaps);
   });
 }

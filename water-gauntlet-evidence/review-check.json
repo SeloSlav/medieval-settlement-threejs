@@ -1,0 +1,26 @@
+{
+  "videos": [
+    {
+      "profile": "river",
+      "width": 1280,
+      "height": 720,
+      "duration": 4.969676,
+      "decodedFrames": 6
+    },
+    {
+      "profile": "inland",
+      "width": 1280,
+      "height": 720,
+      "duration": 4.968543,
+      "decodedFrames": 7
+    },
+    {
+      "profile": "coastal",
+      "width": 1280,
+      "height": 720,
+      "duration": 4.969598,
+      "decodedFrames": 7
+    }
+  ],
+  "errors": []
+}

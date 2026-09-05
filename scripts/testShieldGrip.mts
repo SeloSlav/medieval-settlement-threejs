@@ -48,9 +48,9 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
     });
     let worstOverlap = 0, worstGap = 0, minPalm = 1, maxWrist = 0;
     const duration = resolveCombatWeaponPresentation(kind, 8)!.attackSeconds;
-    for (const mode of ['attack', 'idle', 'walk', 'run', 'flee', 'hurt']) for (let frame = 0; frame <= (mode === 'attack' ? 100 : 0); frame++) {
+    for (const mode of ['attack', 'defend', 'idle', 'walk', 'run', 'flee', 'hurt']) for (let frame = 0; frame <= (mode === 'attack' ? 100 : 0); frame++) {
       const before = rig.ownedBones.map(b => b.quaternion.toArray());
-      if (mode === 'attack') applyCombatWeaponPose(rig, { tool: kind, targetDistance: 8, attackCooldown: (1 - frame / 100) * duration, dtSeconds: 0, logicalMode: 'fight' });
+      if (mode === 'attack'||mode==='defend') applyCombatWeaponPose(rig, { tool: kind, targetDistance: 8, attackCooldown: (1 - frame / 100) * duration, dtSeconds: 0, logicalMode: 'fight',defensive:mode==='defend' });
       else applyMilitaryCarryPose(rig, kind, mode);
       model.updateWorldMatrix(true, true);
       const hand = rig.armBones.leftHand;
@@ -62,8 +62,9 @@ for (const name of ['worker-male-common-01-v002', 'ottoman-raider-common-01-v001
       maxWrist = Math.max(maxWrist, wristAngle);
       assert.ok(wristAngle < .001, `${kind}/${mode}: shield wrist folds instead of following the forearm`);
       const palm = new THREE.Vector3(1, 0, 0).applyQuaternion(handRotation);
-      minPalm = Math.min(minPalm, palm.dot(new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()))));
-      assert.ok(minPalm > .85, 'shield palm faces inward in the mirrored carrying pose');
+      const raised=mode==='attack'||mode==='defend';
+      minPalm = Math.min(minPalm, palm.dot(new THREE.Vector3(raised?0:-1, 0, raised?-1:0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion()))));
+      assert.ok(minPalm > .85, 'raised shield faces the threat; carrying shield faces inward');
       const grip = shield.localToWorld(new THREE.Vector3(...shield.userData.shieldGripLocal));
       assert.ok(grip.distanceTo(hand.localToWorld(new THREE.Vector3(...shieldHandFit(hand).palm))) < 1e-6, 'hand stays on the authored rear grip');
       assert.ok(elbow.y < rig.armBones.leftUpperArm.getWorldPosition(new THREE.Vector3()).y - .1, 'elbow stays below the shoulder');

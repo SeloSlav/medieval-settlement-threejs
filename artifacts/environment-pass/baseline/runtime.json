@@ -1,0 +1,6 @@
+{
+  "url": "http://127.0.0.1:5186/hamlet-fixture.html?clean=1&view=strategic",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

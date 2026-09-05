@@ -1,0 +1,80 @@
+{
+  "profile": "river",
+  "settings": {
+    "seed": 1802504051,
+    "terrainPreset": "kupa_valley",
+    "mapSize": "medium",
+    "topography": 50,
+    "hydrology": 50,
+    "forestDensity": 50,
+    "resourceAbundance": 50,
+    "resourceVariety": 50,
+    "conflictMode": "peaceful",
+    "enemyPressure": 0,
+    "banditCampsEnabled": true,
+    "wildAnimalAttacksEnabled": true,
+    "severeWeatherEnabled": false,
+    "wellAquiferNetworksEnabled": false,
+    "approvalDeclineRate": 100,
+    "foodSpoilageRate": 100,
+    "initialGoodsMultiplier": 1,
+    "militaryDemands": 1
+  },
+  "view": "design",
+  "camera": [
+    -112.51437157607349,
+    20.803310495566194,
+    26.755118365702614
+  ],
+  "target": [
+    -162.21733825556905,
+    -3.196689504433804,
+    1.1169124367193166
+  ],
+  "fps": 54.94505494506373,
+  "p95FrameMs": 24.30000000000291,
+  "p99FrameMs": 36.39999999999418,
+  "medianCpuMs": 5.100000001490116,
+  "p95CpuMs": 6.399999998509884,
+  "samples": 300,
+  "renderer": {
+    "backend": "webgpu",
+    "frames": 1399,
+    "calls": 101,
+    "renderPasses": 15,
+    "triangles": 44097546,
+    "pixelRatio": 1,
+    "directionalShadow": {
+      "refreshedThisFrame": false,
+      "refreshes": 3,
+      "cachedFrames": 1396,
+      "lastRefreshFrame": 860,
+      "reasons": [
+        "camera-refit"
+      ],
+      "reasonCounts": {
+        "camera-refit": 2,
+        "forest-casters": 0,
+        "first-person-motion": 0,
+        "dynamic-casters": 0,
+        "static-casters": 1,
+        "renderer-state": 1
+      }
+    }
+  },
+  "adapter": {
+    "source": "webgpu-adapter-info",
+    "identityStatus": "available",
+    "fallbackStatus": "non-fallback",
+    "vendor": "nvidia",
+    "architecture": "lovelace",
+    "device": null,
+    "description": null,
+    "isFallbackAdapter": false,
+    "limitations": []
+  },
+  "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+  "omitted": "Settlement entities, database and game UI",
+  "baseline": true,
+  "errors": []
+}

@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createRiverWaterMaterial, setSharedRiverWaterNightAmount } from '../rivers/RiverWaterMaterial.ts';
+import { createRiverWaterMaterial, setSharedRiverWaterNightAmount, setSharedWaterRainAmount } from '../rivers/RiverWaterMaterial.ts';
 import { WATER_OPTICAL_MODES, type WaterOpticalMode } from '../rivers/WaterOptics.ts';
 import { COASTAL_WATER_PROFILE, INLAND_WATER_PROFILE, RIVER_WATER_PROFILE, type WaterSurfaceProfileId } from '../rivers/WaterSurfaceProfile.ts';
 import { computeWaterFeatherAlpha, encodeWaterFlowDirection } from '../rivers/riverWaterShoreMaps.ts';
 import { deflectWaterAroundRock, waterBankVelocityScale } from '../rivers/WaterHydraulics.ts';
 import { computeRiverRockRapidFoam, type RiverChannelRockPlacement } from '../rivers/RiverChannelRocks.ts';
 import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
-import { vec4 } from 'three/tsl';
+import { updateWaterSpectra } from '../rivers/WaterSpectrumRuntime.ts';
 
 const query = new URLSearchParams(location.search);
+const productionAssets=query.get('production')==='1';
 const profileId = (query.get('profile') ?? 'river') as WaterSurfaceProfileId;
 const profiles = {river:RIVER_WATER_PROFILE,inland:INLAND_WATER_PROFILE,coastal:COASTAL_WATER_PROFILE};
 const profile = profiles[profileId] ?? RIVER_WATER_PROFILE;
@@ -31,7 +32,8 @@ scene.fog=new THREE.FogExp2(0x92aead,0.003);
 const camera = new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.1,500);
 const controls = new OrbitControls(camera,renderer.domElement);
 const sun=new THREE.DirectionalLight(0xffe7bd,3.1);
-sun.position.set(-25,42,-35);scene.add(sun,sun.target,new THREE.HemisphereLight(0xcadedd,0x414829,1.8));
+const hemi=new THREE.HemisphereLight(0xcadedd,0x414829,1.8);
+sun.position.set(-25,42,-35);scene.add(sun,sun.target,hemi);
 const waterY=0;
 const span=200,resolution=256;
 function signedShore(x:number,z:number):number {
@@ -62,7 +64,7 @@ for(let z=0;z<resolution;z++)for(let x=0;x<resolution;x++) {
 const shoreTexture=new THREE.DataTexture(packed,resolution,resolution,THREE.RGBAFormat);
 const hydraulicTexture=new THREE.DataTexture(hydraulic,resolution,resolution,THREE.RGBAFormat,THREE.HalfFloatType);
 for(const tx of [shoreTexture,hydraulicTexture]){tx.minFilter=tx.magFilter=THREE.LinearFilter;tx.needsUpdate=true;}
-const maps={shoreTexture,hydraulicTexture,originX:-span/2,originZ:-span/2,invSpanX:1/span,invSpanZ:1/span,channelRockCount:rocks.length};
+const maps={shoreTexture,hydraulicTexture,originX:-span/2,originZ:-span/2,invSpanX:1/span,invSpanZ:1/span,channelRockCount:rocks.length,meshSpacing:span/192,hasFlow:profile.id==='river'};
 const material=query.get('baseline')==='1'
   ? (await import('../rivers/WaterBaseline.ts')).createRiverWaterMaterial(maps,profile)
   : createRiverWaterMaterial(maps,profile);
@@ -79,7 +81,8 @@ for(let i=0;i<tp.count;i++) {
   tc.set([c.r,c.g,c.b],i*3);
 }
 terrainGeometry.setAttribute('color',new THREE.BufferAttribute(tc,3));terrainGeometry.computeVertexNormals();
-scene.add(new THREE.Mesh(terrainGeometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1})));
+const groundMaterial=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1});
+scene.add(new THREE.Mesh(terrainGeometry,groundMaterial));
 const rockGeometry=new THREE.IcosahedronGeometry(1,2);
 const rockMat=new THREE.MeshStandardMaterial({color:0x6e7765,roughness:0.94,flatShading:false});
 for(const rock of rocks){const mesh=new THREE.Mesh(rockGeometry,rockMat);mesh.position.set(rock.x,-0.08,rock.z);mesh.scale.set(rock.scale*1.65,rock.scale*0.88,rock.scale*1.4);mesh.rotation.y=random()*6;scene.add(mesh);}
@@ -108,6 +111,22 @@ treePositions.forEach((p,i)=>{
   transform.position.copy(p).add(new THREE.Vector3(0,h*0.5,0));transform.scale.set(1,h,1);transform.updateMatrix();trunks.setMatrixAt(i,transform.matrix);
   for(let j=0;j<3;j++) {transform.position.copy(p).add(new THREE.Vector3((j-1)*1.5,h*(0.68+j*0.10),j%2));transform.scale.set(2.5+random(),2.2+random()*1.5,2.8);transform.rotation.y=random()*6;transform.updateMatrix();crowns.setMatrixAt(i*3+j,transform.matrix);}
 });scene.add(trunks,crowns);
+if(productionAssets) {
+  const [{createSeedThreeForest,createSeedThreeForestController},{loadRiverRockTextures},wind]=await Promise.all([
+    import('../vegetation/seedthree/seedThreeForestBuilder.ts'),import('../utils/propTextureLoad.ts'),import('@seedthree/core/wind.js'),
+  ]);
+  scene.remove(trunks,crowns);
+  const placements=treePositions.map((p,i)=>({x:p.x,z:p.z,species:i%4===0?'silverFir' as const:'beech' as const,form:i%4===0?'narrow' as const:'broad' as const,scale:0.62+random()*0.35}));
+  const forest=await createSeedThreeForest(placements,{getHeightAt:bed,generationSize:span},renderer.getMaxAnisotropy(),seed,renderer);
+  const forestController=createSeedThreeForestController(forest);
+  forestController.setShadows(false);forestController.setDistantCanopyCardsEnabled(false);
+  scene.add(forest.group);wind.windStrength.value=0;
+  const stone=await loadRiverRockTextures(renderer.getMaxAnisotropy());
+  rockMat.map=stone.map;rockMat.normalMap=stone.normalMap;rockMat.roughnessMap=stone.roughnessMap;rockMat.color.set(0xffffff);rockMat.needsUpdate=true;
+  const groundMap=await new THREE.TextureLoader().loadAsync('/assets/textures/terrain/forest_leaf_litter/albedo.png');
+  groundMap.colorSpace=THREE.SRGBColorSpace;groundMap.wrapS=groundMap.wrapT=THREE.RepeatWrapping;groundMap.repeat.set(50,50);groundMap.anisotropy=4;
+  groundMaterial.map=groundMap;groundMaterial.needsUpdate=true;
+}
 let view=query.get('view')??'near',debug:WaterOpticalMode='final';
 function cameraView(value:string) {
   view=value;
@@ -123,30 +142,49 @@ profileSelect.onchange=()=>{query.set('profile',profileSelect.value);location.se
 const viewSelect=document.querySelector<HTMLSelectElement>('#view')!;viewSelect.value=view;viewSelect.onchange=()=>cameraView(viewSelect.value);
 const debugSelect=document.querySelector<HTMLSelectElement>('#debug')!;
 for(const mode of WATER_OPTICAL_MODES)debugSelect.add(new Option(mode,mode));
-function setDebug(mode:WaterOpticalMode){debug=mode;material.fragmentNode=vec4(material.userData.waterColorNodes[mode],material.userData.waterAlpha);material.needsUpdate=true;}
+function setDebug(mode:WaterOpticalMode){debug=mode;material.fragmentNode=material.userData.waterFragmentNodes[mode];material.needsUpdate=true;}
 debugSelect.onchange=()=>setDebug(debugSelect.value as WaterOpticalMode);
 let time=Number(query.get('time')??6.25),playing=query.get('play')!=='0',previous=0,frames=0,gpuPending=false;
-const intervals:number[]=[],cpu:number[]=[],gpu:number[]=[];
+let colorCopies=0,depthCopies=0;
+const copyRenderer=renderer as any,copyFramebuffer=copyRenderer.copyFramebufferToTexture.bind(renderer);
+copyRenderer.copyFramebufferToTexture=(tx:THREE.Texture,...args:unknown[])=>{
+  if((tx as THREE.DepthTexture).isDepthTexture)depthCopies++;else colorCopies++;
+  return copyFramebuffer(tx,...args);
+};
+const intervals:number[]=[],cpu:number[]=[],gpu:number[]=[],computeGpu:number[]=[];
 document.querySelector<HTMLButtonElement>('#play')!.onclick=()=>{playing=!playing;document.querySelector('#play')!.textContent=playing?'Pause':'Play';};
 document.querySelector<HTMLButtonElement>('#reset')!.onclick=()=>{time=0;};
 const median=(xs:number[])=>[...xs].sort((a,b)=>a-b)[Math.floor(xs.length/2)]??0;
 const percentile=(xs:number[],p:number)=>[...xs].sort((a,b)=>a-b)[Math.floor((xs.length-1)*p)]??0;
-function evidence(){return {profile:profile.id,seed,view,debug,time,camera:camera.position.toArray(),target:controls.target.toArray(),width:innerWidth,height:innerHeight,dpr:renderer.getPixelRatio(),noPost:true,
+function evidence(){return {profile:profile.id,seed,productionAssets,view,debug,time,camera:camera.position.toArray(),target:controls.target.toArray(),width:innerWidth,height:innerHeight,dpr:renderer.getPixelRatio(),noPost:true,
   fps:1000/median(intervals),p95FrameMs:percentile(intervals,0.95),cpuMedianMs:median(cpu),gpuMedianMs:gpu.length?median(gpu):null,
-  renderer:JSON.parse(JSON.stringify(renderer.info)),samples:intervals.length};}
-const timedRenderer=renderer as unknown as {resolveTimestampsAsync():Promise<number|undefined>;setAnimationLoop(callback:(now:number)=>void):void};
+  computeGpuMedianMs:computeGpu.length?median(computeGpu):0,framebufferCopies:{color:colorCopies,depth:depthCopies},renderer:JSON.parse(JSON.stringify(renderer.info)),samples:intervals.length};}
+const timedRenderer=renderer as unknown as {resolveTimestampsAsync(type?:string):Promise<number|undefined>;setAnimationLoop(callback:(now:number)=>void):void};
 timedRenderer.setAnimationLoop((now:number)=>{
   const dt=previous?now-previous:16.67;previous=now;if(playing)time+=Math.min(dt*0.001,0.05);
-  setWorldAnimationTime(time);renderer.info.reset();const start=performance.now();renderer.render(scene,camera);
+  colorCopies=depthCopies=0;
+  setWorldAnimationTime(time);renderer.info.reset();const start=performance.now();updateWaterSpectra(renderer,time);renderer.render(scene,camera);
   if(frames++>40){intervals.push(dt);cpu.push(performance.now()-start);if(intervals.length>180){intervals.shift();cpu.shift();}}
-  if(!gpuPending){gpuPending=true;timedRenderer.resolveTimestampsAsync().then(value=>{if(typeof value==='number'&&value>0&&frames>40){gpu.push(value);if(gpu.length>180)gpu.shift();}}).finally(()=>{gpuPending=false;});}
+  if(!gpuPending){gpuPending=true;Promise.all([timedRenderer.resolveTimestampsAsync(),timedRenderer.resolveTimestampsAsync('compute')]).then(([value,compute])=>{
+    if(typeof value==='number'&&value>0&&frames>40){gpu.push(value);if(gpu.length>180)gpu.shift();}
+    if(typeof compute==='number'&&compute>0&&frames>40){computeGpu.push(compute);if(computeGpu.length>180)computeGpu.shift();}
+  }).finally(()=>{gpuPending=false;});}
   if(frames%30===0)document.querySelector('#metrics')!.textContent=`${(1000/median(intervals)).toFixed(1)} FPS · GPU ${median(gpu).toFixed(3)} ms · ${(renderer.info.render as unknown as {drawCalls:number}).drawCalls} draws`;
 });
-const api={evidence, async capture(options:{view?:string;debug?:WaterOpticalMode;time?:number;night?:number}={}){
+const api={evidence, async capture(options:{view?:string;debug?:WaterOpticalMode;time?:number;night?:number;rain?:number}={}){
   playing=false;if(options.view)cameraView(options.view);if(options.debug)setDebug(options.debug);time=options.time??time;
-  setSharedRiverWaterNightAmount(options.night??0);intervals.length=cpu.length=gpu.length=0;
+  setSharedRiverWaterNightAmount(options.night??0);setSharedWaterRainAmount(options.rain??0);intervals.length=cpu.length=gpu.length=computeGpu.length=0;
+  const night=options.night??0,rain=options.rain??0;
+  sun.intensity=THREE.MathUtils.lerp(3.1*(1-rain*0.55),0.08,night);
+  sun.color.set(night>0.5?0xbccfed:0xffe7bd);hemi.intensity=THREE.MathUtils.lerp(1.8,0.08,night);
+  scene.background=new THREE.Color(rain>0.5?0x758588:0x92aead).lerp(new THREE.Color(0x16232f),night);
+  scene.fog!.color.copy(scene.background);
   await new Promise<void>(resolve=>{let n=0;function wait(){if(++n>=100)resolve();else requestAnimationFrame(wait);}requestAnimationFrame(wait);});
   return evidence();
 },play(value:boolean){playing=value;}};
+Object.assign(api,{async benchmark(){playing=true;intervals.length=cpu.length=gpu.length=computeGpu.length=0;
+  await new Promise<void>(resolve=>{let n=0;function wait(){if(++n>=240)resolve();else requestAnimationFrame(wait);}requestAnimationFrame(wait);});
+  playing=false;return evidence();
+}});
 (window as unknown as {__WATER_GAUNTLET__:typeof api}).__WATER_GAUNTLET__=api;
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});

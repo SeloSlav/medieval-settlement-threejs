@@ -8,7 +8,7 @@ import {
 import {
   computeRiverSimulationRenderDelta,
   WATER_SIM_RENDER_DELTA_LIMIT,
-} from '../src/rivers/RiverWaterMesh.ts';
+} from '../src/e2e/waterBaselineSimulation.ts';
 
 function createSolver(nx: number, ny: number): VirtualPipesWater2D {
   const sim = new VirtualPipesWater2D({

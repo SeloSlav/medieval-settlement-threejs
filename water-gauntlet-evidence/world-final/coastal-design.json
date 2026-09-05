@@ -1,0 +1,80 @@
+{
+  "profile": "coastal",
+  "settings": {
+    "seed": 1442842483,
+    "terrainPreset": "vinodol_coast",
+    "mapSize": "medium",
+    "topography": 50,
+    "hydrology": 50,
+    "forestDensity": 50,
+    "resourceAbundance": 50,
+    "resourceVariety": 50,
+    "conflictMode": "peaceful",
+    "enemyPressure": 0,
+    "banditCampsEnabled": true,
+    "wildAnimalAttacksEnabled": true,
+    "severeWeatherEnabled": false,
+    "wellAquiferNetworksEnabled": false,
+    "approvalDeclineRate": 100,
+    "foodSpoilageRate": 100,
+    "initialGoodsMultiplier": 1,
+    "militaryDemands": 1
+  },
+  "view": "design",
+  "camera": [
+    -293.148561118996,
+    19.6,
+    -35.190000000000005
+  ],
+  "target": [
+    -371.348561118996,
+    -4.4,
+    0
+  ],
+  "fps": 41.15226337450531,
+  "p95FrameMs": 36.39999999999418,
+  "p99FrameMs": 48.5,
+  "medianCpuMs": 4.9000000059604645,
+  "p95CpuMs": 12,
+  "samples": 300,
+  "renderer": {
+    "backend": "webgpu",
+    "frames": 1399,
+    "calls": 93,
+    "renderPasses": 15,
+    "triangles": 44220334,
+    "pixelRatio": 1,
+    "directionalShadow": {
+      "refreshedThisFrame": false,
+      "refreshes": 3,
+      "cachedFrames": 1396,
+      "lastRefreshFrame": 860,
+      "reasons": [
+        "camera-refit"
+      ],
+      "reasonCounts": {
+        "camera-refit": 2,
+        "forest-casters": 0,
+        "first-person-motion": 0,
+        "dynamic-casters": 0,
+        "static-casters": 1,
+        "renderer-state": 1
+      }
+    }
+  },
+  "adapter": {
+    "source": "webgpu-adapter-info",
+    "identityStatus": "available",
+    "fallbackStatus": "non-fallback",
+    "vendor": "nvidia",
+    "architecture": "lovelace",
+    "device": null,
+    "description": null,
+    "isFallbackAdapter": false,
+    "limitations": []
+  },
+  "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+  "omitted": "Settlement entities, database and game UI",
+  "baseline": false,
+  "errors": []
+}

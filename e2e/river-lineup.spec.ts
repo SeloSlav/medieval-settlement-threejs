@@ -78,7 +78,7 @@ test('Kupa river production visual contract and renderer budget', async ({ page 
   expect(evidence.channel.packedSurfaceMapBytes).toBe(256 * 256 * 4);
   expect(evidence.channel.cattailInstances).toBeGreaterThan(0);
   expect(evidence.channel.cattailSubmergedInstances).toBe(evidence.channel.cattailInstances);
-  expect(evidence.channel.qualityTier).toBe('bounded-analytic-normal-only');
+  expect(evidence.channel.qualityTier).toBe('hydraulic-flow-screen-optics');
   expect(evidence.channel.packedSurfaceTextureLookups).toBe(1);
   expect(evidence.channel.travellingFoam).toBe(true);
   expect(evidence.renderer.backend).toMatch(/^(?:webgpu|webgl2-node)$/);
@@ -88,7 +88,7 @@ test('Kupa river production visual contract and renderer budget', async ({ page 
   expect(evidence.renderer.renderPasses).toBeLessThanOrEqual(3);
   expect(evidence.renderer.triangles).toBeGreaterThan(0);
   expect(evidence.renderer.triangles).toBeLessThanOrEqual(320_000);
-  expect(evidence.renderer.textures).toBeLessThanOrEqual(16);
+  expect(evidence.renderer.textures).toBeLessThanOrEqual(20);
   expect(evidence.renderer.renderTargets).toBeLessThanOrEqual(2);
   expect(evidence.performance.sampleCount).toBe(45);
   expect(evidence.performance.medianFps).toBeGreaterThan(0);

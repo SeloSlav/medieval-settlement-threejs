@@ -22,17 +22,7 @@ import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
-  RIVER_BANK_BED_REVEAL,
-  RIVER_DEEP_BACKDROP_STABILITY,
-  RIVER_FLOW_HIGHLIGHT_STRENGTH,
-  RIVER_FLOW_ROUGHNESS_FLOOR,
-  RIVER_OPEN_WATER_HIGHLIGHT_STRENGTH,
-  RIVER_OPTICAL_SHORE_EXPONENT,
-  RIVER_SKY_RETURN_STRENGTH,
-  RIVER_VISUAL_SHORE_EXPONENT,
-  RIVER_WATER_ATTENUATION_DISTANCE,
   RIVER_WATER_SURFACE_STYLE,
-  RIVER_WATER_TRANSMISSION,
   setSharedRiverWaterDebugMode,
   setSharedRiverWaterNightAmount,
 } from '../src/rivers/RiverWaterMaterial.ts';
@@ -63,7 +53,7 @@ import {
   buildSpectralCascadeData,
   SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME,
   SPECTRAL_WATER_CASCADES,
-  SPECTRAL_WATER_DISPATCHES_PER_FRAME,
+  spectralWaterDispatchCount,
   SPECTRAL_WATER_RESOLUTION,
   SpectralWaterSimulation,
   validateSpectralIfft,
@@ -221,9 +211,15 @@ assert.deepEqual(encodeWaterFlowDirection({ dx: 1, dz: 0 }), [255, 128]);
 assert.equal(waterSurfaceProfileForPreset('vinodol_coast'), COASTAL_WATER_PROFILE);
 assert.equal(waterSurfaceProfileForPreset('kupa_valley'), RIVER_WATER_PROFILE);
 assert.equal(waterSurfaceProfileForPreset('custom'), INLAND_WATER_PROFILE);
-assert.equal(SPECTRAL_WATER_RESOLUTION, 128);
-assert.equal(SPECTRAL_WATER_DISPATCHES_PER_FRAME, 16);
+assert.equal(SPECTRAL_WATER_RESOLUTION, 64);
+assert.equal(spectralWaterDispatchCount('river'), 0);
+assert.equal(spectralWaterDispatchCount('inland'), 28);
+assert.equal(spectralWaterDispatchCount('coastal'), 42);
 assert.equal(SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME, 1);
+for(const cascade of SPECTRAL_WATER_CASCADES) {
+  assert.ok(cascade.cutoffHigh < Math.PI*cascade.resolution/cascade.lengthScale,
+    'every retained wave must fit below the cascade Nyquist frequency');
+}
 for (let index = 1; index < SPECTRAL_WATER_CASCADES.length; index++) {
   assert.equal(
     SPECTRAL_WATER_CASCADES[index - 1].cutoffHigh,
@@ -246,8 +242,8 @@ assert.ok(
   'centered one-bin IFFT must resolve to the expected complex sinusoid',
 );
 assert.ok(COASTAL_WATER_PROFILE.openWaterWaveScale > INLAND_WATER_PROFILE.openWaterWaveScale);
-assert.ok(COASTAL_WATER_PROFILE.attenuationDistance > RIVER_WATER_PROFILE.attenuationDistance);
-assert.ok(INLAND_WATER_PROFILE.standingWaveRatio > COASTAL_WATER_PROFILE.standingWaveRatio);
+assert.ok(COASTAL_WATER_PROFILE.absorption[2] < RIVER_WATER_PROFILE.absorption[2]);
+assert.ok(INLAND_WATER_PROFILE.shoreAmplitude < COASTAL_WATER_PROFILE.shoreAmplitude);
 
 const computeCalls: unknown[][] = [];
 const spectralSimulation = new SpectralWaterSimulation({
@@ -263,7 +259,7 @@ assert.equal(
 );
 assert.equal(
   computeCalls[0].length,
-  SPECTRAL_WATER_DISPATCHES_PER_FRAME * spectralSimulation.binding.cascades.length,
+  spectralWaterDispatchCount('inland'),
   'batching must preserve every per-cascade evolution, IFFT, and foam dispatch',
 );
 assert.equal(foamPing.value, 1);
@@ -331,80 +327,19 @@ const shoreMaps: RiverWaterShoreMaps = {
 };
 const material = getSharedRiverWaterMaterial(shoreMaps);
 
-assert.equal(
-  material.transmission,
-  RIVER_WATER_TRANSMISSION,
-  'the water film must retain controlled physical transmission',
-);
-assert.equal(material.transmission, 0.74);
-assert.equal(material.thickness, 0.65);
-assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
-assert.equal(material.attenuationDistance, 2.65);
-assert.equal(
-  RIVER_DEEP_BACKDROP_STABILITY,
-  1,
-  'deep water must fully suppress false screen-space terrain and tree-shadow bands',
-);
-assert.ok(
-  RIVER_VISUAL_SHORE_EXPONENT >= 3.5,
-  'visual shore depth must settle quickly enough to avoid distance-field pool lobes',
-);
-assert.ok(
-  RIVER_OPTICAL_SHORE_EXPONENT >= 1.8 && RIVER_OPTICAL_SHORE_EXPONENT <= 2.2,
-  'optical depth must reveal the near-bank bed without restoring broad distance lobes',
-);
-assert.ok(
-  RIVER_BANK_BED_REVEAL >= 0.65 && RIVER_BANK_BED_REVEAL <= 0.75,
-  'bank bed reveal must remain visible without replacing the channel body',
-);
-assert.ok(
-  RIVER_FLOW_ROUGHNESS_FLOOR >= 0.31,
-  'flow roughness must not turn directional crests into black winter pools',
-);
-assert.ok(
-  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.06
-    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.08,
-  'flow facets must remain subtle enough to avoid painted surface ribbons',
-);
-assert.ok(
-  RIVER_OPEN_WATER_HIGHLIGHT_STRENGTH < RIVER_FLOW_HIGHLIGHT_STRENGTH,
-  'sheltered open water must remain calmer than a directional current',
-);
-assert.ok(RIVER_SKY_RETURN_STRENGTH >= 0.15 && RIVER_SKY_RETURN_STRENGTH <= 0.17);
-assert.equal(material.roughness, 0.285);
-assert.equal(material.specularIntensity, 0.54);
-assert.ok(material.normalNode, 'analytic water bands must drive the physical surface normal');
-assert.ok(material.roughnessNode, 'resolved facets must modulate reflected highlight roughness');
-assert.equal(
-  material.userData.waterQualityTier,
-  RIVER_WATER_SURFACE_STYLE.qualityTier,
-);
+assert.equal(material.transmission, 0, 'the optical composite must not trigger built-in transmission rendering');
+assert.ok(material.fragmentNode, 'the actual fragment graph must own reflection, refraction and absorption');
+assert.ok(material.positionNode);
+assert.ok(material.normalNode);
+assert.equal(material.userData.waterQualityTier, RIVER_WATER_SURFACE_STYLE.qualityTier);
 assert.equal(material.userData.waterSurfaceProfile, 'river');
-assert.deepEqual(material.userData.waterDebugModes, [
-  'final',
-  'normal',
-  'fresnel',
-  'surface-response',
-  'flow-presence',
-  'foam-field',
-]);
-const finalWaterColorNode = material.colorNode;
-setSharedRiverWaterDebugMode('normal');
-assert.notEqual(material.colorNode, finalWaterColorNode);
-setSharedRiverWaterDebugMode('surface-response');
-assert.notEqual(material.colorNode, finalWaterColorNode);
-setSharedRiverWaterDebugMode('flow-presence');
-assert.notEqual(material.colorNode, finalWaterColorNode);
-setSharedRiverWaterDebugMode('foam-field');
-assert.notEqual(material.colorNode, finalWaterColorNode);
+for (const mode of ['normal','fresnel','velocity','reflection','refraction','foam-field','shore'] as const) {
+  assert.ok(material.userData.waterDebugModes.includes(mode));
+  const before=material.fragmentNode;
+  setSharedRiverWaterDebugMode(mode);
+  assert.notEqual(material.fragmentNode,before,'debug controls must alter the rendered graph');
+}
 setSharedRiverWaterDebugMode('final');
-assert.equal(material.colorNode, finalWaterColorNode);
-assert.ok(
-  (material as typeof material & { emissiveNode?: unknown }).emissiveNode,
-  'river must retain its night-only sky-return node',
-);
-assert.ok(material.backdropNode, 'river must retain its depth-aware backdrop refraction');
-assert.ok(material.backdropAlphaNode, 'river must retain depth-aware backdrop blending');
 assert.equal(material.transparent, true);
 assert.equal(material.depthWrite, false);
 assert.equal(material.depthTest, true);
@@ -566,102 +501,14 @@ assert.match(
   /placementIndex\.hasPointWithin\(x, z, 0\.72 \+ scale \* 0\.38\)/,
   'river-bank stones must retain dense non-overlapping continuous placement',
 );
-assert.match(waterMaterialSource, /vec3\(0\.02,\s*0\.043,\s*0\.055\)/);
-assert.match(
-  waterMaterialSource,
-  /mix\(float\(0\.62\)[\s\S]*?depthFactor/,
-);
-assert.match(
-  waterMaterialSource,
-  /const sceneBehind = \(viewportSharedTexture\(refractUv\)/,
-  'the restored water must keep its single screen-space refraction sample',
-);
-assert.doesNotMatch(
-  waterMaterialSource,
-  /riverSkyZenith|skyReflection|reflectedSurface|nearReflection|farReflection/,
-  'the translucent water path must not compile the dynamic sky or surroundings reflection shader',
-);
-assert.match(
-  waterMaterialSource,
-  /COASTAL_SHALLOW_WATER_TINT[\s\S]*?profile\.seaTintStrength/,
-  'the bounded coastal profile must shift the common water family toward clear blue',
-);
-assert.doesNotMatch(
-  waterMaterialSource,
-  /buildGpuSpectralWater|SpectralWaterBinding|viewportDepthTexture|linearDepth/,
-  'the restored material must not retain spectral-field or depth-absorption shader work',
-);
-assert.doesNotMatch(
-  waterMaterialSource,
-  /ribbonCarrier|ribbonCrest|flowCross\.mul\((?:1\.85|3\.45)\)/,
-  'water must not restore the powered cross-flow ribbon lattice',
-);
-assert.match(
-  waterMaterialSource,
-  /const flowPresence = smoothstep\([\s\S]*?flowLenSq/,
-  'quantized neutral flow must resolve to a bounded still-water mask',
-);
-assert.match(
-  waterMaterialSource,
-  /aaStart[\s\S]*?aaEnd[\s\S]*?fwidth\(phase\)/,
-  'sub-pixel normal bands must fade by their screen-space footprint',
-);
-assert.match(
-  waterMaterialSource,
-  /material\.normalNode = nodes\.normalNode/,
-  'physical lighting must use the same resolved analytic surface normal',
-);
-assert.match(
-  waterMaterialSource,
-  /shoreBreakScale[\s\S]*?profile\.shoreBreakStrength/,
-  'shore breakup must scale the foam body rather than only raising its cap',
-);
-assert.doesNotMatch(
-  waterMaterialSource,
-  /setSharedRiverWaterReflectionState|computeRiverWaterSkyPalette/,
-  'day/night updates must not maintain reflection-only uniforms',
-);
-assert.equal(
-  (waterMaterialSource.match(/viewportSharedTexture\(/g) ?? []).length,
-  1,
-  'water must use one refraction tap and no reflection taps',
-);
-assert.equal(
-  (waterMaterialSource.match(/\btexture\(/g) ?? []).length,
-  1,
-  'material source must retain only the shoreline map texture binding',
-);
-assert.match(
-  waterMaterialSource,
-  /material\.transmission = profile\.transmission/,
-  'the controlled-transmission path must follow the selected water profile',
-);
-assert.match(
-  waterMaterialSource,
-  /const skyReturn = \(float\(0\.055\)/,
-  'strategic top-down views need a nonzero surface return so water cannot read as meadow',
-);
-assert.match(
-  waterMaterialSource,
-  /mix\(float\(0\.46\)[\s\S]*?float\(0\.68\)[\s\S]*?opticalDepthFactor/,
-  'the water volume must retain enough body opacity to separate it from terrain',
-);
-assert.match(
-  waterMaterialSource,
-  /const waterTint = mix\(layeredDeepTint, profileShallowTint, bankBedReveal\)/,
-  'all profiles must retain the same depth transition after their restrained palette shift',
-);
-assert.match(
-  waterMaterialSource,
-  /sharedWaterProfile === profile/,
-  'material caching must invalidate when a same-id profile object is retuned',
-);
+// Optical behavior and backend compilation are exercised by the water gauntlet;
+ // do not pin the previous implementation's absence of reflection/depth work.
+assert.match(waterMaterialSource, /sharedWaterProfile === profile/);
 
 disposeSharedRiverWaterMaterial();
 const restoredMaterial = getSharedRiverWaterMaterial(shoreMaps);
 assert.equal(restoredMaterial.name, 'RiverWaterMaterial');
-assert.equal(restoredMaterial.transmission, 0.74);
-assert.equal(restoredMaterial.attenuationDistance, 2.65);
+assert.equal(restoredMaterial.transmission, 0);
 assert.equal(restoredMaterial.roughness, 0.285);
 assert.ok(restoredMaterial.positionNode, 'the restored material must keep animated river motion');
 assert.ok(restoredMaterial.normalNode, 'the restored material must keep analytic surface normals');
@@ -669,16 +516,15 @@ assert.ok(restoredMaterial.normalNode, 'the restored material must keep analytic
 disposeSharedRiverWaterMaterial();
 const inlandMaterial = getSharedRiverWaterMaterial(shoreMaps, INLAND_WATER_PROFILE);
 assert.equal(inlandMaterial.name, 'InlandWaterMaterial');
-assert.equal(inlandMaterial.transmission, INLAND_WATER_PROFILE.transmission);
-assert.equal(inlandMaterial.attenuationDistance, INLAND_WATER_PROFILE.attenuationDistance);
+assert.equal(inlandMaterial.transmission, 0);
 assert.equal(inlandMaterial.userData.waterSurfaceProfile, 'inland');
 assert.ok(inlandMaterial.normalNode);
 
 disposeSharedRiverWaterMaterial();
 const coastalMaterial = getSharedRiverWaterMaterial(shoreMaps, COASTAL_WATER_PROFILE);
 assert.equal(coastalMaterial.name, 'CoastalWaterMaterial');
-assert.equal(coastalMaterial.transmission, COASTAL_WATER_PROFILE.transmission);
-assert.equal(coastalMaterial.thickness, 1.05);
+assert.equal(coastalMaterial.transmission, 0);
+assert.ok(coastalMaterial.fragmentNode);
 assert.equal(coastalMaterial.userData.waterSurfaceProfile, 'coastal');
 assert.ok(coastalMaterial.normalNode);
 
@@ -748,7 +594,7 @@ benchmarkMaterial.dispose();
 
 console.log(
   'River water material tests passed: bounded continuous normals and '
-    + 'the legible controlled-transmission refraction path remains active. '
+    + 'the reflection, refraction and hydraulic surface graph remains active. '
     + `Hidden-reed benchmark: ${oldElapsedMs.toFixed(1)}ms/${oldHiddenUploadBytes.toLocaleString()} bytes `
     + `-> ${optimizedElapsedMs.toFixed(1)}ms/${optimizedHiddenUploadBytes.toLocaleString()} bytes.`,
 );

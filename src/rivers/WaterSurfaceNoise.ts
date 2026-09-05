@@ -1,5 +1,16 @@
 import * as THREE from 'three';
 let shared: THREE.DataTexture | null = null;
+let references = 0;
+
+export function retainWaterSurfaceNoise(): () => void {
+  references++;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--references === 0) { shared?.dispose(); shared = null; }
+  };
+}
 
 /** Tileable, seeded scalar turbulence. Generated once, then hardware mip filtered. */
 export function getWaterSurfaceNoise(): THREE.DataTexture {

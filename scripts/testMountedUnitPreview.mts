@@ -16,7 +16,7 @@ try {
   assert.equal((await stats()).state.variant, 'man');
   assert.equal((await stats()).state.weapon, 'spear-shield');
   assert.deepEqual(await page.getByRole('combobox', { name: 'Army unit', exact: true }).locator('option').allTextContents(),
-    ['On foot', 'Hussars', 'Armored Lancers', 'Mounted Archers']);
+    ['On foot', 'Hussars', 'Armored Lancers', 'Mounted Archers', 'Akıncı Raiders', 'Sipahi Raiders']);
   await mkdir('artifacts/mounted-unit-preview', { recursive: true });
   const seated = await set({ unit: 'on-foot', mode: 'sit' });
   const kneeWidth = (result: any) => result.rider.legs.L_Calf[0] - result.rider.legs.R_Calf[0];
@@ -26,12 +26,14 @@ try {
     ['hussars', 'spear-shield', 'hussar', 'sidearm-shield'],
     ['armored-lancers', 'spear', 'lancer', 'sidearm'],
     ['mounted-archers', 'bow', 'archer', 'sidearm'],
+    ['akinci', 'bow', 'archer', 'sidearm-shield'],
+    ['sipahi', 'spear-shield', 'lancer', 'sidearm-shield'],
   ]) {
     await page.getByRole('combobox', { name: 'Army unit', exact: true }).selectOption(unit);
     await set({ mode: 'walk', paused: true });
     let result = await stats();
     assert.equal(result.state.weapon, weapon);
-    assert.equal(result.state.variant, 'man');
+    assert.equal(result.state.variant, unit==='akinci'||unit==='sipahi'?'raider':'man');
     assert.deepEqual(await page.locator('select[data-key="weapon"] option').allTextContents(), [weapon, sidearm]);
     await page.getByRole('combobox', { name: 'weapon', exact: true }).selectOption(sidearm);
     assert.equal((await stats()).state.unit, unit, 'selecting an issued sidearm keeps the rider mounted');
@@ -98,7 +100,7 @@ try {
   await set({ unit: 'hussars' });
   assert.equal((await set({ variant: 'raider' })).state.unit, 'on-foot', 'raiders leave player cavalry presets');
   assert.deepEqual(errors, []);
-  console.log('All three mounted units verified: equipment, horses, riding poses, attacks, scrubbing, playback, fall, and return to infantry.');
+  console.log('All five mounted units verified: equipment, horses, riding poses, attacks, scrubbing, playback, fall, and return to infantry.');
 } finally {
   await browser.close();
 }

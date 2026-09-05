@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip, offsetMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
 import { bowPalmLocal } from '../src/settlement/bowHandGrip.ts';
+import { meleePalmLocal } from '../src/settlement/meleeHandGrip.ts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, resetCombatWeaponRig, restoreCombatWeaponPose, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources, setMilitaryEquipmentCombatStance } from '../src/settlement/militaryEquipment.ts';
 
@@ -106,7 +107,7 @@ for(const [name,height] of [['worker-male-common-01-v002',1.72],['ottoman-raider
    if(mount.userData.workerToolSupportGripLocal){
     const left=rig.armBones.leftHand;
     const support=mount.localToWorld(new THREE.Vector3(...mount.userData.workerToolSupportGripLocal));
-    const anchor=left.localToWorld(offsetMilitaryHandGrip(left,new THREE.Vector3(kind==='crossbow'?.014:.005,.0383,-.0071)));
+    const anchor=left.localToWorld(kind==='crossbow'?offsetMilitaryHandGrip(left,new THREE.Vector3(.014,.0383,-.0071)):meleePalmLocal(left,true,new THREE.Vector3()));
     supportError=Math.max(supportError,support.distanceTo(anchor));
    }
    const wrist=hand.getWorldPosition(new THREE.Vector3());

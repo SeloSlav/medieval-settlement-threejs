@@ -1,0 +1,167 @@
+[
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "man",
+      "weapon": "spear-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 324,
+    "firstPhase": 0.5660000000000001,
+    "lastPhase": 0.5783999999999958,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "man",
+      "weapon": "sidearm-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5674390243902444,
+    "lastPhase": 0.03609756097559469,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "man",
+      "weapon": "sword-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5665217391304348,
+    "lastPhase": 0.7538043478261063,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "raider",
+      "weapon": "spear-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5660000000000001,
+    "lastPhase": 0.5781999999999927,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "raider",
+      "weapon": "sidearm-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5671951219512169,
+    "lastPhase": 0.028536585365839695,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "on-foot",
+      "variant": "raider",
+      "weapon": "sword-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5665217391304348,
+    "lastPhase": 0.7538043478261041,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "hussars",
+      "variant": "man",
+      "weapon": "spear-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 331,
+    "firstPhase": 0.5661000000000023,
+    "lastPhase": 0.5904999999999925,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "hussars",
+      "variant": "man",
+      "weapon": "sidearm-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5674390243902466,
+    "lastPhase": 0.02878048780486475,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "akinci",
+      "variant": "raider",
+      "weapon": "sidearm-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5673170731707318,
+    "lastPhase": 0.03621951219510766,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "sipahi",
+      "variant": "raider",
+      "weapon": "spear-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 332,
+    "firstPhase": 0.5660000000000001,
+    "lastPhase": 0.5903999999999923,
+    "errors": []
+  },
+  {
+    "state": {
+      "unit": "sipahi",
+      "variant": "raider",
+      "weapon": "sidearm-shield",
+      "mode": "defend",
+      "seed": 431,
+      "standard": false
+    },
+    "seconds": 2,
+    "frames": 331,
+    "firstPhase": 0.5675609756097615,
+    "lastPhase": 0.028780487804865196,
+    "errors": []
+  }
+]

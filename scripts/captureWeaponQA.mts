@@ -30,25 +30,28 @@ try{
  await fs.writeFile(path.join(output,`${caseName}-report.json`),JSON.stringify({errors,captures:reports},null,2));
  if(process.argv.includes('--video')){
   const motion=[];
-  for(const [weapon,seconds] of [['bow',5],['spear',4],['sidearm',4],['halberd',4],['crossbow',7]] as const){
-   await page.evaluate(weapon=>(window as any).weaponReview.set({weapon,variant:'man',mode:'attack',view:'side',phase:0,standard:false,paused:false}),weapon);
+  const sequence=process.argv.includes('--melee')
+   ? [...new Map(options.map(({name,phase,view,...state}:any)=>[JSON.stringify([state.unit,state.variant,state.weapon,state.mode]),state])).values()].map((state:any)=>({state,seconds:state.mode==='defend'?2:4}))
+   : [['bow',5],['spear',4],['sidearm',4],['halberd',4],['crossbow',7]].map(([weapon,seconds])=>({state:{unit:'on-foot',weapon,variant:'man',mode:'attack'},seconds}));
+  for(const {state,seconds} of sequence){
+   const label=[state.unit,state.variant,state.weapon,state.mode].join('-');
+   await page.evaluate(state=>(window as any).weaponReview.set({...state,view:'front',phase:.56,standard:false,paused:false}),state);
    const first=await page.evaluate(()=>(window as any).weaponReview.stats());
    await page.waitForTimeout(seconds*1000);
    const last=await page.evaluate(()=>(window as any).weaponReview.stats());
-   await page.screenshot({path:path.join(output,`${caseName}-motion-${weapon}.png`)});
-   motion.push({weapon,seconds,frames:last.frame-first.frame,errors:last.errors});
-   console.log(`Motion: ${weapon}, ${last.frame-first.frame} frames / ${seconds}s`);
+   await page.screenshot({path:path.join(output,`${caseName}-motion-${label}.png`)});
+   motion.push({state,seconds,frames:last.frame-first.frame,firstPhase:first.state.phase,lastPhase:last.state.phase,errors:last.errors});
+   console.log(`Motion: ${label}, ${last.frame-first.frame} frames / ${seconds}s`);
   }
   await fs.writeFile(path.join(output,`${caseName}-motion-report.json`),JSON.stringify(motion,null,2));
   const video=page.video();await page.close();await video?.saveAs(path.join(output,`${caseName}.webm`));
  }
  if(process.argv.includes('--sheet')){
-  await page.goto('about:blank');
-  await page.setViewportSize({width:1440,height:790});
+  const sheetPage=await browser.newPage({viewport:{width:1440,height:790}});
   for(let start=0;start<reports.length;start+=6){
    const tiles=await Promise.all(reports.slice(start,start+6).map(async r=>`<figure><img src="data:image/png;base64,${(await fs.readFile(path.join(output,r.file))).toString('base64')}"><figcaption>${r.file}</figcaption></figure>`));
-   await page.setContent(`<style>body{margin:0;background:#bbc5cc;display:grid;grid-template-columns:repeat(3,1fr);font:12px sans-serif}figure{margin:0}img{width:480px;height:375px}figcaption{height:20px;text-align:center}</style>${tiles.join('')}`);
-   await page.screenshot({path:path.join(output,`${caseName}-sheet-${Math.floor(start/6)+1}.png`)});
+   await sheetPage.setContent(`<style>body{margin:0;background:#bbc5cc;display:grid;grid-template-columns:repeat(3,1fr);font:12px sans-serif}figure{margin:0}img{width:480px;height:375px}figcaption{height:20px;text-align:center}</style>${tiles.join('')}`);
+   await sheetPage.screenshot({path:path.join(output,`${caseName}-sheet-${Math.floor(start/6)+1}.png`)});
   }
  }
  if(errors.length)throw new Error(errors.join('\n'));

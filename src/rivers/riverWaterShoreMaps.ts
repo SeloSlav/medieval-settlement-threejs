@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { deflectWaterAroundRock, waterBankVelocityScale } from './WaterHydraulics.ts';
 import { getRiverWaterColumnDepth } from './RiverWaterLevel.ts';
+import type { Terrain } from '../terrain/Terrain.ts';
 import {
   RENDER_WATER_MASK_THRESHOLD,
   type RiverField,
@@ -39,6 +40,11 @@ export type RiverWaterShoreMaps = {
   invSpanX: number;
   invSpanZ: number;
   resolution?: number;
+  /** Largest vertex spacing, used to keep mesh waves below their Nyquist limit. */
+  meshSpacing?: number;
+  /** Fade mesh displacement to the static horizon boundary, in metres. */
+  displacementEdgeFade?: number;
+  hasFlow?: boolean;
   /** Deterministic obstacle budget baked into the green foam/source channel. */
   channelRockCount?: number;
 };
@@ -80,7 +86,7 @@ export function encodeWaterFlowDirection(
 
 export function createRiverWaterShoreMaps(
   riverField: RiverField,
-  options: { includeChannelRocks?: boolean } = {},
+  options: { includeChannelRocks?: boolean; terrain?: Pick<Terrain,'getHeightAt'> } = {},
 ): RiverWaterShoreMaps {
   const {
     resolution: fieldResolution,
@@ -100,8 +106,12 @@ export function createRiverWaterShoreMaps(
     : fieldResolution;
   const stepX = spanX / (resolution - 1);
   const stepZ = spanZ / (resolution - 1);
+  // Organic SDF is stored in original field cells, not world metres. Optical
+  // wavelengths and bank velocities must not change with field resolution.
+  const fieldCellMeters = (riverField.stepX + riverField.stepZ) * 0.5;
   const data = new Uint8Array(resolution * resolution * 4);
   const hydraulic = new Float32Array(resolution * resolution * 4);
+  let hasFlow = false;
 
   for (let iz = 0; iz < resolution; iz++) {
     for (let ix = 0; ix < resolution; ix++) {
@@ -112,7 +122,10 @@ export function createRiverWaterShoreMaps(
         ? organicSignedDistance[i] ?? 0
         : riverField.sampleOrganicSignedDistance(wx, wz);
       const feather = computeWaterFeatherAlpha(foamSigned);
+      const coastX = layout.getCoastalShoreX(wz);
+      const shoreMeters = coastX === null ? foamSigned * fieldCellMeters : coastX - wx;
       const flow = layout.sampleFlowDirection(wx, wz);
+      if (flow && feather > 0.01) hasFlow = true;
       const [flowX, flowZ] = encodeWaterFlowDirection(flow);
       const offset = i * 4;
       data[offset] = Math.round(feather * 255);
@@ -122,11 +135,17 @@ export function createRiverWaterShoreMaps(
       data[offset + 1] = 0;
       data[offset + 2] = flowX;
       data[offset + 3] = flowZ;
-      const speed = (layout.sampleFlowSpeed(wx, wz) ?? 0) * waterBankVelocityScale(foamSigned);
+      const speed = (layout.sampleFlowSpeed(wx, wz) ?? 0) * waterBankVelocityScale(shoreMeters);
       hydraulic[offset] = (flow?.dx ?? 0) * speed;
       hydraulic[offset + 1] = (flow?.dz ?? 0) * speed;
-      hydraulic[offset + 2] = getRiverWaterColumnDepth(riverField, wx, wz, foamSigned);
-      hydraulic[offset + 3] = foamSigned;
+      // Ponds follow their bed-relative surface; the coast has an absolute
+      // sea datum and needs its actual baked seabed, just like the horizon.
+      const seaLevel = layout.terrainPreset === 'vinodol_coast'
+        ? layout.getWaterSurfaceOverride(wx,wz) : null;
+      hydraulic[offset + 2] = seaLevel !== null && options.terrain
+        ? Math.max(0,seaLevel-options.terrain.getHeightAt(wx,wz))
+        : getRiverWaterColumnDepth(riverField, wx, wz, foamSigned);
+      hydraulic[offset + 3] = shoreMeters;
     }
   }
 
@@ -223,6 +242,9 @@ export function createRiverWaterShoreMaps(
     originZ: startZ,
     invSpanX: 1 / spanX,
     invSpanZ: 1 / spanZ,
+    meshSpacing: Math.max(riverField.stepX, riverField.stepZ),
+    displacementEdgeFade: layout.terrainPreset === 'vinodol_coast' ? Math.max(8,fieldCellMeters*2) : undefined,
+    hasFlow,
     resolution,
     channelRockCount: channelRocks.length,
   };

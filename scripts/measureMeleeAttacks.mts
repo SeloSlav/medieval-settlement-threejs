@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { installMilitaryHandGrip } from '../src/settlement/militaryHandGrip.ts';
+import { meleePalmLocal } from '../src/settlement/meleeHandGrip.ts';
 import { applyCombatWeaponPose, bindCombatWeaponRig, resetCombatWeaponRig, resolveCombatWeaponPresentation } from '../src/settlement/combatWeaponAnimation.ts';
 import { attachMilitaryEquipment, createMilitaryEquipmentSources, setMilitaryEquipmentCombatStance } from '../src/settlement/militaryEquipment.ts';
 Object.assign(globalThis, {self:globalThis, createImageBitmap:async()=>({width:1,height:1,close(){}})});
@@ -38,13 +39,16 @@ for(const name of ['worker-male-common-01-v002','ottoman-raider-common-01-v001']
     for(const left of [false,true]) {
      if(left&&(!mount.userData.workerToolSupportGripLocal||mounted))continue;
      const h=left?rig.armBones.leftHand:rig.armBones.rightHand,e=left?rig.armBones.leftForearm:rig.armBones.rightForearm;
-     const offset=new THREE.Vector3(left?.005:-.01,left?.0383:.044,-.0071).multiplyScalar(left?1:Number(h.userData.militaryGripScale??1));
+     const offset=meleePalmLocal(h,left,new THREE.Vector3());
      const contact=mount.localToWorld(new THREE.Vector3(...mount.userData[left?'workerToolSupportGripLocal':'workerToolGripLocal']));
      record(left?'leftError':'rightError',contact.distanceTo(h.localToWorld(offset)),p);
      record(left?'leftWrist':'rightWrist',THREE.MathUtils.radToDeg(new THREE.Vector3(0,1,0).applyQuaternion(rot(h)).angleTo(pos(h).sub(pos(e)))),p);
     }
     const now=rig.ownedBones.map(rot);
-    if(previous.length)now.forEach((q,i)=>record('jointStep',THREE.MathUtils.radToDeg(q.angleTo(previous[i]!)),p));
+    if(previous.length)now.forEach((q,i)=>{
+     const step=THREE.MathUtils.radToDeg(q.angleTo(previous[i]!));
+     if(step>(max.jointStep?.value??0)) { record('jointStep',step,p);(max.jointStep as any).bone=rig.ownedBones[i]!.name; }
+    });
     previous=now;
     if(f===166&&process.argv.includes('--bones'))console.log(kind,mounted,JSON.stringify({motion:rig.attackMotion,torso:Object.fromEntries(Object.entries(rig.torsoBones).map(([k,b])=>[k,rot(b).toArray()])),bones:Object.fromEntries(Object.entries(rig.armBones).map(([k,b])=>[k,pos(b).toArray()]))}));
    }

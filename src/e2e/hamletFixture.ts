@@ -1032,7 +1032,9 @@ const forestPromise = createSeedThreeForest(
     renderer as WebGPURenderer,
   );
 const [forestResult, grassFieldResult] = await Promise.all([
-  waitForBootStage('forest', forestPromise, 9_000),
+  // Cold SeedThree bakes can exceed the interactive fallback deadline. A
+  // review waits for the real woodland instead of judging an empty scene.
+  waitForBootStage('forest', forestPromise, params.get('environmentReview') === '1' ? 180_000 : 9_000),
   waitForBootStage('groundcover', grassFieldPromise, 9_000),
 ]);
 const forest: SeedThreeForestInstances = forestResult.ok

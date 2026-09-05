@@ -15,9 +15,12 @@ const REVIEW_UNITS={
  hussars:{label:'Hussars',weapons:['spear-shield','sidearm-shield'],horse:'hussar'},
  'armored-lancers':{label:'Armored Lancers',weapons:['spear','sidearm'],horse:'lancer'},
  'mounted-archers':{label:'Mounted Archers',weapons:['bow','sidearm'],horse:'archer'},
+ akinci:{label:'Akıncı Raiders',weapons:['bow','sidearm-shield'],horse:'archer'},
+ sipahi:{label:'Sipahi Raiders',weapons:['spear-shield','sidearm-shield'],horse:'lancer'},
 } as const;
 type ReviewUnit=keyof typeof REVIEW_UNITS;
-type ReviewState={unit:ReviewUnit;weapon:string;variant:typeof REVIEW_VARIANTS[number];mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean;rawSkin?:boolean};
+const raiderUnit=(unit:ReviewUnit)=>unit==='akinci'||unit==='sipahi';
+type ReviewState={unit:ReviewUnit;weapon:string;variant:typeof REVIEW_VARIANTS[number];mode:string;phase:number;time:number;view:string;seed:number;paused:boolean;standard:boolean;rawSkin?:boolean;yaw?:number};
 const params=new URLSearchParams(location.search);
 const requestedUnit=params.get('unit')??'on-foot';
 const initialUnit:ReviewUnit=Object.hasOwn(REVIEW_UNITS,requestedUnit)?requestedUnit as ReviewUnit:'on-foot';
@@ -66,7 +69,7 @@ function agent():CrowdRenderAgent{
  const presentation=resolveCombatWeaponPresentation(tool!,distance);
  const duration=presentation?.attackSeconds??1;
  const mounted=REVIEW_UNITS[state.unit].horse!==null&&state.mode!=='fall';
- return{id:'review',slot:0,x:0,y:mounted ? .02+CAVALRY_SADDLE_HEIGHT-seatedVillagerContactHeight('man',state.seed) : .02,z:0,yaw:0,appearanceSeed:state.seed,mounted,
+ return{id:'review',slot:0,x:0,y:mounted ? .02+CAVALRY_SADDLE_HEIGHT-seatedVillagerContactHeight('man',state.seed) : .02,z:0,yaw:state.yaw??0,appearanceSeed:state.seed,mounted,
   variant:'man',presentation:state.variant==='raider'?'raider':'common',
   mode:state.mode==='attack'||state.mode==='fallback'||state.mode==='defend'?'fight':state.mode==='hit'?'hurt':state.mode as CrowdRenderAgent['mode'],
   combatDefending:state.mode==='defend',
@@ -114,7 +117,7 @@ function pose(frozen=false,dt=0){
 }
 function cameraFocus(out:THREE.Vector3){
  const visual=rig();if(!visual)return;
- const hand=state.weapon==='bow'&&state.mode!=='fallback'?visual.combatRig.armBones.leftHand:visual.combatRig.armBones.rightHand;
+ const hand=state.view==='grip-left'||state.weapon==='bow'&&state.mode!=='fallback'?visual.combatRig.armBones.leftHand:visual.combatRig.armBones.rightHand;
  if(state.view.startsWith('shield')&&visual.combatRig.shieldMount){
   visual.combatRig.shieldMount.localToWorld(out.set(0,0,-.07));
  }else if(state.view==='nock'&&visual.combatRig.nockedArrow){
@@ -173,17 +176,18 @@ function stats(){
  return {ready:true,state:{...state},frame,errors:[...errors],bones,mounted:agent().mounted,rider:{action:visual?.actionMode,y:visual?.root.position.y,time:visual?.actions[visual.actionMode].time,legs},horse:horse?{mode:horse.mode,time:horse.actions[horse.mode].time,position:horse.root.position.toArray(),presentation:REVIEW_UNITS[state.unit].horse}:null,backend:renderer.backend.constructor.name,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:renderer.info.memory,camera:{position:camera.position.toArray(),target:cameraController.getTargetPosition().toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted}};
 }
 function render(){renderer.render(scene,camera);frame++;document.body.dataset.weaponReviewCamera=JSON.stringify({position:camera.position.toArray(),target:orbitTarget.toArray(),distance:cameraController.getOrbitDistance(),yaw:cameraController.getYaw(),userAdjusted:cameraUserAdjusted});document.querySelector('#status')!.textContent=`${REVIEW_UNITS[state.unit].label} · ${state.weapon} · ${state.variant} · ${state.mode}\nphase ${state.phase.toFixed(2)} · clip ${state.time.toFixed(2)} · ${state.view}\n${errors.join('\n')}`;}
-function set(patch:Partial<ReviewState>){
+function set(patch:Partial<ReviewState>,renderFrame=true){
  if(patch.variant!==undefined&&!REVIEW_VARIANTS.includes(patch.variant))throw new Error('Weapon review supports only male combatants.');
  if(patch.unit!==undefined&&!Object.hasOwn(REVIEW_UNITS,patch.unit))throw new Error('Unknown army unit preview.');
  patch={...patch};
  if(patch.unit!==undefined&&patch.unit!=='on-foot'){
-  patch.weapon??=REVIEW_UNITS[patch.unit].weapons[0];patch.variant='man';
- }else if(patch.unit===undefined&&patch.variant==='raider')patch.unit='on-foot';
+  patch.weapon??=REVIEW_UNITS[patch.unit].weapons[0];patch.variant=raiderUnit(patch.unit)?'raider':'man';
+ }else if(patch.unit===undefined&&patch.variant==='raider'&&!raiderUnit(state.unit))patch.unit='on-foot';
  const unit=patch.unit??state.unit;
  const weapons:readonly string[]=REVIEW_UNITS[unit].weapons;
  if(patch.weapon!==undefined&&!weapons.includes(patch.weapon))throw new Error(`${REVIEW_UNITS[unit].label} cannot equip ${patch.weapon}.`);
  const resetCamera=!cameraInitialized||['unit','weapon','variant','mode','view','standard'].some(key=>Object.hasOwn(patch,key));
+ if(patch.seed!==undefined&&patch.seed!==state.seed)crowd.syncAgents([],view,0);
  Object.assign(state,patch);clock=state.phase;
  const weaponSelect=document.querySelector<HTMLSelectElement>('select[data-key="weapon"]')!;
  if(weaponSelect.dataset.unit!==state.unit){
@@ -213,16 +217,16 @@ function set(patch:Partial<ReviewState>){
   standaloneProjectile.update(.001);
  }
  if(resetCamera)applyCameraPreset();
- render();return stats();
+ if(renderFrame)render();return stats();
 }
 const controls=document.querySelector('#controls')!;
 function select(key:keyof ReviewState,values:string[]){const el=document.createElement('select');el.dataset.key=key;el.setAttribute('aria-label',key==='unit'?'Army unit':key);for(const value of values)el.add(new Option(key==='unit'?REVIEW_UNITS[value as ReviewUnit].label:value,value));el.value=String(state[key]);el.onchange=()=>set({[key]:el.value});controls.append(el);}
 select('unit',Object.keys(REVIEW_UNITS));
-select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',[...REVIEW_VARIANTS]);select('mode',['idle','walk','run','flee','hurt','attack','hit','fallback','fall']);select('view',['front','side','back','left-front','left-back','grip','grip-inside','grip-back','elbow-right','elbow-left','elbow-left-back','shield','shield-side','nock','quiver','projectile','weapon','far']);
+select('weapon',[...MILITARY_EQUIPMENT_KINDS]);select('variant',[...REVIEW_VARIANTS]);select('mode',['idle','walk','run','flee','hurt','attack','defend','hit','fallback','fall']);select('view',['front','side','back','left-front','left-back','grip','grip-left','grip-inside','grip-back','elbow-right','elbow-left','elbow-left-back','shield','shield-side','nock','quiver','projectile','weapon','far']);
 const phase=document.createElement('input');phase.type='range';phase.min='0';phase.max='1';phase.step='.01';phase.value=String(state.phase);phase.oninput=()=>set({phase:Number(phase.value),time:Number(phase.value),paused:true});controls.append(phase);
 const play=document.createElement('button');play.textContent='Play / pause';play.onclick=()=>set({paused:!state.paused});controls.append(play);
 const resetCamera=document.createElement('button');resetCamera.textContent='Reset camera';resetCamera.onclick=()=>{applyCameraPreset();render();};controls.append(resetCamera);
-(window as any).weaponReview={set,stats,state,rig};set({});
+(window as any).weaponReview={set,stats,state,rig,horseRig};set({unit:state.unit});
 function animate(now:number){const dt=Math.min(.05,(now-last)/1000);last=now;if(!state.paused){clock+=dt/(resolveCombatWeaponPresentation(state.weapon as any,state.mode==='fallback'?1.5:8)?.attackSeconds??1);state.phase=clock%1;state.time=clock%1;phase.value=String(state.phase);pose(false,dt);}followAnimatedGrip();cameraController.update(dt);render();requestAnimationFrame(animate);}requestAnimationFrame(animate);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
 window.addEventListener('pagehide',()=>{cameraController.dispose();horses.dispose();},{once:true});

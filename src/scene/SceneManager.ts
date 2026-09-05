@@ -16,6 +16,8 @@ import { updateTerrainZoomBlend } from '../grass/GrassLodConfig.ts';
 import { createRiverSystem, type RiverSystem } from '../rivers/RiverSystem.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
 import { RiverField } from '../rivers/RiverField.ts';
+import { updateWaterSpectra } from '../rivers/WaterSpectrumRuntime.ts';
+import { setSharedWaterRainAmount } from '../rivers/RiverWaterMaterial.ts';
 import { setActiveRiverLayout, setActiveQuarryLayout, getActivePlacedBuildingLayout } from '../terrain/TerrainHeight.ts';
 import {
   TerrainHorizon,
@@ -1197,6 +1199,7 @@ export class SceneManager {
     }
     this.precipitation.update(dt, cameraDistance, firstPersonActive);
     this.riverSystem.tick(dt, this.worldAnimationElapsedSeconds);
+    updateWaterSpectra(this.renderer, this.worldAnimationElapsedSeconds);
     if (firstPersonActive) {
       this.firstPersonDeerObserver.x = this.camera.position.x;
       this.firstPersonDeerObserver.z = this.camera.position.z;
@@ -1511,6 +1514,7 @@ export class SceneManager {
     ) * blend;
     current.warmthOffset += (target.warmthOffset - current.warmthOffset) * blend;
     current.wetness += (target.wetness - current.wetness) * blend;
+    setSharedWaterRainAmount(current.wetness);
 
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }

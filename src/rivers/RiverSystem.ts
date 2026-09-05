@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 import { attribute, float, mix, normalMap, pow, texture, uv, vec2, vec3 } from 'three/tsl';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
@@ -185,7 +186,7 @@ export async function createRiverSystem(
       reeds?.updateCameraState(cameraPosition, cameraTarget, cameraDistance, firstPersonActive);
     },
     setNightAmount: setSharedRiverWaterNightAmount,
-    tick: (dt, timeSec) => waterController?.tick(dt, timeSec),
+    tick: (_dt, timeSec) => setWorldAnimationTime(timeSec),
     dispose: () => {
       dispose();
     },

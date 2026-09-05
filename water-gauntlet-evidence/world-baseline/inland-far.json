@@ -1,0 +1,80 @@
+{
+  "profile": "inland",
+  "settings": {
+    "seed": 1125123955,
+    "terrainPreset": "delnice_meadow",
+    "mapSize": "medium",
+    "topography": 50,
+    "hydrology": 50,
+    "forestDensity": 50,
+    "resourceAbundance": 50,
+    "resourceVariety": 50,
+    "conflictMode": "peaceful",
+    "enemyPressure": 0,
+    "banditCampsEnabled": true,
+    "wildAnimalAttacksEnabled": true,
+    "severeWeatherEnabled": false,
+    "wellAquiferNetworksEnabled": false,
+    "approvalDeclineRate": 100,
+    "foodSpoilageRate": 100,
+    "initialGoodsMultiplier": 1,
+    "militaryDemands": 1
+  },
+  "view": "far",
+  "camera": [
+    -218.7190718278881,
+    87.06840211580112,
+    -76.23517489117032
+  ],
+  "target": [
+    -393.00620177419165,
+    -2.931597884198883,
+    2.194033584666282
+  ],
+  "fps": 32.89473684211156,
+  "p95FrameMs": 36.5,
+  "p99FrameMs": 66.69999999999709,
+  "medianCpuMs": 5.899999998509884,
+  "p95CpuMs": 6.5,
+  "samples": 300,
+  "renderer": {
+    "backend": "webgpu",
+    "frames": 1948,
+    "calls": 172,
+    "renderPasses": 15,
+    "triangles": 52833760,
+    "pixelRatio": 1,
+    "directionalShadow": {
+      "refreshedThisFrame": false,
+      "refreshes": 4,
+      "cachedFrames": 1944,
+      "lastRefreshFrame": 1410,
+      "reasons": [
+        "camera-refit"
+      ],
+      "reasonCounts": {
+        "camera-refit": 3,
+        "forest-casters": 0,
+        "first-person-motion": 0,
+        "dynamic-casters": 0,
+        "static-casters": 1,
+        "renderer-state": 1
+      }
+    }
+  },
+  "adapter": {
+    "source": "webgpu-adapter-info",
+    "identityStatus": "available",
+    "fallbackStatus": "non-fallback",
+    "vendor": "nvidia",
+    "architecture": "lovelace",
+    "device": null,
+    "description": null,
+    "isFallbackAdapter": false,
+    "limitations": []
+  },
+  "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+  "omitted": "Settlement entities, database and game UI",
+  "baseline": true,
+  "errors": []
+}

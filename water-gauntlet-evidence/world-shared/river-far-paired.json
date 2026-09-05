@@ -1,0 +1,218 @@
+[
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": true,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 41.15226337448067,
+    "p95FrameMs": 30.5,
+    "p99FrameMs": 30.599999999976717,
+    "medianCpuMs": 6.9000000059604645,
+    "p95CpuMs": 7.700000002980232,
+    "samples": 360,
+    "gpuMedianMs": 26.742784,
+    "gpuTiming": {
+      "requested": true,
+      "status": "available",
+      "source": "webgpu-timestamp-query",
+      "feature": "timestamp-query",
+      "api": "compute-pass-timestamp-writes",
+      "span": "full-post-processing-queue-bookends",
+      "unit": "milliseconds",
+      "slotCount": 32,
+      "attemptedFrames": 3495,
+      "submittedFrames": 3495,
+      "resolvedFrames": 3491,
+      "pendingFrames": 4,
+      "droppedFrames": 0,
+      "failedFrames": 0,
+      "limitations": [
+        "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+        "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+        "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+      ]
+    },
+    "sampledPassGpuMedianMs": 6.797312,
+    "computeGpuMedianMs": 0,
+    "framebufferCopies": {
+      "color": 1,
+      "depth": 0
+    },
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3495,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3491,
+        "lastRefreshFrame": 2440,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI",
+    "protocol": "4 cycles of interleaved ABBA / 45 measured frames per block"
+  },
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": false,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 41.15226337448067,
+    "p95FrameMs": 30.5,
+    "p99FrameMs": 30.599999999976717,
+    "medianCpuMs": 6.5,
+    "p95CpuMs": 7.4000000059604645,
+    "samples": 360,
+    "gpuMedianMs": 26.901504,
+    "gpuTiming": {
+      "requested": true,
+      "status": "available",
+      "source": "webgpu-timestamp-query",
+      "feature": "timestamp-query",
+      "api": "compute-pass-timestamp-writes",
+      "span": "full-post-processing-queue-bookends",
+      "unit": "milliseconds",
+      "slotCount": 32,
+      "attemptedFrames": 3495,
+      "submittedFrames": 3495,
+      "resolvedFrames": 3491,
+      "pendingFrames": 4,
+      "droppedFrames": 0,
+      "failedFrames": 0,
+      "limitations": [
+        "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+        "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+        "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+      ]
+    },
+    "sampledPassGpuMedianMs": 6.797312,
+    "computeGpuMedianMs": 0,
+    "framebufferCopies": {
+      "color": 1,
+      "depth": 0
+    },
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3495,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3491,
+        "lastRefreshFrame": 2440,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI",
+    "protocol": "4 cycles of interleaved ABBA / 45 measured frames per block"
+  }
+]

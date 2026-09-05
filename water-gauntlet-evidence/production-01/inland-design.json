@@ -1,0 +1,70 @@
+{
+  "profile": "inland",
+  "seed": 1907,
+  "productionAssets": true,
+  "view": "design",
+  "debug": "final",
+  "time": 9.165300000000038,
+  "camera": [
+    41,
+    23.000000000000004,
+    -43
+  ],
+  "target": [
+    0,
+    0,
+    0
+  ],
+  "width": 1280,
+  "height": 720,
+  "dpr": 1,
+  "noPost": true,
+  "fps": 163.93442622952287,
+  "p95FrameMs": 6.100000000000364,
+  "cpuMedianMs": 0.7999999970197678,
+  "gpuMedianMs": 0.214016,
+  "computeGpuMedianMs": 0.106496,
+  "renderer": {
+    "autoReset": true,
+    "frame": 765,
+    "calls": 1903,
+    "render": {
+      "calls": 1422,
+      "frameCalls": 2,
+      "drawCalls": 15,
+      "triangles": 901293,
+      "points": 0,
+      "lines": 0,
+      "timestamp": 0.20070400000000002
+    },
+    "compute": {
+      "calls": 481,
+      "frameCalls": 1,
+      "timestamp": 0.1024
+    },
+    "memory": {
+      "attributes": 90,
+      "attributesSize": 31548588,
+      "geometries": 12,
+      "indexAttributes": 10,
+      "indexAttributesSize": 1908744,
+      "indirectStorageAttributes": 0,
+      "indirectStorageAttributesSize": 0,
+      "programs": 49,
+      "programsSize": 252479,
+      "readbackBuffers": 0,
+      "readbackBuffersSize": 0,
+      "renderTargets": 1,
+      "storageAttributes": 0,
+      "storageAttributesSize": 0,
+      "textures": 59,
+      "texturesSize": 115347188,
+      "uniformBuffers": 54,
+      "uniformBuffersSize": 21392,
+      "total": 149078391
+    },
+    "memoryMap": {}
+  },
+  "samples": 180,
+  "errors": []
+}

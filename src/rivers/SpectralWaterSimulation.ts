@@ -16,12 +16,13 @@ import {
   round,
   smoothstep,
   textureLoad,
+  texture,
   textureStore,
   uniform,
   vec2,
   vec4,
 } from 'three/tsl';
-import type { WaterSurfaceProfileId } from './WaterSurfaceProfile.ts';
+import { WATER_SURFACE_PROFILES, type WaterSurfaceProfileId } from './WaterSurfaceProfile.ts';
 
 /**
  * Spectral sea port adapted from siliconjungle/inkwell-webgpu-water.
@@ -35,12 +36,13 @@ import type { WaterSurfaceProfileId } from './WaterSurfaceProfile.ts';
  * the result can be sampled directly by the game's TSL water material.
  */
 
-export const SPECTRAL_WATER_RESOLUTION = 128;
+export const SPECTRAL_WATER_RESOLUTION = 64;
 export const SPECTRAL_WATER_LOG_SIZE = Math.log2(SPECTRAL_WATER_RESOLUTION);
 export const SPECTRAL_WATER_SEED = 0x51f15e;
 
 export type SpectralCascadeConfig = Readonly<{
   lengthScale: number;
+  resolution: number;
   cutoffLow: number;
   cutoffHigh: number;
   amplitudeScale: number;
@@ -56,17 +58,19 @@ export type SpectralCascadeConfig = Readonly<{
 export const SPECTRAL_WATER_CASCADES: readonly SpectralCascadeConfig[] = Object.freeze([
   Object.freeze({
     lengthScale: 240,
+    resolution: 64,
     cutoffLow: 0.024,
     cutoffHigh: 0.30,
     amplitudeScale: 0.45,
     choppiness: 1.18,
     secondaryScale: 0.22,
     seed: SPECTRAL_WATER_SEED,
-    shortestWavelength: 17.45,
+    shortestWavelength: Math.PI * 2 / 0.30,
     displacesMesh: true,
   }),
   Object.freeze({
     lengthScale: 64,
+    resolution: 64,
     cutoffLow: 0.30,
     cutoffHigh: 1.22,
     amplitudeScale: 0.45,
@@ -79,7 +83,8 @@ export const SPECTRAL_WATER_CASCADES: readonly SpectralCascadeConfig[] = Object.
   // Decimetre-to-metre waves shade the interface only. Carrying this band
   // into the game mesh would alias at strategic-camera tessellation density.
   Object.freeze({
-    lengthScale: 12,
+    lengthScale: 8,
+    resolution: 64,
     cutoffLow: 1.22,
     cutoffHigh: 24,
     amplitudeScale: 0.82,
@@ -104,6 +109,8 @@ export type SpectralCascadeBinding = Readonly<{
   field1: StorageTexture;
   foam0: StorageTexture;
   foam1: StorageTexture;
+  /** One sampled binding follows the latest ping-pong result. */
+  foam: any;
 }>;
 
 export type SpectralWaterBinding = Readonly<{
@@ -113,10 +120,12 @@ export type SpectralWaterBinding = Readonly<{
 }>;
 
 /**
- * Evolution, fourteen Stockham stages, and foam remain distinct ordered GPU
+ * Evolution, each band's Stockham stages, and foam remain distinct ordered GPU
  * dispatches, but WebGPU can record those dependencies in one compute pass.
  */
-export const SPECTRAL_WATER_DISPATCHES_PER_FRAME = 2 * SPECTRAL_WATER_LOG_SIZE + 2;
+export function spectralWaterDispatchCount(profile:WaterSurfaceProfileId):number {
+  return SPECTRAL_WATER_CASCADES.slice(0,activeCascadeCount(profile)).reduce((sum,c)=>sum+2*Math.log2(c.resolution)+2,0);
+}
 export const SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME = 1;
 
 type CascadeRuntime = {
@@ -554,7 +563,8 @@ function createFoamNode(options: {
       .mul((float(1) as any).add(horizontalZ))
       .sub(crossDerivative.mul(crossDerivative));
     const compression = max(float(0), (float(1) as any).sub(jacobian)) as any;
-    const breaking = smoothstep(float(0.14), float(0.52), compression);
+    // Whitecaps require a strongly compressed crest, not every positive slope.
+    const breaking = smoothstep(float(0.50), float(0.94), compression);
     const decay = exp(options.dtNode.mul(-0.58)) as any;
     const recovered = previous.mul(decay);
     const next = min(float(1), max(recovered, breaking));
@@ -576,7 +586,7 @@ export class SpectralWaterSimulation {
   private readonly timeNode = uniform(0);
   private readonly dtNode = uniform(1 / 60);
   private readonly foamPingNode = uniform(0);
-  private readonly twiddleTexture: THREE.DataTexture;
+  private readonly twiddleTextures = new Map<number,THREE.DataTexture>();
   private readonly runtimes: CascadeRuntime[];
   private readonly frameBatches: readonly [readonly ComputeNode[], readonly ComputeNode[]];
   private foamPing = 0;
@@ -588,15 +598,19 @@ export class SpectralWaterSimulation {
 
   constructor(renderer: WebGPURenderer | null, profileId: WaterSurfaceProfileId) {
     this.renderer = renderer;
-    const size = SPECTRAL_WATER_RESOLUTION;
-    const logSize = SPECTRAL_WATER_LOG_SIZE;
-    const twiddleTexture = createDataTexture(buildStockhamTwiddle(size), size, logSize);
-    twiddleTexture.name = 'Spectral water Stockham twiddle table';
-    this.twiddleTexture = twiddleTexture;
     const runtimes: CascadeRuntime[] = [];
 
     for (const [cascadeIndex, config] of SPECTRAL_WATER_CASCADES
       .slice(0, activeCascadeCount(profileId)).entries()) {
+      // Four or more samples resolve the shortest authored macro wave. Only
+      // the capillary band needs 128²; larger FFTs add oversampling, not energy.
+      const size = config.resolution, logSize = Math.log2(size);
+      let twiddleTexture = this.twiddleTextures.get(size);
+      if(!twiddleTexture){
+        twiddleTexture=createDataTexture(buildStockhamTwiddle(size),size,logSize);
+        twiddleTexture.name=`Spectral water ${size} Stockham twiddle table`;
+        this.twiddleTextures.set(size,twiddleTexture);
+      }
       const data = buildSpectralCascadeData(size, config);
       const initialTexture = createDataTexture(data.initialSpectrum, size, size);
       const waveTexture = createDataTexture(data.waveData, size, size);
@@ -662,7 +676,7 @@ export class SpectralWaterSimulation {
           field1: fieldPing[0][1],
           previous: foam0,
           output: foam1,
-          choppiness: config.choppiness,
+          choppiness: config.choppiness * WATER_SURFACE_PROFILES[profileId].spectralHeightScale,
           dtNode: this.dtNode,
           name: `Update spectral water cascade ${cascadeIndex} foam 0 to 1`,
         }),
@@ -672,7 +686,7 @@ export class SpectralWaterSimulation {
           field1: fieldPing[0][1],
           previous: foam1,
           output: foam0,
-          choppiness: config.choppiness,
+          choppiness: config.choppiness * WATER_SURFACE_PROFILES[profileId].spectralHeightScale,
           dtNode: this.dtNode,
           name: `Update spectral water cascade ${cascadeIndex} foam 1 to 0`,
         }),
@@ -683,6 +697,7 @@ export class SpectralWaterSimulation {
         field1: fieldPing[0][1],
         foam0,
         foam1,
+        foam: texture(foam0),
       };
       runtimes.push({
         binding,
@@ -697,8 +712,8 @@ export class SpectralWaterSimulation {
 
     this.runtimes = runtimes;
     const evolutionBatch = runtimes.map((runtime) => runtime.evolutionNode);
-    const fftBatches = Array.from({ length: logSize * 2 }, (_, stage) =>
-      runtimes.map((runtime) => runtime.fftNodes[stage]));
+    const fftBatches = Array.from({ length: SPECTRAL_WATER_LOG_SIZE * 2 }, (_, stage) =>
+      runtimes.flatMap((runtime) => runtime.fftNodes[stage] ? [runtime.fftNodes[stage]] : []));
     const orderedDispatches = fftBatches.flat();
     this.frameBatches = [
       [
@@ -713,7 +728,7 @@ export class SpectralWaterSimulation {
       ],
     ];
     this.binding = {
-      resolution: size,
+      resolution: Math.max(0,...runtimes.map(r=>r.binding.config.resolution)),
       cascades: runtimes.map((runtime) => runtime.binding),
       foamPing: this.foamPingNode,
     };
@@ -724,8 +739,8 @@ export class SpectralWaterSimulation {
     this.timeNode.value = Number.isFinite(timeSeconds) ? timeSeconds : 0;
     this.dtNode.value = THREE.MathUtils.clamp(
       Number.isFinite(dtSeconds) ? dtSeconds : 0,
-      1 / 240,
-      1 / 20,
+      0,
+      60,
     );
 
     // Dispatch boundaries preserve the exact evolution -> Stockham -> foam
@@ -734,6 +749,9 @@ export class SpectralWaterSimulation {
     renderer.compute(this.frameBatches[this.foamPing] as ComputeNode[]);
     this.foamPing = 1 - this.foamPing;
     this.foamPingNode.value = this.foamPing;
+    for (const runtime of this.runtimes) {
+      runtime.binding.foam.value = this.foamPing === 1 ? runtime.binding.foam1 : runtime.binding.foam0;
+    }
   }
 
   dispose(): void {
@@ -752,7 +770,8 @@ export class SpectralWaterSimulation {
       runtime.binding.foam0.dispose();
       runtime.binding.foam1.dispose();
     }
-    this.twiddleTexture.dispose();
+    for(const twiddle of this.twiddleTextures.values())twiddle.dispose();
+    this.twiddleTextures.clear();
   }
 }
 

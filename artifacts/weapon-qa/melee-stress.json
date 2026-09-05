@@ -1,0 +1,2408 @@
+{
+  "capturedAt": "2026-09-05T16:30:23.415Z",
+  "sources": {
+    "src/settlement/weaponAttackMotion.ts": "17ebd9194b0f82567c9f32f16ff6356fa9a1928c1d17b5958d521c7ef8cefaee",
+    "src/settlement/meleeBodyPose.ts": "223c04ee0a6e347188632c0bea6e20a97b0ef20303b8a5756506fc786b351872",
+    "src/settlement/combatWeaponAnimation.ts": "f740f4c46fae8994575d888396d0d78428a5c5da715b75a03d268933f451f33f",
+    "src/settlement/meleeHandGrip.ts": "65165fa0c2fc5616616457861e7c5f3ce496dd3e6b4a04cf6741079266547a7d",
+    "public/assets/models/villagers/worker-male-common-01-v002.glb": "b83b6fa6b58098304cecce9dbd76302c645db5d52f4377e1e7c2a17b656568f7",
+    "public/assets/models/villagers/ottoman-raider-common-01-v001.glb": "2159ac4dd1aae05aa0379f35bf3ea3166a06d859e3e60a1f08406f97e16b0a95"
+  },
+  "errors": [],
+  "reports": [
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 2.653960110794065,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.436672200798926e-7,
+      "maxGripError": 0.0000877721535738981,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0302595590270203
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 2.654116802068424,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.522382296690756e-7,
+      "maxGripError": 0.00009141757902594398,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0720166390645336
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 2.6544089439979275,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.600889162214885e-7,
+      "maxGripError": 0.00009511441761576974,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1134474725056522
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 1.7744367700135695,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 1.888975852548282e-7,
+      "maxGripError": 0.00008787869936124219,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0266629782729024
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.0964323638076468,
+      "worstJoint": "L_GripMiddle",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008608357941961546,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.741591168806363
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 1.7746592464138353,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 1.957286905361127e-7,
+      "maxGripError": 0.0000915260195118164,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0682696209580003
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.06844699374795468,
+      "worstJoint": "L_GripPinky",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008966921880282799,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7712733969791424
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 1.7751674154198702,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 2.0226145617937739e-7,
+      "maxGripError": 0.00009510898405676337,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1095511964426432
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.08477330269964561,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009323080125323213,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8007237346010015
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 2.651587898764612,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.436672200798926e-7,
+      "maxGripError": 0.0000877721535738981,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0304121085004352
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 2.651800185787129,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.522382296690756e-7,
+      "maxGripError": 0.00009141757902594398,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0721753058258758
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 2.652092249986225,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 2.600889162214885e-7,
+      "maxGripError": 0.00009511441761576974,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1136121807199169
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.05800760458309,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 3.611486906738967e-7,
+      "maxGripError": 0.00008829316193784753,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5931260485656659
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.057567884041635,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 3.7448308077911367e-7,
+      "maxGripError": 0.00009198943559925587,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6165980201975112
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.0573702100795686,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 3.874012118168864e-7,
+      "maxGripError": 0.00009567253747374997,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6398866522324026
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 6.285778333879797,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.512706261797381e-7,
+      "maxGripError": 0.00008842606207182729,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5804154136050574
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 6.28600788400185,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.6451694675401144e-7,
+      "maxGripError": 0.000092140482436774,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6033556361236969
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 6.285815631970767,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 4.7667413295383824e-7,
+      "maxGripError": 0.00009583029860213108,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6261166361024135
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 7.114963200438939,
+      "worstJoint": "R_GripMiddle",
+      "maxFootSlide": 4.5127062587835144e-7,
+      "maxGripError": 0.00008838714495605887,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5802910335289291
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.05775857062172577,
+      "worstJoint": "L_GripIndex",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008522998808271204,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2725669289262256
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 7.1148306514104505,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 4.6451694633127836e-7,
+      "maxGripError": 0.00009210053710210841,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6032260552946711
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.06798282762267606,
+      "worstJoint": "L_GripPinky",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008877956145127992,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2826298670605094
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 7.1148865328792,
+      "worstJoint": "R_Hand",
+      "maxFootSlide": 4.766741326864758e-7,
+      "maxGripError": 0.00009578945111675117,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6259818986359161
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.05024273593778667,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009229989214751346,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2926141883190122
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 7.114824025804527,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 4.5127062587835144e-7,
+      "maxGripError": 0.00008838625338491779,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.45755727855577355
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.10757476409148727,
+      "worstJoint": "L_GripPinkyTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008523331194032768,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.0940930223824652
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 7.1148732819529465,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 4.6451694633127836e-7,
+      "maxGripError": 0.00009209941002258727,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.47535833015521706
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.06844699374795468,
+      "worstJoint": "L_GripRing",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008878256646541695,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.0966903879787474
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 7.114886532879608,
+      "worstJoint": "R_Hand",
+      "maxFootSlide": 4.766741326864758e-7,
+      "maxGripError": 0.00009578808221842242,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.49302031293724996
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.0752080565553329,
+      "worstJoint": "L_GripThumb",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009230259026508092,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.09926746143096288
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 6.285761137218867,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 4.5127062587835144e-7,
+      "maxGripError": 0.00008842996076029606,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7817803050891319
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 6.285992482113532,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.6451694633127836e-7,
+      "maxGripError": 0.00009214540935633065,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8131436476669598
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 6.28563815715277,
+      "worstJoint": "R_Hand",
+      "maxFootSlide": 4.766741326864758e-7,
+      "maxGripError": 0.00009583607449971573,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8442619630259544
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 6.285761137218867,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 4.5127062587835144e-7,
+      "maxGripError": 0.00008842996076029606,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7817803050891319
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 6.285992482113532,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.6451694633127836e-7,
+      "maxGripError": 0.00009214540935633065,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8131436476669598
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 6.28563815715277,
+      "worstJoint": "R_Hand",
+      "maxFootSlide": 4.766741326864758e-7,
+      "maxGripError": 0.00009583607449971573,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8442619630259544
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 2.822137151265264,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.0713695657866689e-7,
+      "maxGripError": 0.00007141363811917113,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0467932704561225
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 2.8220497561908933,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.1443328710260699e-7,
+      "maxGripError": 0.00007439768125509914,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0892421632668718
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 2.8220467868352577,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.2231815954897655e-7,
+      "maxGripError": 0.00007738811458443711,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1313594265018687
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 1.7531146264887465,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 8.462855713770636e-8,
+      "maxGripError": 0.000029313991503814377,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.043036506556864
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.04996216506930299,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000026516467499159435,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7584406613344693
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 1.7536751048640238,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 9.020913548123394e-8,
+      "maxGripError": 0.00003054526960104932,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0853281862161286
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.03676173216210261,
+      "worstJoint": "L_GripIndexTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000027617222434467574,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7888277371442756
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 1.7528248271438713,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 9.605945366885146e-8,
+      "maxGripError": 0.00003179570098423299,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.127289458466773
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.04667547017438297,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000028709128401767408,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8189773581292452
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 2.8520838180539125,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.0713695657866689e-7,
+      "maxGripError": 0.00007103916112799096,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.046944692611598
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 2.851998388227315,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.1443328710260699e-7,
+      "maxGripError": 0.00007400756937787997,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.0893999538416343
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "pike-kit",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 2.8519880136615776,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.2231815954897655e-7,
+      "maxGripError": 0.00007698329125017084,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1315235391870047
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 5.45056942237094,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.6443374888481015e-7,
+      "maxGripError": 0.0000744008837539419,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6072754488431148
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 5.450576759894454,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.7520349799264645e-7,
+      "maxGripError": 0.00007750212459553971,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6313392672854046
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "halberd",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 5.450582840583503,
+      "worstJoint": "L_UpperarmTwist02",
+      "maxFootSlide": 1.8634463894716175e-7,
+      "maxGripError": 0.000080510310685036,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6552150944798817
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 6.4749207283270875,
+      "worstJoint": "R_GripPinky",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.000030373763299761283,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5960626747409763
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 6.47494266882072,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003163494209223953,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6196574412214362
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 6.474917259263264,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.000032884661813272545,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.64306787302682
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 10.36403291795747,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.00003030705884154488,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5960626511226351
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.03632593641025218,
+      "worstJoint": "L_GripMiddleTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000024955405360012772,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.2911538725695628
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 10.363832525630047,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003156727011079879,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6196574122124505
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.031012158825544398,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 0,
+      "maxGripError": 0.0000260056248436559,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.3019942923326713
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 10.36361900074829,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.00003281611967548377,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6430678401322784
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.0512842667307251,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.0000270479453282512,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.31275002148603304
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 10.364032917957188,
+      "worstJoint": "R_GripRing",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.00003030488624964152,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.47332887294419074
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.04144114798133471,
+      "worstJoint": "L_GripIndexTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000024954253014475777,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.11267999776980919
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 10.363845861711548,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003156478937397593,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.4917896666285226
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.03676173216210261,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000026004798546941334,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.11605484241402253
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 10.363623332693773,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.000032813314773546156,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5101062365602403
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sword-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.036861435163905235,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000027047426519556575,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.11940332130911857
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 6.474923772005567,
+      "worstJoint": "R_GripPinky",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.000030383397909579577,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7975519522325807
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 6.47507672817179,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003164640768020422,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8295750337627771
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 6.474805556098565,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.000032898034932736766,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8613479346619062
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 6.474923772005567,
+      "worstJoint": "R_GripPinky",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.000030383397909579577,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.7975519522325807
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 6.47507672817179,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003164640768020422,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8295750337627771
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "crossbow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 6.474805556098565,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.000032898034932736766,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8613479346619062
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 1.6898546788632205,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008752080245348088,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.468102705928746
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.044121497683966907,
+      "worstJoint": "L_GripPinky",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008527043894632121,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.1937140155563124
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 1.6897179106496485,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009114800055995222,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.482766590232183
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.021308867671884998,
+      "worstJoint": "L_UpperarmTwist01",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008882701552677748,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.1969001798991306
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 1.6904091962981325,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009473576781028594,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.4978128602606098
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.08305797355675551,
+      "worstJoint": "R_GripIndexTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000092357085792344,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2005584363494477
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.250176542024255,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.0000889310003204726,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2735922446001382
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 0.0495418461510599,
+      "worstJoint": "L_GripRing",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008604998307638229,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 0.8572651931749147
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.250285600589077,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009267336391504823,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2801198010582933
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 0.06223173090782984,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008963638816293058,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8463777368634888
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.250117422813538,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009642448294815766,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2870933270169451
+    },
+    {
+      "input": {
+        "unit": "hussars",
+        "variant": "man",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 0.06938217959308816,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.0000931802908021619,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 0.8360723058147196
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 1.6898546788632205,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008752080245348088,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.4708815371118245
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 1.6897179106496485,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009114800055995222,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.485661663030909
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "spear",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 1.6904091962981325,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009473576781028594,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.500823270110117
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.250176542023977,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008893099893476594,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2736434121325007
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.250285600588522,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009267336235082037,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2801731089221318
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.250117422813538,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009642448007575946,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2871487584940744
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.250176542024255,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008892647757917657,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.3556573877088485
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.250285600588522,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009266815250541372,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.3656177209679734
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.250117422813538,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009641514572097499,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.3759972095102857
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.250176542023977,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008893099893476594,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2736434121325007
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.250285600588522,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009267336235082037,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2801731089221318
+    },
+    {
+      "input": {
+        "unit": "mounted-archers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.250117422813538,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009642448007575946,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2871487584940744
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 5.324370217934432,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000030990060618059474,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 1.3562517938682244
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 5.324553279720331,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003228354737313813,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 1.366088302252041
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "bow",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 5.324345468645569,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000033611887722107345,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.3764932774467216
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 5.324370217934432,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003099522181421374,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 1.274186651626195
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.04399489883516728,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000026269243181580665,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 0.858531317825963
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 5.324553279720331,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003229185209062007,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 1.280590383332199
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.08840398371969911,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000027345582488738582,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 0.8475481262150614
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 5.324345468645569,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003362367977979825,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2875893952916004
+    },
+    {
+      "input": {
+        "unit": "akinci",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.053929948925012516,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000028433975683889974,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8372960502178655
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 1.6489047485866044,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00002845861021930186,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 1.4694978596515402
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.04506232410034955,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000025115835537912952,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 1.1955882542730487
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 1.649735046212166,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00002962557302973217,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 1.4840713760208724
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.045511896730038325,
+      "worstJoint": "R_GripThumb",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00002617150088433602,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 1.1987041778584597
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 1.6491994025893133,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003080893319160834,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.4991763283494617
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "spear-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.053639025977897443,
+      "worstJoint": "R_GripPinky",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00002721852312467395,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2024410866856134
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 5.324370217934432,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003099522181421374,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 1.274186651626195
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 0.04399489883516728,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000026269243181580665,
+      "maxRidingLegChange": 4.2146848510894035e-8,
+      "minWeaponY": 0.858531317825963
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 5.324553279720331,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003229185209062007,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 1.280590383332199
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 0.08840398371969911,
+      "worstJoint": "R_UpperarmTwist02",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000027345582488738582,
+      "maxRidingLegChange": 5.16191365590357e-8,
+      "minWeaponY": 0.8475481262150614
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 5.324345468645569,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00003362367977979825,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2875893952916004
+    },
+    {
+      "input": {
+        "unit": "sipahi",
+        "variant": "raider",
+        "weapon": "sidearm-shield",
+        "standard": false,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": true
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 0.053929948925012516,
+      "worstJoint": "L_GripRingTip",
+      "maxFootSlide": 0,
+      "maxGripError": 0.000028433975683889974,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.8372960502178655
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 6.285778333879797,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.512706261797381e-7,
+      "maxGripError": 0.00008842606207182729,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5804154136050574
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 6.28600788400185,
+      "worstJoint": "R_GripRingTip",
+      "maxFootSlide": 4.6451694675401144e-7,
+      "maxGripError": 0.000092140482436774,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6033556361236969
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 6.285815631970767,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 4.7667413295383824e-7,
+      "maxGripError": 0.00009583029860213108,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6261166361024135
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6712153984314828,
+      "maxJointStepDegrees": 6.4749207283270875,
+      "worstJoint": "R_GripPinky",
+      "maxFootSlide": 1.7140257455331284e-7,
+      "maxGripError": 0.000030373763299761283,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.5960626747409763
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7411224477776366,
+      "maxJointStepDegrees": 6.47494266882072,
+      "worstJoint": "R_GripMiddleTip",
+      "maxFootSlide": 1.82959051397448e-7,
+      "maxGripError": 0.00003163494209223953,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.6196574412214362
+    },
+    {
+      "input": {
+        "unit": "on-foot",
+        "variant": "raider",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.8104833483007734,
+      "maxJointStepDegrees": 6.474917259263264,
+      "worstJoint": "R_GripPinkyTip",
+      "maxFootSlide": 1.9555930897737236e-7,
+      "maxGripError": 0.000032884661813272545,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 0.64306787302682
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 0,
+        "yaw": 0.7,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.6520069639640929,
+      "maxJointStepDegrees": 5.250176542023977,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00008893099893476594,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2736434121325007
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 32768,
+        "yaw": 0,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7211105232410222,
+      "maxJointStepDegrees": 5.250285600588522,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009267336235082037,
+      "maxRidingLegChange": 0,
+      "minWeaponY": 1.2801731089221318
+    },
+    {
+      "input": {
+        "unit": "armored-lancers",
+        "variant": "man",
+        "weapon": "sidearm",
+        "standard": true,
+        "seed": 65280,
+        "yaw": 2.5,
+        "defensive": false
+      },
+      "problems": {},
+      "bodyScale": 1.7896742109611006,
+      "maxJointStepDegrees": 5.250117422813538,
+      "worstJoint": "R_Forearm",
+      "maxFootSlide": 0,
+      "maxGripError": 0.00009642448007575946,
+      "maxRidingLegChange": 2.9802322387695312e-8,
+      "minWeaponY": 1.2871487584940744
+    }
+  ]
+}

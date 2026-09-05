@@ -4,13 +4,6 @@ import {
   RENDER_WATER_MASK_THRESHOLD,
   type RiverField,
 } from './RiverField.ts';
-import {
-  createBilinearGridSample,
-  createVirtualPipesWetTopology,
-  sampleBilinearGridDifference,
-  type BilinearGridSample,
-  VirtualPipesWater2D,
-} from './virtualPipesWater.ts';
 import { disposeSharedRiverWaterMaterial, getSharedRiverWaterMaterial } from './RiverWaterMaterial.ts';
 import {
   computeWaterFeatherAlpha,
@@ -21,10 +14,6 @@ import {
 import { waterSurfaceProfileForPreset } from './WaterSurfaceProfile.ts';
 import { getRiverWaterColumnDepth } from './RiverWaterLevel.ts';
 
-const WATER_SIM_RENDER_DELTA_SCALE = 0.24;
-export const WATER_SIM_RENDER_DELTA_LIMIT = 0.16;
-const MAX_SIM_CATCHUP_STEPS = 2;
-const WATER_CPU_UPDATE_INTERVAL_SEC = 1 / 20;
 const WATER_CLIP_FEATHER = -0.62;
 const KUPA_ANALYTIC_CLIP_SCALE = 3.2;
 export const MAX_RIVER_WATER_NORMAL_SLOPE = 0.16;
@@ -33,19 +22,7 @@ const RIVER_NORMAL_SAMPLE_STEP = 0.75;
 
 export { disposeSharedRiverWaterMaterial };
 
-export function computeRiverSimulationRenderDelta(depthDelta: number): number {
-  if (!Number.isFinite(depthDelta)) return 0;
-  return Math.max(
-    -WATER_SIM_RENDER_DELTA_LIMIT,
-    Math.min(
-      WATER_SIM_RENDER_DELTA_LIMIT,
-      depthDelta * WATER_SIM_RENDER_DELTA_SCALE,
-    ),
-  );
-}
-
 export type RiverWaterController = {
-  tick: (dt: number, timeSec?: number) => void;
   dispose: () => void;
 };
 
@@ -138,8 +115,6 @@ function compactWaterVertices(params: {
   foamBase: Float32Array;
   featherAlpha: Float32Array;
   positions: Float32Array;
-  simDelta: Float32Array;
-  gridSamples: BilinearGridSample[];
 } {
   const used = new Set<number>();
   for (const index of params.indices) used.add(index);
@@ -153,8 +128,6 @@ function compactWaterVertices(params: {
   const foamBase = new Float32Array(count);
   const featherAlpha = new Float32Array(count);
   const positions = new Float32Array(count * 3);
-  const simDelta = new Float32Array(count);
-  const gridSamples = new Array<BilinearGridSample>(count);
 
   for (let newIndex = 0; newIndex < count; newIndex++) {
     const oldIndex = sorted[newIndex];
@@ -167,7 +140,6 @@ function compactWaterVertices(params: {
     positions[newIndex * 3] = params.positions[oldIndex * 3];
     positions[newIndex * 3 + 1] = params.positions[oldIndex * 3 + 1];
     positions[newIndex * 3 + 2] = params.positions[oldIndex * 3 + 2];
-    gridSamples[newIndex] = createBilinearGridSample(gxValue, gzValue, params.nx, params.nz);
   }
 
   return {
@@ -177,8 +149,6 @@ function compactWaterVertices(params: {
     foamBase,
     featherAlpha,
     positions,
-    simDelta,
-    gridSamples,
   };
 }
 
@@ -193,7 +163,7 @@ export function createRiverWaterMesh(
   const nz = riverField.resolution;
   if (nx < 2 || nz < 2) return null;
 
-  const shoreMaps = createRiverWaterShoreMaps(riverField);
+  const shoreMaps = createRiverWaterShoreMaps(riverField,{terrain});
   const organicSigned = riverField.organicSignedDistance;
   const riverMask = riverField.riverMask;
 
@@ -242,18 +212,7 @@ export function createRiverWaterMesh(
   }
   if (!hasWet) return null;
 
-  const sim = new VirtualPipesWater2D({
-    nx,
-    ny: nz,
-    dx: riverField.stepX,
-    dy: riverField.stepZ,
-    dt: 0.005,
-    g: 2.4,
-    friction: 0.06,
-    viscosity: 0.1,
-  });
-  const wetTopology = createVirtualPipesWetTopology(nx, nz, wetMask);
-
+  const bedHeights = new Float32Array(nx * nz);
   const baseDepth = new Float32Array(nx * nz);
 
   for (let iz = 0; iz < nz; iz++) {
@@ -262,7 +221,7 @@ export function createRiverWaterMesh(
       const wx = riverField.startX + ix * riverField.stepX;
       const wz = riverField.startZ + iz * riverField.stepZ;
       const bed = terrain.getHeightAt(wx, wz);
-      sim.terrain[i] = bed;
+      bedHeights[i] = bed;
       if (wetMask[i]) {
         const surfaceOverride = riverField.layout.getWaterSurfaceOverride(wx, wz);
         const riverDepth = getRiverWaterColumnDepth(
@@ -275,10 +234,8 @@ export function createRiverWaterMesh(
           ? riverDepth
           : Math.max(0.15, surfaceOverride - bed);
         baseDepth[i] = depth;
-        sim.depth[i] = depth;
       } else {
         baseDepth[i] = 0;
-        sim.depth[i] = 0;
       }
     }
   }
@@ -532,7 +489,7 @@ export function createRiverWaterMesh(
       && riverField.layout.terrainPreset !== 'gomirje_meadows'
       && riverField.layout.terrainPreset !== 'mrkopalj_polje'
     ) {
-      return sampleFloatGridBilinear(sim.terrain, nx, nz, gx, gz)
+      return sampleFloatGridBilinear(bedHeights, nx, nz, gx, gz)
         + sampleFloatGridBilinear(baseDepth, nx, nz, gx, gz);
     }
     const wx = riverField.startX + gx * riverField.stepX;
@@ -568,12 +525,9 @@ export function createRiverWaterMesh(
   const positionAttr = new THREE.BufferAttribute(compact.positions, 3);
   const foamAttr = new THREE.BufferAttribute(compact.foamBase, 1);
   const featherAttr = new THREE.BufferAttribute(compact.featherAlpha, 1);
-  const simDeltaAttr = new THREE.BufferAttribute(compact.simDelta, 1);
-  simDeltaAttr.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute('position', positionAttr);
   geometry.setAttribute('foamBase', foamAttr);
   geometry.setAttribute('featherAlpha', featherAttr);
-  geometry.setAttribute('simDelta', simDeltaAttr);
   geometry.setIndex(compact.indices);
 
   // Derive normals from the continuous still-water heightfield rather than
@@ -601,20 +555,10 @@ export function createRiverWaterMesh(
   }
   geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
 
-  const vertexCount = compact.gx.length;
-  const gridSamples = compact.gridSamples;
-
-  const updateSimDelta = () => {
-    const simValues = simDeltaAttr.array as Float32Array;
-    for (let vi = 0; vi < vertexCount; vi++) {
-      simValues[vi] = computeRiverSimulationRenderDelta(
-        sampleBilinearGridDifference(gridSamples[vi], sim.depth, baseDepth),
-      );
-    }
-    simDeltaAttr.needsUpdate = true;
-  };
-
   const waterProfile = waterSurfaceProfileForPreset(riverField.layout.terrainPreset);
+  // Shader displacement is invisible to CPU frustum culling.
+  geometry.computeBoundingSphere();
+  if (geometry.boundingSphere) geometry.boundingSphere.radius += 3;
   const mesh = new THREE.Mesh(
     geometry,
     getSharedRiverWaterMaterial(shoreMaps, waterProfile),
@@ -636,10 +580,6 @@ export function createRiverWaterMesh(
   mesh.renderOrder = 1.25;
   group.add(mesh);
 
-  updateSimDelta();
-
-  let simAccum = 0;
-  let cpuAccum = 0;
   let disposed = false;
 
   const dispose = () => {
@@ -651,31 +591,5 @@ export function createRiverWaterMesh(
     disposeSharedRiverWaterMaterial();
   };
 
-  const tick = (dt: number, _timeSec = 0) => {
-    if (disposed) return;
-
-    cpuAccum += Math.min(0.1, Math.max(0, dt));
-    if (cpuAccum < WATER_CPU_UPDATE_INTERVAL_SEC) return;
-    const updateDt = cpuAccum;
-    cpuAccum = 0;
-
-    // The visual solver intentionally advances at most two 5 ms steps per
-    // 20 Hz presentation update. Cap discarded catch-up time so a slow frame
-    // cannot create an unbounded accumulator that can never be repaid.
-    simAccum = Math.min(
-      sim.dt * MAX_SIM_CATCHUP_STEPS,
-      simAccum + Math.min(0.1, Math.max(0, updateDt)),
-    );
-    let steps = 0;
-    let stepped = false;
-    while (simAccum >= sim.dt && steps < MAX_SIM_CATCHUP_STEPS) {
-      sim.stepMasked(wetTopology);
-      simAccum -= sim.dt;
-      steps++;
-      stepped = true;
-    }
-    if (stepped) updateSimDelta();
-  };
-
-  return { tick, dispose };
+  return { dispose };
 }

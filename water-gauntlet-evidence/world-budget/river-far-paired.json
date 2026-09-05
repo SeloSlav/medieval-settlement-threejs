@@ -1,0 +1,326 @@
+[
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": true,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 33.00330033004568,
+    "p95FrameMs": 42.5,
+    "p99FrameMs": 60.60000000000582,
+    "medianCpuMs": 8.100000008940697,
+    "p95CpuMs": 11.600000008940697,
+    "samples": 180,
+    "gpuMedianMs": 7.105536,
+    "computeGpuMedianMs": 0,
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3028,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3024,
+        "lastRefreshFrame": 2730,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI"
+  },
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": false,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 33.00330033004568,
+    "p95FrameMs": 36.39999999999418,
+    "p99FrameMs": 60.60000000000582,
+    "medianCpuMs": 6.300000011920929,
+    "p95CpuMs": 7.100000008940697,
+    "samples": 180,
+    "gpuMedianMs": 7.001087999999999,
+    "computeGpuMedianMs": 0,
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3328,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3324,
+        "lastRefreshFrame": 2730,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI"
+  },
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": false,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 33.00330033004568,
+    "p95FrameMs": 36.39999999999418,
+    "p99FrameMs": 60.60000000000582,
+    "medianCpuMs": 6.799999997019768,
+    "p95CpuMs": 7.799999997019768,
+    "samples": 180,
+    "gpuMedianMs": 6.931455999999999,
+    "computeGpuMedianMs": 0,
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3628,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3624,
+        "lastRefreshFrame": 2730,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI"
+  },
+  {
+    "profile": "river",
+    "settings": {
+      "seed": 1802504051,
+      "terrainPreset": "kupa_valley",
+      "mapSize": "medium",
+      "topography": 50,
+      "hydrology": 50,
+      "forestDensity": 50,
+      "resourceAbundance": 50,
+      "resourceVariety": 50,
+      "conflictMode": "peaceful",
+      "enemyPressure": 0,
+      "banditCampsEnabled": true,
+      "wildAnimalAttacksEnabled": true,
+      "severeWeatherEnabled": false,
+      "wellAquiferNetworksEnabled": false,
+      "approvalDeclineRate": 100,
+      "foodSpoilageRate": 100,
+      "initialGoodsMultiplier": 1,
+      "militaryDemands": 1
+    },
+    "view": "far",
+    "baseline": true,
+    "camera": [
+      -62.81140489657792,
+      86.8033104955662,
+      52.39332429468591
+    ],
+    "target": [
+      -162.21733825556905,
+      -3.196689504433804,
+      1.1169124367193166
+    ],
+    "fps": 33.00330033004568,
+    "p95FrameMs": 30.60000000000582,
+    "p99FrameMs": 60.59999999997672,
+    "medianCpuMs": 6.700000002980232,
+    "p95CpuMs": 7.4000000059604645,
+    "samples": 180,
+    "gpuMedianMs": 7.119871999999997,
+    "computeGpuMedianMs": 0,
+    "renderer": {
+      "backend": "webgpu",
+      "frames": 3928,
+      "calls": 190,
+      "renderPasses": 15,
+      "triangles": 53498734,
+      "pixelRatio": 1,
+      "directionalShadow": {
+        "refreshedThisFrame": false,
+        "refreshes": 4,
+        "cachedFrames": 3924,
+        "lastRefreshFrame": 2730,
+        "reasons": [
+          "camera-refit"
+        ],
+        "reasonCounts": {
+          "camera-refit": 3,
+          "forest-casters": 0,
+          "first-person-motion": 0,
+          "dynamic-casters": 0,
+          "static-casters": 1,
+          "renderer-state": 1
+        }
+      }
+    },
+    "adapter": {
+      "source": "webgpu-adapter-info",
+      "identityStatus": "available",
+      "fallbackStatus": "non-fallback",
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": null,
+      "description": null,
+      "isFallbackAdapter": false,
+      "limitations": []
+    },
+    "included": "Production SceneManager: terrain, horizon, forest, grass, river details, sky, shadows, post, wildlife",
+    "omitted": "Settlement entities, database and game UI"
+  }
+]

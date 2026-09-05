@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "recordedAt": "2026-09-05T18:06:21.337Z",
+  "unitChecks": [
+    {
+      "script": "scripts/testWaterHydraulics.mts",
+      "exitCode": 0
+    },
+    {
+      "script": "scripts/testWaterHorizonJoin.mts",
+      "exitCode": 0
+    },
+    {
+      "script": "scripts/testTerrainHorizon.mts",
+      "exitCode": 0
+    },
+    {
+      "script": "scripts/testRiverWaterMaterial.mts",
+      "exitCode": 0
+    },
+    {
+      "script": "scripts/testKupaRiverPresentation.mts",
+      "exitCode": 0
+    },
+    {
+      "script": "scripts/testSparseVirtualPipesWater.mts",
+      "exitCode": 0
+    }
+  ],
+  "typescript": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit",
+    "exitCode": 0
+  },
+  "browser": {
+    "command": "WATER_GAUNTLET_PORT=5204 playwright test -c playwright.water.config.ts",
+    "passed": 4,
+    "failed": 0,
+    "durationSeconds": 49.3
+  },
+  "builds": [
+    {
+      "mode": "production",
+      "exitCode": 0,
+      "log": "build-production.log",
+      "note": "Existing large-chunk advisory remains."
+    },
+    {
+      "mode": "e2e",
+      "exitCode": 0,
+      "log": "build-e2e.log"
+    }
+  ],
+  "visualChecks": {
+    "referenceVideoPlayback": true,
+    "newClipsDecoded": 3,
+    "reviewErrors": 0,
+    "coastalJoin": "exact single-surface coverage on both sides of the production boundary",
+    "rainAndNight": "production coast and all three isolated profiles",
+    "temporalContinuity": "motion-release/continuity.json",
+    "extraSeedsAndDpr": "stress-release/"
+  },
+  "performance": {
+    "fixtures": 9,
+    "protocol": "Same loaded production environment, 4 ABBA cycles per view, 360 samples per variant",
+    "medianFrameIntervalMaxRegressionMs": 0.1,
+    "notes": "Seven median intervals match; two differ by one 0.1 ms timer step. Full settlement entities/database/UI were not included. GPU cost is recorded separately in the evidence table."
+  }
+}

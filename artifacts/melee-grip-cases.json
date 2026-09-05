@@ -1,0 +1,8 @@
+[
+ {"name":"melee-grip-raider-spear-left","unit":"on-foot","variant":"raider","weapon":"spear","mode":"attack","phase":0.56,"view":"grip-left"},
+ {"name":"melee-grip-raider-spear-right","variant":"raider","weapon":"spear-shield","mode":"attack","phase":0.56,"view":"grip"},
+ {"name":"melee-grip-raider-sword","variant":"raider","weapon":"sidearm","mode":"attack","phase":0.12,"view":"grip"},
+ {"name":"melee-grip-man-halberd","variant":"man","weapon":"halberd","mode":"attack","phase":0.56,"view":"grip-left"},
+ {"name":"melee-grip-shield-forward","variant":"man","weapon":"sword-shield","mode":"defend","phase":0.5,"view":"front"},
+ {"name":"melee-grip-shield-side","variant":"man","weapon":"sword-shield","mode":"defend","phase":0.5,"view":"side"}
+]
