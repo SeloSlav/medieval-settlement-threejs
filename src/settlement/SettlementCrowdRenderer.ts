@@ -56,6 +56,7 @@ import {
 } from './companyStandardTextures.ts';
 import { configureVillagerMaterialLighting } from './villagerMaterialLighting.ts';
 import { locomotionAnimationTimeScale } from './locomotionAnimation.ts';
+import { installMilitaryHandGrip } from './militaryHandGrip.ts';
 import type {
   ClericAnimationMode,
   ClericAuthoredAnimationName,
@@ -1470,6 +1471,7 @@ async function loadVillagerSource(
   ) => Record<VillagerRenderMode, THREE.AnimationClip>,
 ): Promise<VillagerSource> {
   const gltf = await new GLTFLoader().loadAsync(url);
+  installMilitaryHandGrip(gltf.scene);
   const bounds = new THREE.Box3().setFromObject(gltf.scene);
   const sourceHeight = bounds.max.y - bounds.min.y;
   if (!Number.isFinite(sourceHeight) || sourceHeight <= 0.001) {

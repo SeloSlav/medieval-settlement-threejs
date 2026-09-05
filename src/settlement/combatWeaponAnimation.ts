@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { WorkerToolKind } from './workerTools.ts';
 import type { MilitaryEquipmentCombatStance } from './militaryEquipment.ts';
+import { MILITARY_GRIP_BONES } from './militaryHandGrip.ts';
 
 export type CombatWeaponFamily =
   | 'spear-pike'
@@ -218,6 +219,7 @@ export type CombatWeaponRig = {
   carryGripBaseQuaternion: THREE.Quaternion;
   carryGripBasePosition: THREE.Vector3;
   carryGripBasis: THREE.Matrix4;
+  gripBones: THREE.Bone[];
   nockedArrow: THREE.Group | null;
   bowString: THREE.Line | null;
   bowStringRestCenter: THREE.Vector3 | null;
@@ -257,7 +259,9 @@ export function bindCombatWeaponRig(
     const bone = findRigBone(model, COMBAT_RIG_BONE_ALIASES[key]);
     if (bone) torsoBones[key] = bone;
   }
-  const ownedBones = [...Object.values(armBones), ...Object.values(torsoBones)];
+  const gripBones = MILITARY_GRIP_BONES.map(name => model.getObjectByName(name))
+    .filter((bone): bone is THREE.Bone => bone instanceof THREE.Bone);
+  const ownedBones = [...Object.values(armBones), ...Object.values(torsoBones), ...gripBones];
   const referenceQuaternions = new Map<THREE.Bone, THREE.Quaternion>();
   for (const bone of ownedBones) {
     referenceQuaternions.set(bone, bone.quaternion.clone());
@@ -325,6 +329,7 @@ export function bindCombatWeaponRig(
     carryGripBaseQuaternion: new THREE.Quaternion(),
     carryGripBasePosition: new THREE.Vector3(),
     carryGripBasis: new THREE.Matrix4(),
+    gripBones,
     nockedArrow,
     bowString,
     bowStringRestCenter,
@@ -375,11 +380,11 @@ export function restoreCombatWeaponPose(rig: CombatWeaponRig): void {
   rig.overlayApplied = false;
 }
 
-const CARRY_RIGHT: ArmTarget = [-0.42, -0.5, 0.18];
-const CARRY_LEFT: ArmTarget = [0.42, -0.5, 0.18];
+const CARRY_RIGHT: ArmTarget = [-0.12, -0.42, 0.5];
+const CARRY_LEFT: ArmTarget = [0.12, -0.42, 0.5];
 const CARRY_CROSSBOW: ArmTarget = [-0.2, -0.32, 0.52];
 const UPRIGHT_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.06);
-const LOW_BLADE_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.7);
+const LOW_BLADE_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.1);
 const CROSSBOW_CARRY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 1.25);
 const SHIELD_CARRY = new THREE.Quaternion();
 
@@ -396,8 +401,13 @@ export function applyMilitaryCarryPose(rig: CombatWeaponRig, tool: WorkerToolKin
     : tool === 'sidearm' || tool === 'sidearm-shield' || tool === 'sword-shield'
       ? LOW_BLADE_CARRY : UPRIGHT_CARRY;
   poseCarryArm(rig, primaryLeft, tool === 'crossbow' ? CARRY_CROSSBOW
+    : orientation === LOW_BLADE_CARRY ? [-0.12, -0.93, 0.12]
     : primaryLeft ? CARRY_LEFT : CARRY_RIGHT);
   orientCarryPalm(rig, primaryLeft, primaryMount, orientation);
+  if (!primaryLeft) {
+    if (rig.gripBones[0]) rig.gripBones[0].rotation.z = 1.2;
+    if (rig.gripBones[1]) rig.gripBones[1].rotation.z = 1.45;
+  }
   if (tool === 'crossbow') {
     const grip = primaryMount.userData.workerToolSupportGripLocal as readonly [number, number, number] | undefined;
     if (grip) {
@@ -420,9 +430,12 @@ function poseCarryArm(rig: CombatWeaponRig, left: boolean, target: ArmTarget): v
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   clavicle.quaternion.copy(rig.referenceQuaternions.get(clavicle)!);
   hand.quaternion.copy(rig.referenceQuaternions.get(hand)!);
+  const upper = left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm;
+  const lower = left ? rig.armBones.leftForearm : rig.armBones.rightForearm;
+  upper.quaternion.copy(rig.referenceQuaternions.get(upper)!);
+  lower.quaternion.copy(rig.referenceQuaternions.get(lower)!);
   rig.model.updateWorldMatrix(true, true);
-  solveArm(rig, left ? rig.armBones.leftUpperArm : rig.armBones.rightUpperArm,
-    left ? rig.armBones.leftForearm : rig.armBones.rightForearm, hand, target, left ? 1 : -1);
+  solveArm(rig, upper, lower, hand, target, left ? 1 : -1, true);
 }
 
 function orientCarryGrip(rig: CombatWeaponRig, hand: THREE.Bone, mount: THREE.Group, orientation: THREE.Quaternion): void {
@@ -433,8 +446,8 @@ function orientCarryGrip(rig: CombatWeaponRig, hand: THREE.Bone, mount: THREE.Gr
   hand.updateWorldMatrix(true, true);
 }
 
-/** The rig's palm faces local -Z, fingers extend +Y, and the thumb is on the
- * right hand's +X side (mirrored on the left). Pose this anatomical frame
+/** The worker mesh's palm faces local -X, fingers extend +Y, and the thumb
+ * extends +Z. Pose this anatomical frame
  * first; compensate the weapon mount instead of letting its old rotation
  * turn the palm outward. The handle then sits inside the palm, not at the guard. */
 function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group, orientation: THREE.Quaternion): void {
@@ -443,11 +456,11 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
     rig.carryGripBaseQuaternion.copy(mount.quaternion);
     rig.carryGripBasePosition.copy(mount.position);
   }
-  const thumb = rig.scratchVectors[14]!.set(0, left ? -1 : 1, 0).applyQuaternion(orientation);
-  const back = rig.scratchVectors[15]!.set(left ? 1 : -1, 0, 0);
-  const fingers = rig.scratchVectors[13]!.crossVectors(back, thumb).normalize();
+  const thumb = rig.scratchVectors[14]!.set(0, 1, 0).applyQuaternion(orientation);
+  const back = rig.scratchVectors[15]!.set(-1, 0, 0);
+  const fingers = rig.scratchVectors[13]!.crossVectors(thumb, back).normalize();
   const handModel = rig.scratchQuaternions[3]!.setFromRotationMatrix(
-    rig.carryGripBasis.makeBasis(thumb, fingers, back));
+    rig.carryGripBasis.makeBasis(back, fingers, thumb));
   const hand = left ? rig.armBones.leftHand : rig.armBones.rightHand;
   const handWorld = rig.model.getWorldQuaternion(rig.scratchQuaternions[0]!).multiply(handModel);
   const parentInverse = hand.parent!.getWorldQuaternion(rig.scratchQuaternions[1]!).invert();
@@ -456,7 +469,7 @@ function orientCarryPalm(rig: CombatWeaponRig, left: boolean, mount: THREE.Group
   const grip = mount.userData.workerToolGripLocal as readonly [number, number, number] | undefined;
   const offset = rig.scratchVectors[14]!.set(...(grip ?? [0, 0, 0] as const))
     .multiply(mount.scale).applyQuaternion(mount.quaternion);
-  mount.position.copy(rig.carryGripBasePosition).sub(offset);
+  mount.position.set(left ? 0.005 : -0.01, left ? 0.0383 : 0.06, -0.0071).sub(offset);
   hand.updateWorldMatrix(true, true);
 }
 
@@ -1041,6 +1054,7 @@ function solveArm(
   hand: THREE.Bone,
   target: ArmTarget,
   sideSign: 1 | -1,
+  carrying = false,
 ): void {
   const shoulder = upper.getWorldPosition(rig.scratchVectors[0]!);
   const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
@@ -1056,7 +1070,7 @@ function solveArm(
     .addScaledVector(right, target[0] * totalLength)
     .addScaledVector(up, target[1] * totalLength)
     .addScaledVector(forward, target[2] * totalLength);
-  solveArmToWorld(rig, upper, forearm, hand, handTarget, sideSign);
+  solveArmToWorld(rig, upper, forearm, hand, handTarget, sideSign, carrying);
 }
 
 function solveArmToWorld(
@@ -1066,6 +1080,7 @@ function solveArmToWorld(
   hand: THREE.Bone,
   handTarget: THREE.Vector3,
   sideSign: 1 | -1,
+  carrying = false,
 ): void {
   const shoulder = upper.getWorldPosition(rig.scratchVectors[0]!);
   const elbow = forearm.getWorldPosition(rig.scratchVectors[1]!);
@@ -1090,16 +1105,16 @@ function solveArmToWorld(
     + distance * distance
   ) / (2 * distance);
   const bendDistance = Math.sqrt(Math.max(0, upperLength * upperLength - along * along));
-  const preferredBend = rig.scratchVectors[8]!.copy(right).multiplyScalar(sideSign * 0.76)
-    .addScaledVector(up, -0.58)
-    .addScaledVector(forward, 0.18);
+  const preferredBend = rig.scratchVectors[8]!.copy(right).multiplyScalar(sideSign * (carrying ? 0.12 : 0.76))
+    .addScaledVector(up, carrying ? -1 : -0.58)
+    .addScaledVector(forward, carrying ? -0.1 : 0.18);
   preferredBend.addScaledVector(direction, -preferredBend.dot(direction)).normalize();
   const elbowTarget = rig.scratchVectors[9]!.copy(shoulder)
     .addScaledVector(direction, along)
     .addScaledVector(preferredBend, bendDistance);
-  aimBoneAt(rig, upper, forearm, elbowTarget);
+  aimBoneAt(rig, upper, forearm, elbowTarget, carrying);
   upper.updateWorldMatrix(true, true);
-  aimBoneAt(rig, forearm, hand, handTarget);
+  aimBoneAt(rig, forearm, hand, handTarget, carrying);
   forearm.updateWorldMatrix(true, true);
 }
 
@@ -1108,11 +1123,18 @@ function aimBoneAt(
   bone: THREE.Bone,
   child: THREE.Bone,
   targetWorld: THREE.Vector3,
+  preserveRoll = false,
 ): void {
   const origin = bone.getWorldPosition(rig.scratchVectors[10]!);
   const desiredWorld = rig.scratchVectors[11]!.copy(targetWorld).sub(origin).normalize();
   const parentWorld = bone.parent!.getWorldQuaternion(rig.scratchQuaternions[2]!);
   const desiredParent = desiredWorld.applyQuaternion(parentWorld.invert());
   const boneAxis = rig.scratchVectors[12]!.copy(child.position).normalize();
-  bone.quaternion.setFromUnitVectors(boneAxis, desiredParent).normalize();
+  if (preserveRoll) {
+    boneAxis.applyQuaternion(bone.quaternion);
+    const swing = rig.scratchQuaternions[0]!.setFromUnitVectors(boneAxis, desiredParent);
+    bone.quaternion.premultiply(swing).normalize();
+  } else {
+    bone.quaternion.setFromUnitVectors(boneAxis, desiredParent).normalize();
+  }
 }
