@@ -96,12 +96,10 @@ for (const skill of DEVELOPMENT_SKILLS) {
   assert.ok(document.includes(skill.description), `Description differs in design document: ${skill.name}`);
 }
 assert.doesNotMatch(menu + model, /\.reducers\b|localStorage|sessionStorage|fetch\(/, 'prototype must not mutate or persist simulation data');
-for (const cardinalRule of [
-  /development-branch-label--land \{ left: 50%; top: 0;/,
-  /development-branch-label--craft \{ left: 100%; top: 50%;/,
-  /development-branch-label--hearth \{ left: 50%; top: 100%;/,
-  /development-branch-label--woodland \{ right: 100%; top: 50%;/,
-]) assert.match(menuStyles, cardinalRule, 'branch labels must follow their cardinal branch axes');
+assert.doesNotMatch(menu, /development-branch-label|data-branch-count|0 \/ 6/,
+  'branch names and redundant progress counts must stay off the wheel');
+assert.doesNotMatch(menuStyles, /development-branch-label/,
+  'removed branch labels must not retain dead styling');
 const toolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 assert.match(toolbar, /resourceStrip\.before\(developmentButton\)/);
 assert.doesNotMatch(toolbar + menu, /data-development-badge|development-launcher__badge/);

@@ -1,0 +1,9 @@
+[
+ {"name":"shield-arm-before-small-front","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.4,"view":"front"},
+ {"name":"shield-arm-before-small-elbow","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.4,"view":"elbow-left"},
+ {"name":"shield-arm-before-small-back","weapon":"sidearm-shield","variant":"man","mode":"attack","phase":0.4,"view":"back"},
+ {"name":"shield-arm-before-small-carry","weapon":"sidearm-shield","variant":"man","mode":"walk","time":0.35,"view":"elbow-left"},
+ {"name":"shield-arm-before-raider-elbow","weapon":"sidearm-shield","variant":"raider","mode":"attack","phase":0.4,"view":"elbow-left"},
+ {"name":"shield-arm-before-large","weapon":"sword-shield","variant":"man","mode":"attack","phase":0.95,"view":"front"},
+ {"name":"shield-arm-before-spear","weapon":"spear-shield","variant":"man","mode":"walk","time":0.35,"view":"front"}
+]

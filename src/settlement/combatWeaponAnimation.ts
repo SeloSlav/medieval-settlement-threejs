@@ -519,16 +519,16 @@ function poseShieldArm(rig: CombatWeaponRig, raised: boolean): void {
   resetArm(rig, true);
   const mount = rig.shieldMount!, arm = rig.armBones;
   const body = rig.model.getWorldQuaternion(rig.scratchQuaternions[4]!);
-  const upperDirection = rig.scratchVectors[13]!.set(.45, raised ? -.70 : -.91, raised ? .71 : .41).normalize().applyQuaternion(body);
-  const forearmDirection = rig.scratchVectors[14]!.set(-.98, .16, .10).normalize().applyQuaternion(body);
+  const upperDirection = rig.scratchVectors[13]!.set(.18, raised ? -.78 : -.94, raised ? .60 : .29).normalize().applyQuaternion(body);
+  const forearmDirection = rig.scratchVectors[14]!.set(-.86, .12, .50).normalize().applyQuaternion(body);
   const palm = rig.scratchVectors[15]!.set(0, 0, -1).applyQuaternion(body);
-  // Seat the upper arm in the elbow's bend plane. Palm roll belongs to the
-  // forearm; pointing both bones' palms at the body corkscrews the sleeve.
-  const upperPalm = rig.scratchVectors[12]!.copy(forearmDirection).negate()
-    .addScaledVector(upperDirection, forearmDirection.dot(upperDirection)).normalize();
-  alignShieldBone(rig, arm.leftUpperArm, upperDirection, upperPalm);
-  alignShieldBone(rig, arm.leftForearm, forearmDirection, palm);
-  arm.leftHand.quaternion.identity();
+  // Both segments share the elbow's anatomical hinge. Palm rotation then
+  // belongs to the forearm twist chain; applying it at the elbow collapses
+  // the exposed skin between the rolled sleeve and the leather bracer.
+  const hinge = rig.scratchVectors[12]!.crossVectors(upperDirection, forearmDirection).normalize();
+  alignShieldBone(rig, arm.leftUpperArm, upperDirection, hinge);
+  alignShieldBone(rig, arm.leftForearm, forearmDirection, hinge);
+  alignShieldBone(rig, arm.leftHand, forearmDirection, palm);
   arm.leftHand.updateWorldMatrix(true, false);
   mount.quaternion.copy(SHIELD_HAND_FRAME);
   const grip = mount.userData.shieldGripLocal as readonly [number, number, number];

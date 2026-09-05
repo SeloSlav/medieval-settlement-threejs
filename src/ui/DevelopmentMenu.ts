@@ -61,16 +61,14 @@ export class DevelopmentMenu {
               }).join('')).join('')}
             </svg>
             <div class="development-center"><span data-development-heraldry></span></div>
-            ${DEVELOPMENT_BRANCHES.map(branch => `
-              <div class="development-branch-label development-branch-label--${branch.id}"><span>${branch.name}</span><small data-branch-count="${branch.id}">0 / 6</small></div>
-              ${branch.skills.map((skill, index) => {
+            ${DEVELOPMENT_BRANCHES.map(branch => branch.skills.map((skill, index) => {
                 const position = developmentSkillPosition(branch, index);
                 return `<button type="button" class="development-node${index === 5 ? ' development-node--mastery' : ''}" data-development-skill="${skill.id}" data-branch="${branch.id}"
                   style="left:${position.x / 9}%;top:${position.y / 9}%" aria-pressed="false">
                   <span class="development-node__seal"><img src="${developmentIconUrl(skill.icon)}" alt="" draggable="false"/><span class="development-node__state" aria-hidden="true"></span></span>
                   <span class="development-node__name">${escapeHtml(skill.name)}</span>
                 </button>`;
-              }).join('')}`).join('')}
+              }).join('')).join('')}
           </div>
         </div>
         <aside class="development-ledger" aria-label="Development details">
@@ -206,7 +204,6 @@ export class DevelopmentMenu {
     this.launcher.dataset.tooltip = 'Open the development tree.';
     this.element.querySelectorAll('.development-budget__marks i').forEach((mark, i) => mark.classList.toggle('is-spent', i >= this.state.points));
     for (const branch of DEVELOPMENT_BRANCHES) {
-      this.element.querySelector(`[data-branch-count="${branch.id}"]`)!.textContent = `${branch.skills.filter(skill => this.state.has(skill.id)).length} / 6`;
       for (const skill of branch.skills) {
         const button = this.element.querySelector<HTMLButtonElement>(`[data-development-skill="${skill.id}"]`)!;
         const status = this.state.status(skill.id);

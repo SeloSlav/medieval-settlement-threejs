@@ -122,13 +122,6 @@
 .development-node[aria-pressed='true'] .development-node__seal { outline: 1px solid #eee1b9; outline-offset: 5px; }
 .development-node:hover .development-node__seal { filter: brightness(1.15); }
 .development-node--mastery .development-node__seal { border-radius: 18% 18% 45% 45%; }
-.development-branch-label { position: absolute; z-index: 3; width: 24%; color: #c8b994; font-size: clamp(11px, 1.85cqw, 16px); letter-spacing: .025em; text-align: center; pointer-events: none; }
-.development-branch-label small { display: block; margin-top: 5px; color: #968963; font: 11px system-ui, sans-serif; }
-/* Match the branch angles: craft 0°, hearth 90°, woodland 180°, land 270°. */
-.development-branch-label--land { left: 50%; top: 0; transform: translate(-50%, -115%); }
-.development-branch-label--craft { left: 100%; top: 50%; transform: translate(8%, -50%); }
-.development-branch-label--hearth { left: 50%; top: 100%; transform: translate(-50%, 115%); }
-.development-branch-label--woodland { right: 100%; top: 50%; transform: translate(-8%, -50%); }
 .development-ledger { align-self: center; max-height: calc(100dvh - 124px); overflow: auto; padding: 20px 22px 22px; scrollbar-width: thin; scrollbar-color: #665838 transparent; }
 .development-budget { display: flex; gap: 18px; align-items: center; }
 .development-budget__number { white-space: nowrap; }
