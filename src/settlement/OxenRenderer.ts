@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ExactMountedAttachmentBatch } from './ExactMountedAttachmentBatch.ts';
 import { trailerClock } from '../app/trailerClock.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -108,6 +109,7 @@ type OxVisual = {
   dragLoad: THREE.Group | null;
   dragLoadKind: OxDragLoadKind | null;
   plough: THREE.Group;
+  yoke: THREE.Group;
   x: number;
   z: number;
   yaw: number;
@@ -139,6 +141,8 @@ type OxenSyncInput = {
 export class OxenRenderer {
   readonly ready: Promise<boolean>;
   private readonly root = new THREE.Group();
+  private readonly attachments = new ExactMountedAttachmentBatch(this.root, { name: 'Exact ox harness and haul instances' });
+  private readonly coatColors = new Map<number, AuthoredAnimalMaterialColor[]>();
   private readonly visuals = new Map<string, OxVisual>();
   private readonly getGameSpeed: () => GameSpeed;
   private readonly getHeightAt: (x: number, z: number) => number;
@@ -279,6 +283,8 @@ export class OxenRenderer {
       const stable = this.latestInput.buildings.get(visual.ox.stableId);
       if (!stable || stable.kind !== 'stable') {
         visual.root.visible = false;
+        visual.yoke.visible = visual.plough.visible = false;
+        if (visual.dragLoad) visual.dragLoad.visible = false;
         continue;
       }
 
@@ -287,6 +293,9 @@ export class OxenRenderer {
       const visible = isWithinCrowdView(visual.x, visual.z, view)
         || isWithinCrowdView(target.x, target.z, view);
       visual.root.visible = visible;
+      visual.yoke.visible = visible;
+      visual.plough.visible &&= visible;
+      if (!visible && visual.dragLoad) visual.dragLoad.visible = false;
       if (!visible) continue;
 
       let moving = target.moving;
@@ -349,6 +358,7 @@ export class OxenRenderer {
       else visual.mixer.update(simulationDt);
     }
     this.flushAuthoredBatch();
+    this.attachments.update();
   }
 
   diagnostics(): ReturnType<AuthoredAnimalInstanceBatch['diagnostics']> | null {
@@ -368,6 +378,7 @@ export class OxenRenderer {
     for (const visual of this.visuals.values()) this.removeVisual(visual);
     this.visuals.clear();
     this.batch?.dispose();
+    this.attachments.dispose();
     this.batch = null;
     if (this.source) disposeModelResources(this.source.scene);
     this.source = null;
@@ -478,9 +489,12 @@ export class OxenRenderer {
     root.userData.oxId = ox.id;
     root.add(model);
     setAuthoredAnimalEvaluatorOnly(model, this.batch !== null);
-    root.add(this.createYoke());
+    const yoke = this.createYoke();
+    root.add(yoke);
+    this.attachments.registerTool(yoke);
     const plough = this.createPlough();
     root.add(plough);
+    this.attachments.registerTool(plough);
     this.root.add(root);
 
     const mixer = new THREE.AnimationMixer(model);
@@ -518,6 +532,7 @@ export class OxenRenderer {
       dragLoad: null,
       dragLoadKind: null,
       plough,
+      yoke,
       x: rest.x,
       z: rest.z,
       yaw: rest.yaw,
@@ -658,10 +673,12 @@ export class OxenRenderer {
       return;
     }
     if (!visual.dragLoad || visual.dragLoadKind !== kind) {
+      if (visual.dragLoad) this.attachments.unregisterTool(visual.dragLoad);
       visual.dragLoad?.removeFromParent();
       visual.dragLoad = this.dragLoadLibrary.create(kind);
       visual.dragLoadKind = kind;
       visual.root.add(visual.dragLoad);
+      this.attachments.registerTool(visual.dragLoad);
     }
 
     const load = visual.dragLoad;
@@ -835,6 +852,9 @@ export class OxenRenderer {
   }
 
   private removeVisual(visual: OxVisual): void {
+    this.attachments.unregisterTool(visual.yoke);
+    this.attachments.unregisterTool(visual.plough);
+    if (visual.dragLoad) this.attachments.unregisterTool(visual.dragLoad);
     visual.mixer.stopAllAction();
     visual.mixer.uncacheRoot(visual.model);
     if (!this.batch) disposeClonedModelMaterials(visual.model);
@@ -853,6 +873,9 @@ export class OxenRenderer {
 
   private oxMaterialColors(slot: number): AuthoredAnimalMaterialColor[] {
     if (!this.batch || !this.source) return [];
+    const paletteIndex = Math.abs(Math.floor(slot)) % OX_COAT_PALETTES.length;
+    const cached = this.coatColors.get(paletteIndex);
+    if (cached) return cached;
     const palette = OX_COAT_PALETTES[
       Math.abs(Math.floor(slot)) % OX_COAT_PALETTES.length
     ]!;
@@ -874,7 +897,7 @@ export class OxenRenderer {
         }
       }
     });
-    return this.batch.materialSlots().flatMap((materialSlot) => {
+    const colors = this.batch.materialSlots().flatMap((materialSlot) => {
       const target = targetByName[materialSlot.name];
       const sourceColor = sourceByName.get(materialSlot.name);
       if (target === undefined || !sourceColor) return [];
@@ -886,6 +909,8 @@ export class OxenRenderer {
       );
       return [{ materialSlot: materialSlot.index, color: tint }];
     });
+    this.coatColors.set(paletteIndex, colors);
+    return colors;
   }
 }
 

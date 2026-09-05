@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { FireLighting } from '../fires/FireLighting.ts';
+import { installStaticRenderBundlePreparation } from './StaticRenderBundle.ts';
 
 type WebGPUPowerPreference = 'low-power' | 'high-performance';
 
@@ -236,6 +237,7 @@ function createNativeWebGPURenderer(
   options: RendererConstructionOptions,
 ): WebGPURenderer {
   const renderer = new WebGPURenderer(options);
+  installStaticRenderBundlePreparation(renderer);
   // Three r185 installs an internal WebGL2 fallback even when forceWebGL is
   // absent. The game is native-WebGPU-only, so disable that private boundary
   // before init; the post-init backend check below remains a second guard.

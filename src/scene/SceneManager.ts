@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { installSceneTransformCache } from './SceneTransformCache.ts';
 import { FireLighting } from '../fires/FireLighting.ts';
 import { beginCloseGroundGpuPrewarm, type CloseGroundGpuPrewarm } from './CloseGroundGpuPrewarm.ts';
 import { SceneAtmosphere } from './SceneAtmosphere.ts';
@@ -383,6 +384,7 @@ export class SceneManager {
     );
     this.materials = materials;
     this.scene = new THREE.Scene();
+    installSceneTransformCache(this.scene);
     this.scene.background = null;
     this.scene.fog = new THREE.FogExp2(FAIR_DAY_FOG_COLOR, 0.00072);
     this.atmosphere = new SceneAtmosphere(this.scene.fog);

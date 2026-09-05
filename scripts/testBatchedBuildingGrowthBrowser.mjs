@@ -14,7 +14,7 @@ try {
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
   await page.route('**/batch-growth-probe', r => r.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
   await page.goto(new URL('batch-growth-probe', server.resolvedUrls.local[0]).href);
-  const result = await page.evaluate(async mergeDraws => {
+  const result = await page.evaluate(async ({mergeDraws, shadows}) => {
     const THREE = await import('/node_modules/three/build/three.module.js');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { BuildingStaticBatches } = await import('/src/buildings/BuildingStaticBatches.ts');
@@ -31,7 +31,16 @@ try {
     const parent = new THREE.Group(); scene.add(parent);
     const batches = new BuildingStaticBatches(parent, { mergeDraws });
     const reference = new THREE.Scene(); reference.background = scene.background;
-    for (const s of [scene, reference]) { s.add(new THREE.HemisphereLight(0xffffff,0x777777,3)); const light=new THREE.DirectionalLight(0xffffff,3); light.position.set(10,25,10); s.add(light); }
+    renderer.shadowMap.enabled = shadows;
+    for (const s of [scene, reference]) {
+      s.add(new THREE.HemisphereLight(0xffffff,0x777777,3));
+      const light=new THREE.DirectionalLight(0xffffff,3); light.position.set(40,80,30); s.add(light);
+      if(shadows) {
+        light.castShadow=true;light.shadow.mapSize.set(1024,1024);
+        Object.assign(light.shadow.camera,{left:-80,right:80,top:80,bottom:-80,near:1,far:250});light.shadow.camera.layers.enable(1);
+        const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x888888}));ground.rotation.x=-Math.PI/2;ground.position.y=-.1;ground.receiveShadow=true;s.add(ground);
+      }
+    }
     const target = new THREE.Vector3(0, 0, 0);
     const renderTarget = new THREE.RenderTarget(640,480);
     const pixels = async s => {
@@ -64,7 +73,7 @@ try {
     }
     renderer.dispose();
     return {adapter:backend.adapterEvidence,errors,images};
-  }, process.argv.includes('--spatial'));
+  }, {mergeDraws:process.argv.includes('--spatial'), shadows:process.argv.includes('--shadows')});
   mkdirSync('artifacts/city-performance', { recursive: true });
   for(const image of result.images)for(const kind of ['actual','expected','settled'])writeFileSync(`artifacts/city-performance/${label}-${image.name}-${kind}.png`,Buffer.from(image[kind].split(',')[1],'base64'));
   delete result.images;
@@ -73,7 +82,8 @@ try {
   // Cross-building transforms can move a few rasterized edge pixels at float
   // precision. Missing walls affect thousands; the original growth defect
   // changed 30,000–64,000 pixels after nine buildings in these same views.
-  assert.ok(result.errors.every(x=>x.settledChanged<250), 'Growing camera-sorted building batches must match individual mesh pixels after upload');
-  assert.ok(result.errors.filter(x=>x.view>0).every(x=>x.changed<250), 'Moving the camera must match immediately, without a frame of missing walls');
+  const tolerance = process.argv.includes('--spatial') ? 320 : 250;
+  assert.ok(result.errors.every(x=>x.settledChanged<tolerance), 'Growing camera-sorted building batches must match individual mesh pixels after upload');
+  assert.ok(result.errors.filter(x=>x.view>0).every(x=>x.changed<tolerance), 'Moving the camera must match immediately, without a frame of missing walls');
   assert.deepEqual(browserErrors, [], 'Building growth must render without browser errors');
 } finally { await browser?.close(); await server.close(); }

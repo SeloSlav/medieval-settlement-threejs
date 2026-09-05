@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { resizeBatchedMeshInstances } from '../scene/resizeBatchedMesh.ts';
 import { SpatialMergedGeometry, extractBatchedGeometry, type StaticGeometryPart } from '../scene/SpatialMergedGeometry.ts';
 import { BuildingSpatialShadowBatches } from './BuildingSpatialShadowBatches.ts';
+import { BuildingStockInstances } from './BuildingStockInstances.ts';
+import { StaticRenderBundle } from '../scene/StaticRenderBundle.ts';
 
 const COLLAPSED_INSTANCE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -59,7 +61,7 @@ export type BuildingStaticBatchStats = {
  * Dynamic authored children never leave their marker.
  */
 export class BuildingStaticBatches {
-  readonly group = new THREE.Group();
+  readonly group = new StaticRenderBundle();
 
   private readonly batches = new Map<string, BuildingBatchRecord[]>();
   private readonly buildingStates = new Map<string, BuildingBatchState>();
@@ -70,6 +72,7 @@ export class BuildingStaticBatches {
   private dirtyDraws = false;
   private readonly mergedDraws: SpatialMergedGeometry | null;
   private readonly spatialShadows: BuildingSpatialShadowBatches | null;
+  private readonly stockInstances: BuildingStockInstances | null;
 
   private readonly sourceGroupName: string;
   private readonly collisionProxyFlag: string;
@@ -82,6 +85,7 @@ export class BuildingStaticBatches {
     parent.add(this.group);
     this.mergedDraws = options.mergeDraws ? new SpatialMergedGeometry(this.group) : null;
     this.spatialShadows = options.mergeDraws ? new BuildingSpatialShadowBatches(this.group) : null;
+    this.stockInstances = options.mergeDraws ? new BuildingStockInstances(this.group) : null;
     this.collisionProxyGeometry.name = 'Shared building collision proxy geometry';
     this.collisionProxyMaterial.name = 'Invisible building collision proxy material';
     this.collisionProxyMaterial.visible = false;
@@ -90,6 +94,7 @@ export class BuildingStaticBatches {
   registerBuilding(buildingId: string, marker: THREE.Group): void {
     this.removeBuilding(buildingId);
     this.spatialShadows?.register(buildingId, marker);
+    this.stockInstances?.register(buildingId, marker);
     const localBatchGroup = marker.getObjectByName(this.sourceGroupName);
     if (!(localBatchGroup instanceof THREE.Group)) return;
     const sourceMeshes = localBatchGroup.children.filter(
@@ -216,6 +221,7 @@ export class BuildingStaticBatches {
   }
 
   removeBuilding(buildingId: string): void {
+    this.stockInstances?.remove(buildingId);
     this.spatialShadows?.remove(buildingId);
     const state = this.buildingStates.get(buildingId);
     if (!state) return;
@@ -251,6 +257,7 @@ export class BuildingStaticBatches {
   }
 
   finalizeGeometryBuffers(): void {
+    this.stockInstances?.flush();
     this.spatialShadows?.flush();
     if (!this.dirtyCapacity && !this.dirtyInstanceBounds && !this.dirtyDraws) return;
     const compactGeometry = this.dirtyCapacity;
@@ -349,6 +356,7 @@ export class BuildingStaticBatches {
   }
 
   dispose(): void {
+    this.stockInstances?.dispose();
     this.spatialShadows?.dispose();
     this.mergedDraws?.dispose();
     for (const state of this.buildingStates.values()) {
@@ -669,7 +677,7 @@ function buildingBatchKey(
   ].join('|');
 }
 
-function geometryFingerprint(geometry: THREE.BufferGeometry): string {
+export function geometryFingerprint(geometry: THREE.BufferGeometry): string {
   let hash = 0x811c9dc5;
   let bytes = 0;
   const include = (array: ArrayLike<number> & ArrayBufferView): void => {
@@ -738,7 +746,7 @@ function geometryEqualsPacked(
   return true;
 }
 
-function geometryEqualsGeometry(
+export function geometryEqualsGeometry(
   left: THREE.BufferGeometry,
   right: THREE.BufferGeometry,
 ): boolean {
