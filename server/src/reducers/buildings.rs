@@ -209,10 +209,16 @@ fn building_overlaps_pasture(
     })
 }
 
-fn has_mature_tree_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64) -> bool {
+fn has_workable_tree_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64, kind: &str) -> bool {
     let radius_sq = radius * radius;
     for tree in ctx.db.tree_entity().iter() {
-        if tree.phase != "mature" {
+        let shared_wood = matches!(kind, "lumber_mill" | "woodcutters_lodge")
+            && tree.harvest_owner == Some(ctx.sender())
+            && (matches!(tree.phase.as_str(), "falling" | "fallen")
+                || (tree.phase == "logs" && tree.logs.iter().any(|log|
+                    if kind == "woodcutters_lodge" { log.health >= crate::forestry_policy::LOG_HEALTH_PER_FIREWOOD || log.firewood >= 1.0 }
+                    else { log.health >= crate::forestry_policy::LOG_HEALTH_PER_TIMBER })));
+        if tree.phase != "mature" && !shared_wood {
             continue;
         }
         let dx = tree.x - x;
@@ -684,8 +690,8 @@ pub(crate) fn place_building_internal(
         return Err("Cannot build on a road.".to_string());
     }
 
-    if def.requires_mature_trees && !has_mature_tree_in_radius(ctx, x, z, def.work_radius) {
-        return Err("No mature trees within work range.".to_string());
+    if def.requires_mature_trees && !has_workable_tree_in_radius(ctx, x, z, def.work_radius, &kind) {
+        return Err("No usable woodland resources within work range.".to_string());
     }
 
     if def.requires_quarry_stone && !has_quarry_stone_in_radius(ctx, x, z, def.work_radius) {

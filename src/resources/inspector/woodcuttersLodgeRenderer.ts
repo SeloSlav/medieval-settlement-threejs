@@ -104,7 +104,7 @@ export function renderWoodcuttersLodgeInspector(
     ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
     : activeBuildingDestination
       ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeBuildingDestination.kind)}`
-      : 'No staffed workshop currently requests surplus fuel';
+      : 'Storehouses distribute fuel to workshops and Marketplace stalls';
 
   const deliveryRow = activeTrip
     ? `<li><span>Active physical cart</span><span>${activeDestinationLabel}</span></li>
@@ -136,7 +136,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Cutting site</span><span>${wood.splitFirewood} firewood awaiting collection · ${wood.firewood} still in logs</span></li>` : ''}
       ${forestryWorkAreaDetailRow(building)}
       <li><span>Household route</span><span>${residenceSummary}</span></li>
-      <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
+      <li><span>Fuel distribution</span><span>${industrialFuelDuty}</span></li>
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       <li><span>Wood conversion</span><span>5 log health per firewood · twice the timber yield</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}

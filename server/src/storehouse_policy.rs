@@ -50,11 +50,10 @@ pub fn storehouse_filtered_collection_headroom(
     storehouse_collection_headroom(stock, capacity, percent)
 }
 
-/// Industrial firewood dispatch runs before depot collection, so remaining
-/// lodge fuel can be centralized immediately for household Marketplace stalls.
+/// Forestry camps send their complete output through storehouse storage.
 /// Other bulk materials retain the configured producer-overflow floor.
-pub fn producer_collection_floor(is_household_firewood: bool, capacity: f64) -> f64 {
-    if is_household_firewood {
+pub fn producer_collection_floor(is_forestry_output: bool, capacity: f64) -> f64 {
+    if is_forestry_output {
         0.0
     } else {
         capacity.max(0.0) * STOREHOUSE_OVERFLOW_THRESHOLD

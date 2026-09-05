@@ -90,6 +90,7 @@ type BuildingPlacementContext = {
   isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
+  countForestryTreesInRadius?: (x: number, z: number, radius: number, firewood: boolean) => number | null;
   roadNetwork?: RoadNetwork;
   yaw?: number;
   mapBounds?: TerrainBounds;
@@ -328,8 +329,10 @@ export function validateBuildingPlacement(
   const definition = getBuildingDefinition(kind);
   if (definition.requiresMatureTrees) {
     const workRadius = definition.workRadius;
-    const matureTrees = context.countMatureTreesInRadius?.(x, z, workRadius) ?? 0;
-    if (matureTrees <= 0) {
+    const usableTrees = (kind === 'lumber_mill' || kind === 'woodcutters_lodge'
+      ? context.countForestryTreesInRadius?.(x, z, workRadius, kind === 'woodcutters_lodge') : null)
+      ?? context.countMatureTreesInRadius?.(x, z, workRadius) ?? 0;
+    if (usableTrees <= 0) {
       return { ok: false, reason: 'no_trees_in_range' };
     }
   }

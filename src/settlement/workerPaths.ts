@@ -147,6 +147,8 @@ export type WorkerTarget = PointXZ & {
   clericDuty?: ClericDuty;
   interior?: boolean;
   allowOutsideWorkExtent?: boolean;
+  /** Authored stance beside a grounded trunk, facing its actual cutting point. */
+  workStand?: PointXZ;
 };
 
 export type WorkerActivityKind =
@@ -538,26 +540,35 @@ export function collectWorkerTargets(
     const fallen: WorkerTarget[] = [];
     const logs: WorkerTarget[] = [];
     let falling = false;
+    let usefulLogs = false;
     for (const tree of trees) {
       const entity = inputs.trees.get(tree.id);
       if (!entity) continue;
       falling ||= entity.phase === 'falling';
       if (entity.phase === 'fallen') {
+        if (entity.workBuildingId && entity.workBuildingId !== building.id) continue;
         const yaw = treeFallDirection(tree.layoutIndex);
         fallen.push({ id: `${tree.id}:bucking`, kind: 'tree',
-          x: tree.x + Math.sin(yaw)*3 + Math.cos(yaw)*0.6,
-          z: tree.z + Math.cos(yaw)*3 - Math.sin(yaw)*0.6 });
+          x: tree.x + Math.sin(yaw)*3, z: tree.z + Math.cos(yaw)*3,
+          workStand: { x: tree.x + Math.sin(yaw)*3 + Math.cos(yaw)*0.85,
+            z: tree.z + Math.cos(yaw)*3 - Math.sin(yaw)*0.85 } });
       }
       if (entity.phase === 'logs') {
         entity.logs?.forEach((log,index) => {
-          if (log.health <= 0 || building.kind !== 'woodcutters_lodge') return;
-          logs.push({ id: `${tree.id}:log:${index}`, kind: 'tree', x: log.x+0.6, z: log.z });
+          usefulLogs ||= building.kind === 'woodcutters_lodge'
+            ? log.health >= 5 || log.firewood >= 1 : log.health >= 10;
+          if (log.health < 5 || building.kind !== 'woodcutters_lodge') return;
+          const yaw = treeFallDirection(tree.layoutIndex);
+          logs.push({ id: `${tree.id}:log:${index}`, kind: 'tree', x: log.x, z: log.z,
+            workStand: { x: log.x + Math.cos(yaw)*0.85, z: log.z - Math.sin(yaw)*0.85 } });
         });
       }
     }
     if (fallen.length) targets.push(...fallen);
     else if (logs.length) targets.push(...logs);
-    else if (!falling) collectTreeTargets(area, inputs, phase => phase === 'mature', targets);
+    else if (!falling && !usefulLogs && !trees.some(tree => inputs.trees.get(tree.id)?.phase === 'fallen')) {
+      collectTreeTargets(area, inputs, phase => phase === 'mature', targets);
+    }
   } else if (building.kind === 'swineherd') {
     collectTreeTargets(
       { x: building.x, z: building.z, radius },
@@ -1196,6 +1207,11 @@ function resourceWorkLoop(
   rng: () => number,
   isWaterAt: WorkerWaterTest | null,
 ): PointXZ[] | null {
+  if (target.workStand) {
+    const stand = target.workStand;
+    const midpoint = { x: (start.x + stand.x)/2, z: (start.z + stand.z)/2 };
+    return [start, midpoint, stand, midpoint, start];
+  }
   if (target.kind === 'field' && target.fieldLane) {
     const laneStart = target.fieldLane.start;
     const laneEnd = target.fieldLane.end;

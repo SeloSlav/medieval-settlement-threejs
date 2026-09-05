@@ -179,8 +179,8 @@ const lodgeSimulation = readFileSync(
 );
 assert.match(
   lodgeSimulation,
-  /find_nearest_mature_tree[\s\S]*CommodityKind::Firewood[\s\S]*phase: "stump"/,
-  'lodges must fell mature trees directly into local firewood and leave authoritative stumps',
+  /super::forestry::step_forestry/,
+  'lodges must use the shared fallen-tree and finite-log production pipeline',
 );
 assert.doesNotMatch(
   lodgeSimulation,

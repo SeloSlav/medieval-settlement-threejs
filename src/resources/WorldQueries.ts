@@ -1431,6 +1431,7 @@ export class WorldQueries {
     source: BuildingState,
     commodity: DirectProcessorInputCommodity,
   ): RoutedProcessorInputDestination<BuildingState> | null {
+    if (source.kind === 'woodcutters_lodge' && commodity === 'firewood') return null;
     const state = this.getGameState();
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     if (

@@ -33,7 +33,7 @@ import {
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { OxFollowPose } from '../settlement/OxenRenderer.ts';
 import { createTimberLogMesh, timberLogLayout } from '../forestry/TimberLogVisuals.ts';
-import { timberLogDimensions } from '../forestry/forestry.ts';
+import { timberLogDimensions, LOG_HEALTH_PER_TIMBER } from '../forestry/forestry.ts';
 import {
   samplePolylineXZ,
   type PointXZ,
@@ -475,7 +475,8 @@ export class DeliveryAgentRenderer {
       const placement = timberLogLayout(trip.forestrySource.layoutIndex);
       if (placement && trip.amount > 0) {
         const { radius, length } = timberLogDimensions(placement);
-        const log = createTimberLogMesh(placement.species, radius, length);
+        const fraction = Math.min(1, trip.amount * LOG_HEALTH_PER_TIMBER / trip.forestrySource.logMaxHealth);
+        const log = createTimberLogMesh(placement.species, radius, length * fraction);
         log.rotation.x = Math.PI/2;
         log.position.set(0, radius, -0.45);
         root.add(log);

@@ -448,6 +448,7 @@ export const ForestrySource = __t.object("ForestrySource", {
   logIndex: __t.u32(),
   layoutIndex: __t.u32(),
   capacity: __t.f64(),
+  logMaxHealth: __t.f64(),
 });
 export type ForestrySource = __Infer<typeof ForestrySource>;
 

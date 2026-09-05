@@ -21,7 +21,7 @@ export const TOAST_MESSAGES = {
   'building.placement.no_game_in_range': 'No game within work range',
   'building.placement.no_berries_in_range': 'Place within 48 m of a raspberry thicket or mushroom bed (dormant and depleted patches still count)',
   'building.placement.no_fish_in_range': 'No fish shoal within work range',
-  'building.placement.no_trees_in_range': 'No mature trees within work range',
+  'building.placement.no_trees_in_range': 'No usable woodland resources within work range',
   'building.placement.on_road': 'Cannot build on a road',
   'building.placement.outside_map': 'The monastery’s complete 68 × 53 m fenced estate must fit inside the map boundary',
   'building.placement.requires_map_edge': 'The complete monastery estate must reach the map-size-scaled frontier belt near an edge',

@@ -34,6 +34,21 @@ try {
       new Promise((_, reject) => page.once('pageerror', reject)),
     ]);
     writeFileSync(`${out}/survey.json`, JSON.stringify(await page.evaluate(() => window.__ENVIRONMENT_GAUNTLET__.survey), null, 2));
+    if (process.env.ENVIRONMENT_ACCESS_GRASS_PAIR === '1') {
+      for (const view of (process.env.ENVIRONMENT_VIEWS ?? 'approach,lane').split(',')) {
+        for (const [index, enabled] of [false, true, true, false, true, false].entries()) {
+          await page.evaluate(enabled => window.__ENVIRONMENT_GAUNTLET__.setAccessGrassClearance(enabled), enabled);
+          const { png, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.capture({ view, sampleCount: 480 }), view);
+          const name = `${view}-${index}-${enabled ? 'clear' : 'original'}`;
+          writeFileSync(`${out}/${name}.json`, JSON.stringify(evidence, null, 2));
+          if (index < 2) writeFileSync(`${out}/${name}.png`, Buffer.from(png.split(',')[1], 'base64'));
+          console.log(name, { gpuMs: evidence.gpuMs, draws: evidence.renderer.calls, grass: evidence.grass?.converged });
+        }
+      }
+      writeFileSync(`${out}/runtime.json`, JSON.stringify({ url, errors }, null, 2));
+      if (errors.length) throw new Error(errors.join('\n'));
+      continue;
+    }
     if (process.env.ENVIRONMENT_CANOPY_LAYERS === '1') {
       for (const view of ['design', 'meadow', 'ground']) {
         const { images, ...evidence } = await page.evaluate(view => window.__ENVIRONMENT_GAUNTLET__.captureCanopyLayers(view), view);

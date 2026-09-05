@@ -119,6 +119,9 @@ pub fn try_start_forestry_trip(
     ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock,
     camp: &Building, tree: &crate::tables::TreeEntity, log_index: usize, commodity: CommodityKind,
 ) -> bool {
+    if (commodity == CommodityKind::Timber && camp.kind != "lumber_mill")
+        || (commodity == CommodityKind::Firewood && camp.kind != "woodcutters_lodge")
+        || tree.phase != "logs" || tree.harvest_owner != Some(camp.owner) { return false; }
     if building_has_active_trip(ctx, camp.id) || onsite_building_labor(ctx, camp) == 0
         || labor_and_logistics_paused(ctx, tick, camp.owner, clock)
         || tick.building_disabled_by_fire(ctx, camp.id) { return false; }
@@ -148,7 +151,8 @@ pub fn try_start_forestry_trip(
         route_polyline_json: serialize_route_polyline(&route.route.polyline),
         free_hauler_workers: 0, ox_id,
         forestry_source: Some(crate::tables::ForestrySource { tree_id: tree.tree_id.clone(),
-            log_index: log_index as u32, layout_index: tree.layout_index, capacity }),
+            log_index: log_index as u32, layout_index: tree.layout_index, capacity,
+            log_max_health: log.max_health }),
     });
     true
 }
@@ -162,6 +166,7 @@ fn collect_forestry_cargo(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
     let Some(commodity) = CommodityKind::from_u8(trip.cargo_kind) else { return; };
     let capacity = source.capacity.min(building_commodity_room(&camp, commodity));
     if commodity == CommodityKind::Timber && trip.ox_id != 0 {
+        if !ctx.db.stable_ox().id().find(&trip.ox_id).is_some_and(|ox| ox.owner == trip.owner && ctx.db.building().id().find(&ox.stable_id).is_some()) { return; }
         let (health, units) = crate::forestry_policy::wood_from_health(log.health, capacity, false);
         log.health = health;
         trip.amount = units;
@@ -1632,6 +1637,7 @@ fn try_start_building_supply_trip_with_labor(
     }
 
     if commodity == CommodityKind::Timber && origin.kind == "lumber_mill" && target.kind != "village_storehouse" { return false; }
+    if commodity == CommodityKind::Firewood && origin.kind == "woodcutters_lodge" && target.kind != "village_storehouse" { return false; }
     let ox_id = if commodity == CommodityKind::Timber && origin.kind == "lumber_mill" {
         claim_haul_ox_for_workplace(ctx, tick, origin.owner, origin.id, origin.x, origin.z)
     } else { claim_trip_ox(ctx, tick, origin, labor_source) };

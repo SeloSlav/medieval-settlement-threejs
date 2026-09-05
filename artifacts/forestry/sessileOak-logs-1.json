@@ -1,0 +1,72 @@
+{
+  "tree": {
+    "layoutIndex": 49,
+    "x": 50.243597909289704,
+    "z": -145.01493712955218,
+    "species": "sessileOak",
+    "form": "broad",
+    "scale": 1.558838331078653
+  },
+  "dimensions": {
+    "radius": 0.4545572573425353,
+    "length": 2.5282823084812747
+  },
+  "diagnostic": "final",
+  "distance": 28,
+  "render": {
+    "calls": 12026,
+    "frameCalls": 15,
+    "drawCalls": 144,
+    "triangles": 21198278,
+    "points": 0,
+    "lines": 0,
+    "timestamp": 0
+  },
+  "gpu": {
+    "requested": true,
+    "status": "available",
+    "source": "webgpu-timestamp-query",
+    "feature": "timestamp-query",
+    "api": "compute-pass-timestamp-writes",
+    "span": "full-post-processing-queue-bookends",
+    "unit": "milliseconds",
+    "slotCount": 32,
+    "attemptedFrames": 336,
+    "submittedFrames": 336,
+    "resolvedFrames": 336,
+    "pendingFrames": 0,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitations": [
+      "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+      "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+      "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+    ]
+  },
+  "gpuMs": [
+    19.965952,
+    18.305024,
+    21.663744,
+    18.816,
+    19.354624,
+    18.542592,
+    19.134464,
+    18.88256,
+    18.01344,
+    17.775616,
+    17.01376,
+    18.107392,
+    17.419424,
+    17.890304,
+    17.524768,
+    17.12128,
+    17.549312,
+    17.260544,
+    17.280032,
+    17.839104,
+    16.562176,
+    14.972928,
+    15.930304,
+    16.800768
+  ]
+}

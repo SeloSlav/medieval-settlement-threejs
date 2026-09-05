@@ -103,6 +103,17 @@ for (const kind of ['lumber_mill', 'woodcutters_lodge', 'reforester'] as const) 
   );
 }
 
+for (const kind of ['lumber_mill', 'woodcutters_lodge'] as const) {
+  assert.deepEqual(validateBuildingPlacement(kind, 60, 0, {
+    ...placementContext(kind), countMatureTreesInRadius: () => 0,
+    countForestryTreesInRadius: () => 1,
+  }), { ok: true }, `${kind}: a camp can be placed to collect existing fallen wood`);
+  assert.deepEqual(validateBuildingPlacement(kind, 60, 0, {
+    ...placementContext(kind), countMatureTreesInRadius: () => 0,
+    countForestryTreesInRadius: () => 0,
+  }), { ok: false, reason: 'no_trees_in_range' }, `${kind}: fully depleted stumps are not usable stock`);
+}
+
 for (const [kind, reason] of [
   ['monastery', 'monastery_exists'],
   ['town_hall', 'town_hall_exists'],

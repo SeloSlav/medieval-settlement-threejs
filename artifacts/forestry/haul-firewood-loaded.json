@@ -1,0 +1,78 @@
+{
+  "tree": {
+    "layoutIndex": 13,
+    "x": -12.653335466925427,
+    "z": -159.75608222964252,
+    "species": "beech",
+    "form": "broad",
+    "scale": 1.122867757113774
+  },
+  "dimensions": {
+    "radius": 0.27892035086706146,
+    "length": 2.479591637921894
+  },
+  "diagnostic": "final",
+  "distance": 18,
+  "render": {
+    "calls": 19830,
+    "frameCalls": 15,
+    "drawCalls": 172,
+    "triangles": 21185688,
+    "points": 0,
+    "lines": 0,
+    "timestamp": 0
+  },
+  "gpu": {
+    "requested": true,
+    "status": "available",
+    "source": "webgpu-timestamp-query",
+    "feature": "timestamp-query",
+    "api": "compute-pass-timestamp-writes",
+    "span": "full-post-processing-queue-bookends",
+    "unit": "milliseconds",
+    "slotCount": 32,
+    "attemptedFrames": 576,
+    "submittedFrames": 576,
+    "resolvedFrames": 576,
+    "pendingFrames": 0,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitations": [
+      "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+      "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+      "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+    ]
+  },
+  "gpuMs": [
+    29.770752,
+    25.987072,
+    28.794816,
+    30.738432,
+    30.13104,
+    28.013568,
+    26.3424,
+    28.59008,
+    34.476032,
+    39.474048,
+    45.750208,
+    28.189696,
+    25.988096,
+    29.270016,
+    26.86352,
+    28.857664,
+    36.928512,
+    30.09536,
+    25.3184,
+    30.128128,
+    28.02688,
+    26.82272,
+    24.624256,
+    26.338304
+  ],
+  "haul": {
+    "oxen": 0,
+    "workers": 1,
+    "cargo": [],
+    "expectedLength": 1.239795818960947
+  }
+}

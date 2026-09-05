@@ -7,11 +7,19 @@ import {
   type BuildingRoadConnectionSource,
 } from './BuildingRoadConnections.ts';
 import { BUILDING_ROAD_ACCESS_DISTANCE, hasRoadAccess } from './roadConnectivity.ts';
-import { BUILDING_ACCESS_SPUR_WIDTH } from './roadDimensions.ts';
+import { BUILDING_ACCESS_SPUR_WIDTH, ROAD_CORE_EDGE_JITTER_RATIO } from './roadDimensions.ts';
 import type { RoadMeshBuilder } from './RoadMeshBuilder.ts';
 import type { RoadNetwork, SnapTarget } from './RoadNetwork.ts';
 
 const MIN_SPUR_LENGTH = 0.2;
+const CLEARANCE_CELL_SIZE = 8;
+// Clear rooted tufts from the walked strip while allowing blade tips to
+// overlap its feathered verge. Main-road clearance stays independent.
+const SPUR_GRASS_ROOT_MARGIN = 0.18;
+type SpurClearance = {
+  x: number; z: number; dx: number; dz: number;
+  inverseLengthSquared: number; radiusSquared: number;
+};
 
 export type BuildingAccessSpurPlan = {
   id: string;
@@ -70,6 +78,7 @@ export class BuildingAccessSpurs {
   private readonly terrain: Terrain;
   private readonly meshBuilder: RoadMeshBuilder;
   private signature = '';
+  private readonly clearanceCells = new Map<number, SpurClearance[]>();
 
   constructor(options: {
     parent: THREE.Object3D;
@@ -82,13 +91,13 @@ export class BuildingAccessSpurs {
     options.parent.add(this.group);
   }
 
-  sync(buildings: Iterable<BuildingRoadConnectionSource>, network: RoadNetwork | null): void {
+  sync(buildings: Iterable<BuildingRoadConnectionSource>, network: RoadNetwork | null): boolean {
     const buildingSnapshot = [...buildings];
     const signature = spurSignature(buildingSnapshot, network);
-    if (signature === this.signature) return;
+    if (signature === this.signature) return false;
     this.signature = signature;
     this.clear();
-    if (!network) return;
+    if (!network) return true;
 
     for (const plan of planBuildingAccessSpurs(buildingSnapshot, this.terrain, network)) {
       const spur = this.meshBuilder.buildBuildingAccessSpur(
@@ -105,6 +114,48 @@ export class BuildingAccessSpurs {
       spur.userData.roadPoint = plan.roadPoint.toArray();
       spur.userData.buildingPoint = plan.connection.point.toArray();
       this.group.add(spur);
+      this.indexGrassClearance(plan);
+    }
+    return true;
+  }
+
+  /** Placement-time query only; no per-frame traversal or scene geometry. */
+  isGrassBlockedAt(x: number, z: number): boolean {
+    if (this.clearanceCells.size === 0) return false;
+    const bucket = this.clearanceCells.get(clearanceCellKey(
+      Math.floor(x / CLEARANCE_CELL_SIZE), Math.floor(z / CLEARANCE_CELL_SIZE),
+    ));
+    if (!bucket) return false;
+    for (const strip of bucket) {
+      const offsetX = x - strip.x;
+      const offsetZ = z - strip.z;
+      const t = Math.max(0, Math.min(1,
+        (offsetX * strip.dx + offsetZ * strip.dz) * strip.inverseLengthSquared,
+      ));
+      const dx = offsetX - strip.dx * t;
+      const dz = offsetZ - strip.dz * t;
+      if (dx * dx + dz * dz <= strip.radiusSquared) return true;
+    }
+    return false;
+  }
+
+  private indexGrassClearance(plan: BuildingAccessSpurPlan): void {
+    const a = plan.roadPoint;
+    const b = plan.connection.point;
+    const radius = plan.visualWidth * (0.5 + ROAD_CORE_EDGE_JITTER_RATIO) + SPUR_GRASS_ROOT_MARGIN;
+    const strip: SpurClearance = {
+      x: a.x, z: a.z, dx: b.x - a.x, dz: b.z - a.z,
+      inverseLengthSquared: 1 / (plan.length * plan.length), radiusSquared: radius * radius,
+    };
+    for (let cz = Math.floor((Math.min(a.z, b.z) - radius) / CLEARANCE_CELL_SIZE);
+      cz <= Math.floor((Math.max(a.z, b.z) + radius) / CLEARANCE_CELL_SIZE); cz++) {
+      for (let cx = Math.floor((Math.min(a.x, b.x) - radius) / CLEARANCE_CELL_SIZE);
+        cx <= Math.floor((Math.max(a.x, b.x) + radius) / CLEARANCE_CELL_SIZE); cx++) {
+        const key = clearanceCellKey(cx, cz);
+        const bucket = this.clearanceCells.get(key);
+        if (bucket) bucket.push(strip);
+        else this.clearanceCells.set(key, [strip]);
+      }
     }
   }
 
@@ -115,9 +166,14 @@ export class BuildingAccessSpurs {
   }
 
   private clear(): void {
+    this.clearanceCells.clear();
     for (const child of [...this.group.children]) disposeObject3D(child);
     this.group.clear();
   }
+}
+
+function clearanceCellKey(x: number, z: number): number {
+  return ((x + 32768) & 0xffff) | (((z + 32768) & 0xffff) << 16);
 }
 
 function nearestConnection(

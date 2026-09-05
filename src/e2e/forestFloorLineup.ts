@@ -75,6 +75,10 @@ declare global {
     __FOREST_FLOOR_SET_CAPTURE_MODE__?: (
       mode: ForestFloorCaptureMode,
     ) => Promise<ForestFloorRenderEvidence>;
+    __FOREST_FLOOR_INSPECT_MATERIAL__?: (tintLift: number, sunFactor: number) => Promise<{
+      png: string; tintRange: number[][]; receiveShadow: boolean; castShadow: boolean;
+      sunIntensity: number; calls: number; triangles: number;
+    }>;
   }
 }
 
@@ -431,6 +435,40 @@ window.__FOREST_FLOOR_SET_CAPTURE_MODE__ = async (mode) => {
 
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+// Review the existing albedo/tint separately from directional illumination.
+// Each call restores the original attributes and lights; production is untouched.
+window.__FOREST_FLOOR_INSPECT_MATERIAL__ = async (tintLift, sunFactor) => {
+  capturePaused = true;
+  const tint = ivy.geometry.getAttribute('aTint') as THREE.InstancedBufferAttribute;
+  const original = new Uint8Array(tint.array as Uint8Array);
+  const originalSun = sun.intensity;
+  const tintRange = [0, 1, 2].map(channel => {
+    let min = 1; let max = 0;
+    for (let i = channel; i < original.length; i += 3) {
+      min = Math.min(min, original[i] / 255);
+      max = Math.max(max, original[i] / 255);
+    }
+    return [min, max];
+  });
+  try {
+    for (let i = 0; i < original.length; i++) tint.array[i] = Math.round(original[i] + (255 - original[i]) * tintLift);
+    tint.needsUpdate = true;
+    sun.intensity = originalSun * sunFactor;
+    setWorldAnimationTime(fixedAnimationTime ?? 0);
+    renderer.info.reset();
+    renderer.render(scene, camera);
+    const frame = { calls: (renderer.info.render as unknown as { drawCalls: number }).drawCalls, triangles: renderer.info.render.triangles };
+    const backend = renderer.backend as { device?: { queue: { onSubmittedWorkDone(): Promise<void> } } };
+    await backend.device?.queue.onSubmittedWorkDone();
+    return { png: renderer.domElement.toDataURL('image/png'), tintRange,
+      receiveShadow: ivy.receiveShadow, castShadow: ivy.castShadow,
+      sunIntensity: sun.intensity, ...frame };
+  } finally {
+    (tint.array as Uint8Array).set(original);
+    tint.needsUpdate = true;
+    sun.intensity = originalSun;
+  }
+};
 window.__FOREST_FLOOR_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 document.body.dataset.view = view;

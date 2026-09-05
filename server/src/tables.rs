@@ -614,6 +614,7 @@ pub struct ForestrySource {
     pub log_index: u32,
     pub layout_index: u32,
     pub capacity: f64,
+    pub log_max_health: f64,
 }
 
 #[spacetimedb::table(accessor = tree_entity, public)]

@@ -262,7 +262,7 @@ const authoritativeLoop = readFileSync(
   'utf8',
 );
 const lodgeSimulation = readFileSync(
-  new URL('../server/src/simulation/woodcutters_lodge.rs', import.meta.url),
+  new URL('../server/src/simulation/forestry.rs', import.meta.url),
   'utf8',
 );
 const storehouseSimulation = readFileSync(
@@ -279,12 +279,12 @@ assert.match(
 );
 assert.match(
   lodgeSimulation,
-  /civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*action_cooldown[\s\S]*TICK_DT \* throughput_multiplier/,
+  /TICK_DT \* f64::from\(labor\) \* rate[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*action_cooldown/,
   'maintained axes must accelerate the authoritative processing timer',
 );
 assert.match(
   lodgeSimulation,
-  /if tools_maintained[\s\S]*charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /log\.firewood \+= amount[\s\S]*charge_completed_production_maintenance\([\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'a successful maintained firewood cycle must wear physical ironwork',
 );
 assert.doesNotMatch(

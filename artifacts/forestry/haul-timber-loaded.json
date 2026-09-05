@@ -1,0 +1,83 @@
+{
+  "tree": {
+    "layoutIndex": 13,
+    "x": -12.653335466925427,
+    "z": -159.75608222964252,
+    "species": "beech",
+    "form": "broad",
+    "scale": 1.122867757113774
+  },
+  "dimensions": {
+    "radius": 0.27892035086706146,
+    "length": 2.479591637921894
+  },
+  "diagnostic": "final",
+  "distance": 18,
+  "render": {
+    "calls": 18598,
+    "frameCalls": 15,
+    "drawCalls": 173,
+    "triangles": 21185395,
+    "points": 0,
+    "lines": 0,
+    "timestamp": 0
+  },
+  "gpu": {
+    "requested": true,
+    "status": "available",
+    "source": "webgpu-timestamp-query",
+    "feature": "timestamp-query",
+    "api": "compute-pass-timestamp-writes",
+    "span": "full-post-processing-queue-bookends",
+    "unit": "milliseconds",
+    "slotCount": 32,
+    "attemptedFrames": 552,
+    "submittedFrames": 552,
+    "resolvedFrames": 552,
+    "pendingFrames": 0,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitations": [
+      "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+      "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+      "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+    ]
+  },
+  "gpuMs": [
+    34.197504,
+    30.570496,
+    36.905984,
+    46.907392,
+    49.002496,
+    32.622592,
+    80.487424,
+    32.82944,
+    38.816768,
+    40.418368,
+    69.112608,
+    47.919168,
+    49.477632,
+    55.885824,
+    35.673152,
+    37.060608,
+    34.530304,
+    52.960256,
+    29.590528,
+    33.283296,
+    36.562944,
+    31.941632,
+    31.2688,
+    36.184064
+  ],
+  "haul": {
+    "oxen": 1,
+    "workers": 1,
+    "cargo": [
+      {
+        "name": "Timber log · beech",
+        "length": 1.239795818960947
+      }
+    ],
+    "expectedLength": 1.239795818960947
+  }
+}

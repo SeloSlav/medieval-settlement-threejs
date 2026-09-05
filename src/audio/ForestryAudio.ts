@@ -40,6 +40,7 @@ export class ForestryAudio {
       if (!buffer || this.context.state !== 'running' || this.active.size >= 8) continue;
       const source = this.context.createBufferSource();
       const gain = this.context.createGain();
+      gain.gain.value = worldFoleyGain(event.x, event.z, view) * this.volume * 0.8;
       const pan = this.context.createStereoPanner();
       source.buffer = buffer;
       source.connect(gain).connect(pan).connect(this.context.destination);

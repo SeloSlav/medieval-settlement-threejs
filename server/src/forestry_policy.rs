@@ -5,6 +5,12 @@ pub const LOG_HEALTH_PER_TIMBER: f64 = 10.0;
 pub const LOG_HEALTH_PER_FIREWOOD: f64 = 5.0;
 pub const FIREWOOD_SPLIT_SECONDS: f64 = 2.0;
 
+/// Crew approach time is physical travel, so extra labor speeds the cutting
+/// rather than making a distant trunk disappear before its workers arrive.
+pub fn fallen_tree_work_seconds(distance: f64, work_per_second: f64) -> f64 {
+    9.5 + distance.max(0.0) / 1.1 + FALLEN_TREE_WORK_SECONDS / work_per_second.max(0.01)
+}
+
 pub fn log_health_budgets(wood_yield: f64) -> Vec<f64> {
     if !wood_yield.is_finite() || wood_yield < 1.0 { return vec![]; }
     let units = wood_yield.floor() as u32;

@@ -1,0 +1,78 @@
+{
+  "tree": {
+    "layoutIndex": 13,
+    "x": -12.653335466925427,
+    "z": -159.75608222964252,
+    "species": "beech",
+    "form": "broad",
+    "scale": 1.122867757113774
+  },
+  "dimensions": {
+    "radius": 0.27892035086706146,
+    "length": 2.479591637921894
+  },
+  "diagnostic": "final",
+  "distance": 18,
+  "render": {
+    "calls": 17366,
+    "frameCalls": 15,
+    "drawCalls": 169,
+    "triangles": 21185323,
+    "points": 0,
+    "lines": 0,
+    "timestamp": 0
+  },
+  "gpu": {
+    "requested": true,
+    "status": "available",
+    "source": "webgpu-timestamp-query",
+    "feature": "timestamp-query",
+    "api": "compute-pass-timestamp-writes",
+    "span": "full-post-processing-queue-bookends",
+    "unit": "milliseconds",
+    "slotCount": 32,
+    "attemptedFrames": 528,
+    "submittedFrames": 528,
+    "resolvedFrames": 528,
+    "pendingFrames": 0,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitations": [
+      "Measures elapsed device-timeline time between queue-ordered markers submitted immediately before and after the full post-processing render; it includes any queue-idle gaps or intervening GPU work inside that bracket and excludes display presentation latency.",
+      "The two empty compute-pass marker submissions are profile-only measurement overhead.",
+      "The existing CPU render-submission subspan includes the profile-only beginning marker; ending-marker encoding, submission, and asynchronous readback initiation are part of the existing post-render CPU subspan."
+    ]
+  },
+  "gpuMs": [
+    32.03584,
+    33.524768,
+    32.368672,
+    32.724992,
+    34.144256,
+    35.167232,
+    36.13296,
+    39.816192,
+    41.024512,
+    44.344608,
+    34.53952,
+    37.352448,
+    33.521664,
+    30.821664,
+    27.787264,
+    31.50336,
+    27.717632,
+    29.199392,
+    32.724992,
+    27.973952,
+    33.067008,
+    24.763392,
+    29.448192,
+    32.188224
+  ],
+  "haul": {
+    "oxen": 1,
+    "workers": 1,
+    "cargo": [],
+    "expectedLength": 1.239795818960947
+  }
+}

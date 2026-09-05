@@ -343,8 +343,15 @@ const accessSpurs = new BuildingAccessSpurs({
   terrain: spurTerrain as never,
   meshBuilder: spurBuilder,
 });
-accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
+assert.equal(accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork), true);
 assert.equal(accessSpurs.group.children.length, 1);
+for (const z of [0, 0.01, 7.99, 8, 8.01, wellPlan.connection.point.z]) {
+  assert(accessSpurs.isGrassBlockedAt(0, z), `walked strip should clear roots at z=${z}, including spatial-cell boundaries`);
+  assert(accessSpurs.isGrassBlockedAt(0.5, z), 'the opaque path width must remain clear');
+  assert(!accessSpurs.isGrassBlockedAt(1, z), 'grass must remain close to the feathered verge');
+}
+assert(!accessSpurs.isGrassBlockedAt(0, -1), 'clearance must stop beyond the rounded path end');
+assert(!accessSpurs.isGrassBlockedAt(disconnectedWell.x, disconnectedWell.z), 'unconnected buildings must not clear grass');
 const renderedSpur = accessSpurs.group.children[0] as THREE.Group;
 assert.equal(renderedSpur.userData.buildingId, connectedWell.id);
 assert.equal(renderedSpur.userData.connectionId, wellPlan.connection.id);
@@ -390,7 +397,8 @@ assert(
   featherExtendsPastBuildingEntrance,
   'the rounded building end should carry the shoulder all the way to zero opacity',
 );
-accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
+assert.equal(accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork), false,
+  'identical snapshots must not invalidate the grass stream');
 assert.equal(
   accessSpurs.group.children[0],
   renderedSpur,
@@ -418,7 +426,31 @@ assert.equal(
   10,
   'a rebuilt spur should follow the newly nearest road',
 );
+assert(!accessSpurs.isGrassBlockedAt(0, 2), 'moving the nearest road must release the old clearance');
+assert(accessSpurs.isGrassBlockedAt(0, 11), 'the rebuilt path must clear its new footprint');
+assert.equal(accessSpurs.sync([], accessNetwork), true);
+assert(!accessSpurs.isGrassBlockedAt(0, 11), 'demolition must release the path and its clearance');
+assert.equal(accessSpurs.group.children.length, 0);
+// The actual rendered core, including rounded caps and edge wobble, must be
+// covered for oblique paths and on both sides of the spatial-grid origin.
+const obliqueAccessNetwork = new RoadNetwork();
+obliqueAccessNetwork.addRoadPath([
+  new THREE.Vector3(-50, 12, -12), new THREE.Vector3(50, 12, 12),
+]);
+for (const [index, [x, z, yaw]] of [
+  [-18, 10, Math.PI / 5], [17, -10, -Math.PI / 3], [-7, -14, Math.PI / 4],
+].entries()) {
+  accessSpurs.sync([{ ...connectedWell, id: `oblique-${index}`, x, z, yaw }], obliqueAccessNetwork);
+  assert.equal(accessSpurs.group.children.length, 1);
+  const core = accessSpurs.group.getObjectByName(`Building access spur core oblique-${index}`) as THREE.Mesh;
+  const vertices = core.geometry.getAttribute('position');
+  for (let vertex = 0; vertex < vertices.count; vertex++) {
+    assert(accessSpurs.isGrassBlockedAt(vertices.getX(vertex), vertices.getZ(vertex)),
+      'grass clearance must cover every rendered opaque path vertex');
+  }
+}
 accessSpurs.dispose();
+assert(!accessSpurs.isGrassBlockedAt(-7, -14), 'disposal must release clearance');
 spurRoadMaterial.dispose();
 spurBlendMaterial.dispose();
 

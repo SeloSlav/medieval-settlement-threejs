@@ -626,6 +626,15 @@ export async function bootstrapAppSession(
       if (!registry) return null;
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
+    countForestryTreesInRadius: (x, z, radius, firewood) => {
+      const registry = liveContext.treeRegistry;
+      if (!registry) return null;
+      return registry.treesInRadius(x, z, radius).filter(layout => {
+        const tree = liveContext.gameState?.trees.get(layout.id);
+        return tree && (tree.phase === 'mature' || tree.phase === 'falling' || tree.phase === 'fallen'
+          || tree.logs?.some(log => firewood ? log.health >= 5 || log.firewood >= 1 : log.health >= 10));
+      }).length;
+    },
     getRoadNetwork: () => roadNetwork,
     getMapSize: () => sceneManager.worldLayout.settings.mapSize,
     mapBounds: sceneManager.terrain.bounds,

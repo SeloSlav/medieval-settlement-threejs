@@ -73,6 +73,7 @@ type BuildingToolOptions = {
   isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
+  countForestryTreesInRadius?: (x: number, z: number, radius: number, firewood: boolean) => number | null;
   getRoadNetwork?: () => RoadNetwork;
   getMapSize: () => WorldMapSize;
   mapBounds: TerrainBounds;
@@ -822,6 +823,7 @@ export class BuildingTool {
       isResourceDepositAt: this.options.isResourceDepositAt,
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
+      countForestryTreesInRadius: this.options.countForestryTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),
       yaw: this.resolveYaw(kind, x, z),
       mapBounds: this.options.mapBounds,

@@ -24,7 +24,7 @@ const building = (
 
 const buildings = new Map<string, any>([
   ['building-1', building('building-1', 'stable', 0, 0, 0)],
-  ['building-2', building('building-2', 'lumber_mill', 8, 0, 3)],
+  ['building-2', building('building-2', 'large_quarry', 8, 0, 3)],
   ['building-3', building('building-3', 'stone_quarry', 24, 0, 2)],
   ['building-4', building('building-4', 'smithy', 2, 0, 4)],
   ['building-5', building('building-5', 'village_storehouse', 1, 0, 4)],
@@ -132,7 +132,7 @@ assert.equal(
 
 const numericTieBuildings = new Map<string, any>([
   ['building-1', building('building-1', 'stable', 0, 0, 0)],
-  ['building-2', building('building-2', 'lumber_mill', -8, 0, 1)],
+  ['building-2', building('building-2', 'large_quarry', -8, 0, 1)],
   ['building-10', building('building-10', 'stone_quarry', 8, 0, 1)],
 ]);
 assert.equal(
@@ -144,7 +144,7 @@ assert.equal(
 const numericOxOrderBuildings = new Map<string, any>([
   ['building-2', building('building-2', 'stable', 0, 0, 0)],
   ['building-10', building('building-10', 'stable', 2, 0, 0)],
-  ['building-20', building('building-20', 'lumber_mill', 5, 0, 1)],
+  ['building-20', building('building-20', 'large_quarry', 5, 0, 1)],
 ]);
 const numericOxOrder = assignStableOxen([
   { id: 'stable-ox-10', stableId: 'building-10', slot: 0, assignedBuildingId: 'building-20' },

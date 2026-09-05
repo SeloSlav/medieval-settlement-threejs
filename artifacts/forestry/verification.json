@@ -1,0 +1,100 @@
+{
+  "events": [
+    {
+      "kind": "fall",
+      "layoutIndex": 49,
+      "x": 50.243597909289704,
+      "z": -145.01493712955218,
+      "y": -0.03253738161790247
+    },
+    {
+      "kind": "impact",
+      "layoutIndex": 49,
+      "x": 42.62312621244236,
+      "z": -146.65134620999342,
+      "y": -0.023385520095888023
+    }
+  ],
+  "decoded": [
+    {
+      "name": "tree_fall",
+      "duration": 3.48,
+      "channels": 2
+    },
+    {
+      "name": "tree_impact",
+      "duration": 2.2,
+      "channels": 2
+    }
+  ],
+  "haulEvidence": [
+    {
+      "commodity": "timber",
+      "loaded": false,
+      "haul": {
+        "oxen": 1,
+        "workers": 1,
+        "cargo": [],
+        "expectedLength": 1.239795818960947
+      }
+    },
+    {
+      "commodity": "timber",
+      "loaded": true,
+      "haul": {
+        "oxen": 1,
+        "workers": 1,
+        "cargo": [
+          {
+            "name": "Timber log · beech",
+            "length": 1.239795818960947
+          }
+        ],
+        "expectedLength": 1.239795818960947
+      }
+    },
+    {
+      "commodity": "firewood",
+      "loaded": true,
+      "haul": {
+        "oxen": 0,
+        "workers": 1,
+        "cargo": [],
+        "expectedLength": 1.239795818960947
+      }
+    }
+  ],
+  "workers": [
+    {
+      "mode": "chop",
+      "x": -12.46731934646525,
+      "z": -156.6435433940729,
+      "target": {
+        "id": "qa-tree:bucking",
+        "kind": "tree",
+        "x": -13.2974937540492,
+        "z": -156.82605490875798,
+        "workStand": {
+          "x": -12.46731934646525,
+          "z": -156.6435433940729
+        }
+      }
+    },
+    {
+      "mode": "walk",
+      "x": -19.312498011700562,
+      "z": -162.60817600264284,
+      "target": {
+        "id": "qa-tree:bucking",
+        "kind": "tree",
+        "x": -13.2974937540492,
+        "z": -156.82605490875798,
+        "workStand": {
+          "x": -12.46731934646525,
+          "z": -156.6435433940729
+        }
+      }
+    }
+  ],
+  "errors": []
+}

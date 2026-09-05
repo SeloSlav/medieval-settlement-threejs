@@ -2793,6 +2793,18 @@ export class VillagerRenderer {
   }
 
   private simStep(agent: VillagerAgent, dt: number): void {
+    // A tree's authoritative work target vanishes when it falls or becomes
+    // logs. Never keep swinging at the old upright trunk or a depleted log.
+    if (agent.workTarget?.kind === 'tree' && agent.workplaceId && !agent.workPerformed) {
+      const workplace = this.buildings.get(agent.workplaceId);
+      if ((workplace?.kind === 'lumber_mill' || workplace?.kind === 'woodcutters_lodge')
+        && !(this.workerTargets.get(agent.workplaceId) ?? []).some(target => target.id === agent.workTarget?.id)) {
+        if (agent.workRemaining > 0) this.finishWorkerActivity(agent);
+        agent.workActivity = null;
+        agent.workTarget = null;
+        agent.workPerformed = true;
+      }
+    }
     if (
       agent.workRemaining > 0
       && agent.workTarget !== null
@@ -2807,7 +2819,10 @@ export class VillagerRenderer {
       }
       agent.currentMoveSpeed = 0;
       agent.workRemaining -= dt;
-      if (agent.workRemaining <= 0) this.finishWorkerActivity(agent);
+      if (agent.workRemaining <= 0) {
+        if (agent.workTarget.id?.endsWith(':bucking')) agent.workRemaining = WORKER_ACTIVITY_SECONDS;
+        else this.finishWorkerActivity(agent);
+      }
       return;
     }
 

@@ -908,7 +908,7 @@ pub fn step_industrial_firewood_dispatch(
             || source.firewood <= 1e-6
             || !matches!(
                 source.kind.as_str(),
-                "woodcutters_lodge" | "village_storehouse"
+                "village_storehouse"
             )
         {
             continue;

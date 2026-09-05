@@ -202,6 +202,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let clock = crate::simulation::game_clock(sim_tick);
+    // A released tree completes its physical fall even as a rest day begins.
+    crate::simulation::forestry::step_falling_trees(ctx);
     // Named holy days advance the calendar and presentation clock only. This
     // one boundary guarantees a true rest period: no production, carts,
     // consumption, spoilage, upkeep, illness, fire, raids, or other adverse
@@ -366,7 +368,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_reforester(ctx, &tick, &clock, sim_tick, building);
     }
 
-    crate::simulation::forestry::step_falling_trees(ctx);
     for building_id in lumber_mill_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;

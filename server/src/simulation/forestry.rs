@@ -72,8 +72,27 @@ pub fn step_forestry(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameCl
     // Finish bucking the complete fallen tree before showing usable trunk sections.
     if let Some(tree) = trees.iter().find(|t| t.phase == "fallen") {
         let mut tree = ctx.db.tree_entity().tree_id().find(&tree.tree_id).unwrap();
+        // One crew leads the bucking operation. An abandoned or paused work
+        // site can be taken over by the other camp in the shared work area.
+        let other_crew_active = tree.work_building_id != building.id
+            && ctx.db.building().id().find(&tree.work_building_id).is_some_and(|other|
+                other.assigned_labor > 0 && other.production_rate_percent > 0
+                && building_def(&other.kind).is_some_and(|def| tree_work_area_contains(
+                    effective_tree_work_area(other.x, other.z, def.work_radius,
+                        other.tree_work_area_x, other.tree_work_area_z, other.tree_work_area_radius),
+                    tree.x, tree.z))
+                && !tick.building_disabled_by_fire(ctx, other.id)
+                && building_commodity_room(&other, if other.kind == "woodcutters_lodge" {
+                    CommodityKind::Firewood
+                } else { CommodityKind::Timber }) >= 1.0);
+        if other_crew_active {
+            ctx.db.building().id().update(building);
+            return;
+        }
         tree.work_building_id = building.id;
-        tree.harvest_progress = (tree.harvest_progress + work / FALLEN_TREE_WORK_SECONDS).min(1.0);
+        let duration = fallen_tree_work_seconds(
+            (tree.x-building.x).hypot(tree.z-building.z), work / TICK_DT);
+        tree.harvest_progress = (tree.harvest_progress + TICK_DT / duration).min(1.0);
         if tree.harvest_progress >= 1.0 {
             let yaw = fall_direction(tree.layout_index);
             tree.logs = log_health_budgets(tree.wood_yield).into_iter().enumerate().map(|(i, health)| {
@@ -82,6 +101,7 @@ pub fn step_forestry(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameCl
                     health, max_health: health, firewood: 0.0 }
             }).collect();
             tree.phase = "logs".into();
+            if firewood { building.action_cooldown = 0.0; }
             tree.harvest_progress = 0.0;
             tree.work_building_id = 0;
         }

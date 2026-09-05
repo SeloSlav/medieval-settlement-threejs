@@ -121,7 +121,7 @@ export type DeliveryTripState = {
   pathDistance: number;
   travelSpeedMultiplier: number;
   routePolylineJson: string;
-  forestrySource?: { treeId: string; logIndex: number; layoutIndex: number; capacity: number };
+  forestrySource?: { treeId: string; logIndex: number; layoutIndex: number; capacity: number; logMaxHealth: number };
 };
 
 export const VISIBLE_CART_CARGO_EPSILON = 0.05;

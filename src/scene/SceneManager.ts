@@ -754,6 +754,7 @@ export class SceneManager {
             || this.quarrySystem.isGrassBlockedAt(x, z)
             || this.clayDepositSystem.isGrassBlockedAt(x, z)
             || this.mineralDepositSystem.isGrassBlockedAt(x, z)
+            || this.buildingAccessSpurs.isGrassBlockedAt(x, z)
             || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
           maxAnisotropy: this.maxAnisotropy,
           rendererBackend: this.rendererBackend,
@@ -1713,7 +1714,8 @@ export class SceneManager {
 
   syncBuildingAccessRoads(buildings: Iterable<BuildingRoadConnectionSource>): void {
     this.buildingAccessSpurSources = [...buildings].map((building) => ({ ...building }));
-    this.buildingAccessSpurs.sync(this.buildingAccessSpurSources, this.roadNetworkRef);
+    const changed = this.buildingAccessSpurs.sync(this.buildingAccessSpurSources, this.roadNetworkRef);
+    if (changed && this.roadNetworkRef) this.grassField?.syncRoadClearance(this.roadNetworkRef);
   }
 
   syncRoadNetwork(network: RoadNetwork): void {

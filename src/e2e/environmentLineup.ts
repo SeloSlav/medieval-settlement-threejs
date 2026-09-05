@@ -20,16 +20,13 @@ import { computeBurgageLayout } from '../residences/burgageLayout.ts';
 import { setActivePlacedBuildingLayout, sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { updateTerrainBuildingPads } from '../terrain/TerrainBuildingPads.ts';
 import { batchStaticFixtureMeshes } from './staticFixtureBatch.ts';
+import { ENVIRONMENT_CONIFER_TRIAL } from './environmentConiferTrial.ts';
+import { hashStringSeed } from '../utils/random.ts';
 
 const params = new URLSearchParams(location.search);
-if (params.get('conifers') === 'baseline') {
-  for (const [key, values] of Object.entries({
-    douglasFir: { leavesPerBranch: 10, size: 0.6, startFrac: 0.15 },
-    loblolly: { leavesPerBranch: 8, size: 0.85, startFrac: 0.2 },
-    pine: { leavesPerBranch: 9, size: 0.7, startFrac: 0.15 },
-  })) {
+if (params.get('conifers') === 'fuller') {
+  for (const [key, values] of Object.entries(ENVIRONMENT_CONIFER_TRIAL)) {
     Object.assign(GORSKI_KOTAR_SPECIES[key].foliage, values);
-    delete GORSKI_KOTAR_SPECIES[key].foliage.cardCoverage;
   }
 }
 const settings = { ...DEFAULT_WORLD_GENERATION_SETTINGS, mapSize: 'small', terrainPreset: 'mrkopalj_polje', seed: Number(params.get('seed') ?? 0x4d5a2e0d), topography: 12, hydrology: 40 };
@@ -37,6 +34,7 @@ setDraftWorldGeneration(settings);
 const manager = await SceneManager.create(document.querySelector('#world'), settings, progress => {
   document.querySelector('#status').textContent = `${progress.label} · ${progress.detail}`;
 });
+const accessGrassClearance = manager.buildingAccessSpurs.isGrassBlockedAt.bind(manager.buildingAccessSpurs);
 manager.resize({ width: 1280, height: 720 });
 await manager.finishVegetation();
 await manager.materials.whenTexturesReady();
@@ -81,8 +79,8 @@ if (params.get('settlement') === '1') {
   const root = new THREE.Group();
   root.name = 'Environment review settlement';
   manager.scene.add(root);
-  for (const [index, source] of [...settlement.residences, ...settlement.buildings].entries()) {
-    const mesh = source.kind ? createBuildingMesh(source.kind) : createResidenceMesh((settings.seed ^ Math.imul(index + 1, 0x45d9f3b)) >>> 0, 1);
+  for (const source of [...settlement.residences, ...settlement.buildings]) {
+    const mesh = source.kind ? createBuildingMesh(source.kind) : createResidenceMesh(hashStringSeed(source.id), 1);
     mesh.position.copy(manager.terrain.getPointAt(source.x, source.z));
     mesh.rotation.y = source.yaw;
     root.add(mesh);
@@ -149,6 +147,10 @@ await frames(150, false, 1 / 60);
 window.__ENVIRONMENT_GAUNTLET__ = {
   survey,
   settlement,
+  setAccessGrassClearance(enabled) {
+    manager.buildingAccessSpurs.isGrassBlockedAt = enabled ? accessGrassClearance : () => false;
+    manager.grassField?.syncRoadClearance(network);
+  },
   views: Object.keys(views),
   async setGrassImage(dataUrl) {
     const source = await new THREE.TextureLoader().loadAsync(dataUrl);

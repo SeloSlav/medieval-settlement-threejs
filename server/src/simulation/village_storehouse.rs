@@ -306,8 +306,8 @@ pub fn step_storehouse_market_stalls(
 }
 
 /// Once Marketplace-stall and industrial firewood duties have run, remaining
-/// idle depots clear producer output in one owner-wide pass. Household firewood
-/// is collected as soon as it exists; every other bulk material retains the
+/// idle depots clear producer output in one owner-wide pass. Forestry output
+/// is collected as soon as it exists; other bulk materials retain the
 /// normal overflow floor. Fullest producers claim the nearest compatible depot,
 /// so database iteration and construction order cannot silently distort the
 /// logistics layout. Food and grain remain excluded so the granary and
@@ -369,7 +369,8 @@ fn dispatch_overflow_collection_for_owner(
             }
             let stock = building_commodity_stock(&source, commodity);
             let collection_floor = producer_collection_floor(
-                source.kind == "woodcutters_lodge" && commodity == CommodityKind::Firewood,
+                (source.kind == "woodcutters_lodge" && commodity == CommodityKind::Firewood)
+                    || (source.kind == "lumber_mill" && commodity == CommodityKind::Timber),
                 capacity,
             );
             let excess = stock - collection_floor;

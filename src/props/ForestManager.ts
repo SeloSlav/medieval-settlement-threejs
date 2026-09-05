@@ -176,6 +176,7 @@ export class ForestManager {
   private treePhases = new Map<number, TreePhase>();
   private readonly fallingTrees = new Map<number, { progress: number; target: number; impact: boolean }>();
   private readonly forestrySounds: ForestrySoundEvent[] = [];
+  private forestryShadowDirty = false;
   private readonly timberLogs: TimberLogVisuals;
   private readonly fallMatrix = new THREE.Matrix4();
   private readonly fallRotation = new THREE.Matrix4();
@@ -245,7 +246,9 @@ export class ForestManager {
     this.timberLogs = new TimberLogVisuals((x, z) => terrain.getHeightAt(x, z));
     this.group.add(this.timberLogs.group);
     for (let index = 0; index < this.placements.length; index++) {
-      registerTimberLogMaterials(this.placements[index].species, this.harvestStumps.slots[index].mesh.material);
+      const stumpMaterials = this.harvestStumps.slots[index].mesh.material;
+      registerTimberLogMaterials(this.placements[index].species, Array.isArray(stumpMaterials)
+        ? [stumpMaterials[0], this.harvestStumps.cutFaceMaterial, this.harvestStumps.cutFaceMaterial] : stumpMaterials);
       registerTimberLogLayout(index, this.placements[index]);
     }
   }
@@ -367,6 +370,7 @@ export class ForestManager {
   applyTreePhases(updates: Iterable<ForestTreePhaseUpdate>): void {
     let needsCommit = false;
     for (const update of updates) {
+      this.forestryShadowDirty = true;
       const prior = this.treePhases.get(update.layoutIndex);
       const placement = this.placements[update.layoutIndex];
       if (placement && !this.removedTrees.has(update.layoutIndex)) {
@@ -535,7 +539,8 @@ export class ForestManager {
     deltaSeconds = 1 / 60,
     closeGroundGpuPrewarmActive = false,
   ): boolean {
-    let fallChanged = false;
+    let fallChanged = this.forestryShadowDirty;
+    this.forestryShadowDirty = false;
     for (const [index, fall] of this.fallingTrees) {
       const before = fall.progress;
       fall.progress += (fall.target - fall.progress) * Math.min(1, Math.max(0, deltaSeconds) / 0.09);
@@ -1089,8 +1094,11 @@ export class ForestManager {
 
   private queueForestrySound(layoutIndex: number, kind: ForestrySoundEvent['kind']): void {
     const tree = this.placements[layoutIndex];
+    const impactDistance = kind === 'impact' ? 5 * tree.scale : 0;
+    const x = tree.x + Math.sin(treeFallDirection(layoutIndex)) * impactDistance;
+    const z = tree.z + Math.cos(treeFallDirection(layoutIndex)) * impactDistance;
     if (this.forestrySounds.length >= 32) this.forestrySounds.shift();
-    this.forestrySounds.push({ kind, layoutIndex, x: tree.x, z: tree.z, y: this.terrain.getHeightAt(tree.x, tree.z) });
+    this.forestrySounds.push({ kind, layoutIndex, x, z, y: this.terrain.getHeightAt(x, z) });
   }
 
   private applyFallingTreePose(layoutIndex: number, progress: number): void {
