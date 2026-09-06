@@ -305,8 +305,9 @@ export class BuildingStaticBatches {
           // Tiny or rarely repeated pieces cost more separate draw/uniform
           // updates than their exact expanded vertices. Frequent large pieces
           // retain instancing and its geometry-memory advantage.
-          const expand = instanced.entries.length <= 8
-            || instanced.entries.length * instanced.mesh.geometry.getAttribute('position').count <= 2048;
+          const expand = this.sourceGroupName === 'Residence static batches'
+            && (instanced.entries.length <= 8
+              || instanced.entries.length * instanced.mesh.geometry.getAttribute('position').count <= 2048);
           instanced.mesh.visible = !expand;
           if (expand) parts.push({ source: instanced.mesh, geometry: instanced.mesh.geometry, matrix: state.matrix });
           continue;

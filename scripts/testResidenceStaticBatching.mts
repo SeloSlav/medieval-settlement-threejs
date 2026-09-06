@@ -214,8 +214,8 @@ assert.ok(
   `100-home batching must remove at least 95% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
 );
 assert.ok(
-  denseNativeDraws <= 450,
-  `spatial merging must keep 100 varied homes below 450 native WebGPU draws (got ${denseNativeDraws})`,
+  denseNativeDraws <= 300,
+  `spatial merging must keep 100 varied homes below 300 native WebGPU draws (got ${denseNativeDraws})`,
 );
 assert.ok(
   denseNativeDraws <= denseBeforeDraws * 0.2,
@@ -235,8 +235,8 @@ assert.ok(
   `100 authored homes with true cottage apertures must remain at or below 9,500 live geometries (${denseRawGeometry.geometries})`,
 );
 assert.ok(
-  denseFinalGeometry.geometries <= 1_300,
-  `100 registered homes must remain at or below 1,300 live geometries (${denseFinalGeometry.geometries})`,
+  denseFinalGeometry.geometries <= 1_350,
+  `100 registered homes including CPU editing sources and expanded small pieces must stay below 1,350 geometries (${denseFinalGeometry.geometries})`,
 );
 assert.ok(
   denseFinalGeometry.bytes <= 64 * 1024 * 1024,

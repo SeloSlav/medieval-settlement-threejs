@@ -63,16 +63,48 @@ export class StaticRenderBundle extends BundleGroup {
 /** Three r185 has no public pre-projection callback for BundleGroup. */
 export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): void {
   installShadowOverrideCache(renderer);
+  type RenderObject = { object: THREE.Mesh; getDrawParameters(): { vertexCount: number; instanceCount: number } | null };
+  type BundleData = { renderObjects?: RenderObject[] };
   type ProjectionRenderer = {
     _projectObject(object: THREE.Object3D, camera: THREE.Camera, ...args: unknown[]): void;
     _renderBundle(bundle: { bundleGroup: StaticRenderBundle; camera: THREE.Camera }, ...args: unknown[]): void;
+    _currentRenderContext: object;
+    _bundles: { get(group: THREE.Group, camera: THREE.Camera, context: object): object };
+    backend: { get(bundle: object): BundleData };
+    _bundleNeedsUpdate(group: THREE.Group, data: BundleData): boolean;
+    info: { render: { drawCalls: number; triangles: number } };
   };
   const projectionRenderer = renderer as unknown as ProjectionRenderer;
   const original = projectionRenderer._projectObject;
   const renderBundle = projectionRenderer._renderBundle;
+  const statistics = new WeakMap<BundleData, { draws: number; triangles: number }>();
   projectionRenderer._renderBundle = function(bundle, ...args) {
-    if (bundle.bundleGroup.isCityStaticRenderBundle) bundle.bundleGroup.selectView(bundle.camera);
+    if (!bundle.bundleGroup.isCityStaticRenderBundle) return renderBundle.call(this, bundle, ...args);
+    bundle.bundleGroup.selectView(bundle.camera);
+    const data = this.backend.get(this._bundles.get(bundle.bundleGroup, bundle.camera, this._currentRenderContext));
+    const recording = this._bundleNeedsUpdate(bundle.bundleGroup, data);
     renderBundle.call(this, bundle, ...args);
+    let stats = statistics.get(data);
+    if (recording || !stats) {
+      stats = { draws: 0, triangles: 0 };
+      for (const object of data.renderObjects ?? []) {
+        const batch = object.object as THREE.BatchedMesh & { _multiDrawCount: number; _multiDrawCounts: Int32Array };
+        if (batch.isBatchedMesh) {
+          stats.draws += batch._multiDrawCount;
+          for (let i = 0; i < batch._multiDrawCount; i++) stats.triangles += batch._multiDrawCounts[i]! / 3;
+        } else {
+          const draw = object.getDrawParameters();
+          if (draw) { stats.draws++; stats.triangles += draw.vertexCount * draw.instanceCount / 3; }
+        }
+      }
+      statistics.set(data, stats);
+    }
+    // Three only increments these when encoding, although cached commands are
+    // still executed by the GPU. Keep the frame's actual workload visible.
+    if (!recording) {
+      this.info.render.drawCalls += stats.draws;
+      this.info.render.triangles += stats.triangles;
+    }
   };
   projectionRenderer._projectObject = function(object, camera, ...args) {
     if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, false);
