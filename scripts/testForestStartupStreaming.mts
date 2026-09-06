@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapData.ts';
+import { createSeedThreeStableColorSlotSelection } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 
 const sceneManager = fs.readFileSync('src/scene/SceneManager.ts', 'utf8');
 const app = fs.readFileSync('src/app/App.ts', 'utf8');
@@ -45,10 +46,10 @@ assert.ok(
   /updateSeedThreeForestCameraBudgeted\([\s\S]{0,500}maxUpdateDurationMs:\s*(?!Number\.POSITIVE_INFINITY)[A-Z0-9_.]+/.test(forestBuilder),
   'runtime forest compaction must carry an explicit finite main-thread time budget',
 );
-assert.ok(
-  forestBuilder.includes('const nearSlotIndices = slots.map((_, index) => index)')
-    && forestBuilder.includes('slot.forceOverview ? [index] : []'),
-  'every overview tree must retain its real near LOD underneath the fading quad layer',
+assert.deepEqual(
+  createSeedThreeStableColorSlotSelection([{}, {forceOverview:true}, {forceOverview:true,overviewOnly:true}]),
+  {near:[0,1],overview:[1,2]},
+  'gameplay trees retain near geometry beneath the crossfade; permanent horizon trees retain their authored overview layer',
 );
 assert.ok(
   forestBuilder.includes("const initialSelection = selection.triggerReasons.includes('initial')")

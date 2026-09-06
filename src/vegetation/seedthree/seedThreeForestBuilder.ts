@@ -1694,34 +1694,23 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
   forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
     bucket.nearSet.branches, bucket.nearShadowSet.branches,
-    ...bucket.nearSet.cards, ...bucket.nearShadowSet.cards,
   ])
     .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24
       && !Array.isArray(mesh.material) && !mesh.material.transparent)
     .map(mesh => {
       const wind = mesh.geometry.getAttribute('aWind');
-      let maximumWeight = wind ? 0 : 1;
-      if (wind) for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
-      const thickness = mesh.geometry.getAttribute('aThickness');
-      const positions = mesh.geometry.getAttribute('position');
-      let maximumHeight = 0;
-      if (thickness) for (let i = 0; i < positions.count; i++) maximumHeight = Math.max(maximumHeight, positions.getY(i));
+      let maximumWeight = 0;
+      for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
       const vectors = mesh.geometry.getAttribute('aWindVec');
-      let version = -1, maximumVector = 0, thicknessVersion = -1, maximumThickness = 0;
+      let version = -1, maximumVector = 0;
       return new InstanceDrawCompaction(mesh, () => {
         if (version !== (vectors as THREE.BufferAttribute).version) {
           version = (vectors as THREE.BufferAttribute).version; maximumVector = 0;
           for (let i = 0; i < vectors.count; i++) maximumVector = Math.max(maximumVector, Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)));
         }
-        if (thickness && thicknessVersion !== (thickness as THREE.BufferAttribute).version) {
-          thicknessVersion = (thickness as THREE.BufferAttribute).version; maximumThickness = 0;
-          for (let i = 0; i < thickness.count; i++) maximumThickness = Math.max(maximumThickness, Math.abs(thickness.getX(i)));
-        }
-        // Both sine weights sum to one. Leaf-tip flutter has bounded xyz
-        // amplitudes (1, .6, 1); retain whole trees at the frustum boundary.
-        const flutter = .05 * maximumThickness * maximumHeight * Math.sqrt(2.36);
-        return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutter);
-      }, Number(mesh.userData.k ?? 1), !!thickness);
+        // Exact bound for the bark shader: its two sine weights sum to one.
+        return .01 + Math.abs(windStrength.value) * .35 * maximumWeight * maximumVector;
+      });
     });
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),

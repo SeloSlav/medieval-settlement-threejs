@@ -121,6 +121,10 @@ try {
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
   if(process.argv.includes('--parity')) {
     const parity=await page.evaluate(async()=> (await import('/scripts/fixtures/citySceneParity.js')).checkCitySceneParity());
+    for(const frame of parity) {
+      for(const [name,data] of Object.entries(frame.images??{}))writeFileSync(`${output}/scene-parity-${frame.view}-${name}.png`,Buffer.from(data.split(',')[1],'base64'));
+      delete frame.images;
+    }
     writeFileSync(`${output}/scene-parity.json`,JSON.stringify(parity,null,2));
     console.log('SCENE_PARITY',JSON.stringify(parity));
     if(parity.some(frame=>frame.changedPixels>150))throw new Error('Full-world instance culling changed visible geometry or shadows');

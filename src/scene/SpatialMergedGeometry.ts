@@ -7,6 +7,8 @@ export type StaticGeometryPart = {
   matrix: THREE.Matrix4;
 };
 
+const CELL_SIZE_METERS = 192;
+
 /** Exact opaque geometry, combined into native draws with local spatial bounds. */
 export class SpatialMergedGeometry {
   readonly group = new THREE.Group();
@@ -20,7 +22,7 @@ export class SpatialMergedGeometry {
     const buckets = new Map<string, StaticGeometryPart[]>();
     for (const part of parts) {
       const { source, geometry, matrix } = part;
-      const key = [Math.floor(matrix.elements[12]! / 96), Math.floor(matrix.elements[14]! / 96),
+      const key = [Math.floor(matrix.elements[12]! / CELL_SIZE_METERS), Math.floor(matrix.elements[14]! / CELL_SIZE_METERS),
         source.material.uuid, source.castShadow, source.receiveShadow, source.layers.mask,
         source.renderOrder, source.customDepthMaterial?.uuid, source.customDistanceMaterial?.uuid,
         source.frustumCulled, !!geometry.index,
@@ -36,8 +38,8 @@ export class SpatialMergedGeometry {
       const first = parts[0]!;
       // Store vertices close to their own cell origin to retain float precision.
       const origin = new THREE.Vector3(
-        Math.floor(first.matrix.elements[12]! / 96) * 96, 0,
-        Math.floor(first.matrix.elements[14]! / 96) * 96,
+        Math.floor(first.matrix.elements[12]! / CELL_SIZE_METERS) * CELL_SIZE_METERS, 0,
+        Math.floor(first.matrix.elements[14]! / CELL_SIZE_METERS) * CELL_SIZE_METERS,
       );
       const inverse = new THREE.Matrix4().makeTranslation(-origin.x, 0, -origin.z);
       const copies = parts.map(part => part.geometry.clone().applyMatrix4(

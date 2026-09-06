@@ -35,7 +35,12 @@ export async function checkCitySceneParity() {
         const error = Math.abs(actual[i] - expected[i]) + Math.abs(actual[i + 1] - expected[i + 1]) + Math.abs(actual[i + 2] - expected[i + 2]);
         maximumRgbError = Math.max(maximumRgbError, error); if (error > 12) changedPixels++;
       }
-      frames.push({view,compactedMeshes:sources.length,changedPixels,maximumRgbError,totalPixels:640*360});
+      const frame = {view,compactedMeshes:sources.length,changedPixels,maximumRgbError,totalPixels:640*360};
+      if(changedPixels>150) {
+        const encode = data => {const c=document.createElement('canvas');c.width=640;c.height=360;c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),640,360),0,0);return c.toDataURL();};
+        frame.images={actual:encode(actual),expected:encode(expected)};
+      }
+      frames.push(frame);
     }
     return frames;
   } finally {
