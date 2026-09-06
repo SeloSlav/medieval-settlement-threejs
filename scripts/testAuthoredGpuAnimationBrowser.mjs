@@ -51,7 +51,7 @@ try {
         model.getObjectByName(boneName).add(tool);
       }
       gpu.registerAnimationAttachments(actual,toolActual);
-      let maxPaletteError = 0, maxWorldVertexError = 0, maxAttachmentError = 0, samples = 0;
+      let maxPaletteError = 0, maxWorldVertexError = 0, maxAttachmentError = 0, samples = 0, blendGpuSamples = 0;
       // Female clips are limited to civilian movement/work/hurt; no combat preview.
       const selected = asset.animations.filter(clip => !/female/.test(path) || /walk|idle|standing|work|hurt|run|sit/i.test(clip.name));
       for (const clip of selected) {
@@ -67,6 +67,24 @@ try {
             gpu.reserve(16); cpu.reserve(16);
             if (retired.some(attribute => renderer._attributes.has(attribute))) throw new Error('Capacity growth retained an owned GPU storage buffer');
           }
+          await checkPose();
+        }
+      }
+      const channels = clip => clip.tracks.map(track=>track.name).sort().join('\n');
+      const first = selected[0], second = selected.find(clip=>clip!==first&&channels(clip)===channels(first));
+      if(!second)throw new Error(`No authored matching-channel crossfade in ${path}`);
+      gm.stopAllAction();cm.stopAllAction();
+      for(const mixer of [gm,cm]) {
+        mixer.clipAction(first).reset().setLoop(THREE.LoopRepeat,Infinity).setEffectiveWeight(1).play().fadeOut(.18);
+        mixer.clipAction(second).reset().setLoop(THREE.LoopRepeat,Infinity).setEffectiveWeight(1).play().fadeIn(.18);
+      }
+      for(let frame=0;frame<36;frame++) {
+        gpu.updateAnimation(actual,gm,1/120,frame!==10);cm.update(1/120);
+        await checkPose();
+        if(gpu.diagnostics().gpuEvaluatedInstances&&frame<20)blendGpuSamples++;
+      }
+      if(blendGpuSamples<10)throw new Error(`Crossfade stayed on the CPU in ${path}`);
+      async function checkPose() {
           gpu.setCount(1); cpu.setCount(1);
           gpu.setFromCloneAt(0, actual); cpu.setFromCloneAt(0, expected);
           for(let i=0;i<16;i++)maxAttachmentError=Math.max(maxAttachmentError,Math.abs(toolActual.matrixWorld.elements[i]-toolExpected.matrixWorld.elements[i]));
@@ -91,9 +109,8 @@ try {
             maxWorldVertexError = Math.max(maxWorldVertexError, a.applyMatrix4(matrix).distanceTo(b.applyMatrix4(matrix)));
           }
           samples++;
-        }
       }
-      reports.push({ path, samples, maxPaletteError, maxWorldVertexError, maxAttachmentError, diagnostics: gpu.diagnostics() });
+      reports.push({ path, samples, blendGpuSamples, maxPaletteError, maxWorldVertexError, maxAttachmentError, diagnostics: gpu.diagnostics() });
       const retired = [gpu.posePalette, gpu.instanceMatrices, gpu.instanceColors];
       gpu.dispose(); cpu.dispose(); root.removeFromParent();
       if (retired.some(attribute => renderer._attributes.has(attribute))) throw new Error('Disposal retained an owned GPU storage buffer');
@@ -103,7 +120,7 @@ try {
   });
   mkdirSync('artifacts/city-performance', { recursive: true });
   writeFileSync('artifacts/city-performance/gpu-animation-parity.json', JSON.stringify({ ...result, errors }, null, 2));
-  console.log(JSON.stringify({ reports: result.reports.map(({path,samples,maxPaletteError,maxWorldVertexError,maxAttachmentError})=>({path,samples,maxPaletteError,maxWorldVertexError,maxAttachmentError})), errors }));
+  console.log(JSON.stringify({ reports: result.reports.map(({path,samples,blendGpuSamples,maxPaletteError,maxWorldVertexError,maxAttachmentError})=>({path,samples,blendGpuSamples,maxPaletteError,maxWorldVertexError,maxAttachmentError})), errors }));
   assert.deepEqual(errors, []);
   for (const report of result.reports) {
     assert.ok(report.samples >= 3);

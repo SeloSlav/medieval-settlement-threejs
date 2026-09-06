@@ -3798,6 +3798,7 @@ export class ResidenceMarkers {
       glow,
       occupied,
     );
+    this.staticBatches.updateWindowMaterial(residenceId);
     this.appliedWindowGlow.set(residenceId, glow);
     this.appliedWindowOccupied.set(residenceId, occupied);
   }

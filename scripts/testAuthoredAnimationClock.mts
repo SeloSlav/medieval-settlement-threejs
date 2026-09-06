@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { advanceAuthoredAnimationClock } from '../src/scene/AuthoredAnimationClock.ts';
+import { advanceAuthoredAnimationClock, type AuthoredAnimationPose } from '../src/scene/AuthoredAnimationClock.ts';
 
 const clips = [0, 1].map(i => new THREE.AnimationClip(`clip-${i}`, 1, [
   new THREE.VectorKeyframeTrack('Bone.position', [0, .3, 1], [0, i, 0, 1, i + 2, .3, 0, i, 0]),
@@ -47,4 +47,27 @@ const observed = make();
 let loops = 0; observed.mixer.addEventListener('loop', () => loops++);
 for (let i = 0; i < 120; i++) assert.equal(advanceAuthoredAnimationClock(observed.mixer, 1/60, () => true), null);
 assert.ok(loops > 0, 'event-observed mixers retain normal dispatch');
+const blended = make(), referenceBlend = make();
+const pose: AuthoredAnimationPose = { primary: null, secondary: null, blend: 0 };
+let blendedGpuFrames = 0;
+for(let frame=0;frame<120;frame++) {
+  for(const rig of [blended,referenceBlend]) {
+    if(frame===10) {rig.actions[0]!.fadeOut(.18);rig.actions[1]!.reset().fadeIn(.18).play();}
+    if(frame===60) {rig.actions[1]!.fadeOut(.23);rig.actions[0]!.reset().fadeIn(.23).play();}
+    if(frame===95) rig.actions[0]!.setEffectiveWeight(.4);
+  }
+  const active=advanceAuthoredAnimationClock(blended.mixer,1/120,()=>true,pose);
+  referenceBlend.mixer.update(1/120);
+  for(let i=0;i<2;i++) {
+    assert.equal(blended.actions[i]!.time,referenceBlend.actions[i]!.time);
+    assert.equal(blended.actions[i]!.getEffectiveWeight(),referenceBlend.actions[i]!.getEffectiveWeight());
+  }
+  if(active&&pose.secondary&&pose.blend>0&&pose.blend<1) blendedGpuFrames++;
+  if(!active) {
+    assert.ok(blended.bone.position.distanceTo(referenceBlend.bone.position)<1e-7,'CPU fallback recovers a partial-weight pose');
+    assert.ok(blended.bone.quaternion.angleTo(referenceBlend.bone.quaternion)<1e-7,'CPU fallback recovers partial-weight rotation');
+  }
+}
+assert.ok(blendedGpuFrames>=35,`${blendedGpuFrames} matching-channel crossfade frames reached the GPU`);
 console.log(`Authored animation clock parity: ${gpuFrames} GPU-eligible and ${cpuFrames} CPU frames; fades, rates, pause, clamped endings, ping-pong and events.`);
+console.log(`Crossfade clock parity: ${blendedGpuFrames} GPU blend frames and exact partial-weight fallback.`);

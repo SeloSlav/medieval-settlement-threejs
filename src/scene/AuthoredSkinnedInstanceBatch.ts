@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { AuthoredRigWorldMatrices } from './AuthoredRigWorldMatrices.ts';
 import { AuthoredInstanceWorldTransforms } from './AuthoredInstanceWorldTransforms.ts';
 import { AuthoredGpuAnimation } from './AuthoredGpuAnimation.ts';
-import { advanceAuthoredAnimationClock } from './AuthoredAnimationClock.ts';
+import { advanceAuthoredAnimationClock, type AuthoredAnimationPose } from './AuthoredAnimationClock.ts';
 import {
   MeshPhysicalNodeMaterial,
   MeshStandardNodeMaterial,
@@ -227,7 +227,8 @@ export class AuthoredSkinnedInstanceBatch {
   private batchWorldSnapshotValid = false;
   private disposed = false;
   private readonly gpuAnimation: AuthoredGpuAnimation | null;
-  private readonly gpuActions = new WeakMap<THREE.Object3D, THREE.AnimationAction>();
+  private readonly gpuActions = new WeakMap<THREE.Object3D, AuthoredAnimationPose>();
+  private readonly animationPoses = new WeakMap<THREE.Object3D, AuthoredAnimationPose>();
   private frameGpuInstances = 0;
   private lastGpuInstances = 0;
   private poseEpoch = 0;
@@ -434,10 +435,12 @@ export class AuthoredSkinnedInstanceBatch {
 
   /** CPU corrections and bone observers opt out; source animation stays exact. */
   updateAnimation(posedRoot: THREE.Object3D, mixer: THREE.AnimationMixer, dt: number, allowGpu = true): void {
+    let pose = this.animationPoses.get(posedRoot);
+    if (!pose) { pose = { primary: null, secondary: null, blend: 0 }; this.animationPoses.set(posedRoot, pose); }
     const action = this.gpuAnimation && allowGpu
-      ? advanceAuthoredAnimationClock(mixer, dt, this.gpuAnimation.supportsClip)
+      ? advanceAuthoredAnimationClock(mixer, dt, this.gpuAnimation.supportsClip, pose)
       : (mixer.update(dt), null);
-    if (action) this.gpuActions.set(posedRoot, action);
+    if (action) this.gpuActions.set(posedRoot, pose);
     else {
       this.gpuActions.delete(posedRoot);
       this.gpuAnimation?.clearObservers(posedRoot);

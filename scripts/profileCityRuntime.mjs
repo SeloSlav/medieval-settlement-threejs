@@ -86,7 +86,7 @@ try {
     const baseRender=manager.render;
     manager.render=function(dt,...args){const begin=performance.now();dogs.sync(dogPoses,undefined,dt);phases.dogs=performance.now()-begin;return baseRender.call(this,dt,...args);};
     const reports=[];
-    for(const arm of ['terrain-and-camp','buildings','populated',...(large?['populated-stationary','populated-camera-sweep']:[])]) {
+    for(const arm of ['terrain-and-camp','buildings','populated',...(large?['populated-stationary','populated-camera-sweep','populated-cleared-stationary','populated-cleared-camera-sweep']:[])]) {
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
@@ -95,11 +95,20 @@ try {
         app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:large?30:3},(_,i)=>({id:`perf-ox-${i}`,stableId:stableIds[Math.floor(i/3)%stableIds.length],slot:i%3,purchaseCost:10}))});
         if(large)for(let i=0;i<100;i++){const x=center.x+(i%20-10)*2,z=center.z+(Math.floor(i/20)-2)*3;dogPoses.push({id:`perf-dog-${i}`,faction:'dog',x,y:manager.terrain.getHeightAt(x,z),z,yaw:0,moveSpeed:1,status:'advancing'});}
       }
+      if(arm==='populated-cleared-stationary') {
+        const {collectOccupiedParcelPolygons}=await import('/src/residences/burgageZoneLayout.ts');
+        const zones=residences.map((home,i)=>({id:`perf-plot-${i}`,cornerA:{x:home.x-6,z:home.z-7},cornerB:{x:home.x+6,z:home.z-7},cornerC:{x:home.x+6,z:home.z+7},cornerD:{x:home.x-6,z:home.z+7},frontageEdge:0,plotCount:1}));
+        const occupancy=residences.map((_,i)=>({zoneId:`perf-plot-${i}`,parcelIndex:0}));
+        const parcels=collectOccupiedParcelPolygons(zones,occupancy);
+        if(parcels.length!==residences.length)throw new Error('Normal occupied-parcel clearance fixture is incomplete');
+        manager.setForestClearanceSources([camp,...buildings],parcels,[]);
+        app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
+      }
       for(let i=0;i<(arm.startsWith('populated-')?240:120);i++)await new Promise(requestAnimationFrame);
       if(arm==='populated')await window.__cityProfileStart();
       const samples=[]; let last;
       for(let i=0;i<(arm.startsWith('populated-')?360:180);i++) {
-        if(arm==='populated-camera-sweep')app.cameraController.applyShowcaseView(center.x,center.z,.7+.4*Math.sin(i*Math.PI/180),.75,320);
+        if(arm.endsWith('camera-sweep'))app.cameraController.applyShowcaseView(center.x,center.z,.7+.4*Math.sin(i*Math.PI/180),.75,320);
         for(const k of Object.keys(phases)) phases[k]=0;
         const time=await new Promise(requestAnimationFrame);
         if(last!==undefined)samples.push({intervalMs:time-last,...phases});

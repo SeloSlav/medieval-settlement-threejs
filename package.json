@@ -305,6 +305,7 @@
     "test:presentation-hot-path-pacing": "node --experimental-strip-types scripts/testPresentationHotPathPacing.mts",
     "test:building-static-batching": "node --experimental-strip-types scripts/testBuildingStaticBatching.mts",
     "test:residence-static-batching": "node --experimental-strip-types scripts/testResidenceStaticBatching.mts",
+    "test:residence-window-batches-browser": "node scripts/testResidenceWindowBatchesBrowser.mjs",
     "test:household-routines": "node --experimental-strip-types scripts/testHouseholdRoutines.mts",
     "test:civic-logistics": "npx tsx scripts/testCivicLogistics.mts",
     "test:storehouse-stock-targets": "node --experimental-strip-types scripts/testStorehouseStockTargets.mts",

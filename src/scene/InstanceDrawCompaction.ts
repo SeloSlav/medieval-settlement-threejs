@@ -17,6 +17,7 @@ export class InstanceDrawCompaction {
   private readonly copyRanges: number[] = [];
   private readonly layers: number;
   private readonly padding: number | (() => number);
+  private readonly skipCollapsed: boolean;
   private matrixVersion = -1;
   private selectedCount = -1;
   private previousCount = -1;
@@ -25,11 +26,12 @@ export class InstanceDrawCompaction {
   private previousReversedDepth = false;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number)) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean } = {}) {
     if (source.geometry.getIndirect() || Array.isArray(source.material) || source.material.transparent) throw new Error('Instance compaction requires one opaque draw');
     const attributes = Object.entries(source.geometry.attributes);
     if (attributes.some(([, a]) => (a as THREE.InstancedBufferAttribute).isInstancedBufferAttribute && ((a as THREE.InstancedBufferAttribute).meshPerAttribute !== 1 || a.count < source.instanceMatrix.count))) throw new Error('Instance compaction requires complete per-instance attributes');
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
+    this.skipCollapsed = options.skipCollapsed === true;
     const geometry = new THREE.BufferGeometry();
     geometry.name = source.geometry.name;
     geometry.userData = { ...source.geometry.userData, instanceCompactionDraw: true };
@@ -100,6 +102,9 @@ export class InstanceDrawCompaction {
     this.copyRanges.length = 0;
     for (let i = 0; i < source.count; i++) {
       const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
+      // Explicit owner opt-in: harvested/cleared forest slots collapse every
+      // source vertex and its wind vector, producing no rasterized triangles.
+      if (this.skipCollapsed && this.bounds[at + 3] === 0) continue;
       let visible = true;
       for (const plane of this.frustum.planes) {
         const normal = plane.normal;

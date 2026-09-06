@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { StorageBufferAttribute } from 'three/webgpu';
 import { ExactGpuAnimationLibrary, EXACT_GPU_ANIMATION_NO_CLIP } from './ExactGpuAnimationLibrary.ts';
+import type { AuthoredAnimationPose } from './AuthoredAnimationClock.ts';
 
 /** Mounts whose parent bone world matrix was explicitly evaluated this frame. */
 export const authoredGpuObservedMounts = new WeakSet<THREE.Object3D>();
@@ -81,10 +82,12 @@ export class AuthoredGpuAnimation {
     for (const bone of observers.bones) bone.node.matrixWorldNeedsUpdate = true;
   }
 
-  updateObservers(model: THREE.Object3D, action: THREE.AnimationAction): void {
+  updateObservers(model: THREE.Object3D, pose: AuthoredAnimationPose): void {
     const observers = this.observers.get(model);
     if (!observers) return;
-    this.library.evaluateObserverBones(this.clips.get(action.getClip())!, action.time, observers.indices, this.observerWorkspace);
+    const action = pose.primary!, secondary = pose.secondary;
+    this.library.evaluateObserverBones(this.clips.get(action.getClip())!, action.time, observers.indices, this.observerWorkspace,
+      secondary ? this.clips.get(secondary.getClip())! : EXACT_GPU_ANIMATION_NO_CLIP, secondary?.time ?? 0, pose.blend);
     for (const bone of observers.bones) bone.node.matrixWorld.multiplyMatrices(model.matrixWorld, this.observerWorkspace.modelBoneMatrices[bone.index]!);
     for (const mount of observers.mounts) {
       mount.updateWorldMatrix(false, true);
@@ -103,11 +106,14 @@ export class AuthoredGpuAnimation {
     this.times = new Float32Array(words.buffer);
   }
 
-  setAt(slot: number, action: THREE.AnimationAction): void {
+  setAt(slot: number, pose: AuthoredAnimationPose): void {
+    const action = pose.primary!, secondary = pose.secondary;
     const offset = slot * 8;
     this.states[offset] = this.clips.get(action.getClip())!;
-    this.states[offset + 1] = EXACT_GPU_ANIMATION_NO_CLIP;
+    this.states[offset + 1] = secondary ? this.clips.get(secondary.getClip())! : EXACT_GPU_ANIMATION_NO_CLIP;
     this.times[offset + 4] = action.time;
+    this.times[offset + 5] = secondary?.time ?? 0;
+    this.times[offset + 6] = pose.blend;
   }
 
   clearAt(slot: number): void { this.states[slot * 8] = EXACT_GPU_ANIMATION_NO_CLIP; }

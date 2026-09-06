@@ -1710,7 +1710,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         }
         // Exact bound for the bark shader: its two sine weights sum to one.
         return .01 + Math.abs(windStrength.value) * .35 * maximumWeight * maximumVector;
-      });
+      }, { skipCollapsed: true });
     });
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),

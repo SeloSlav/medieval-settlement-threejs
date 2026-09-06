@@ -35,7 +35,7 @@ try {
     actual.instanceMatrix.needsUpdate = expected.instanceMatrix.needsUpdate = true;
     const scenes = [new THREE.Scene(),new THREE.Scene()]; scenes[0].add(actual);scenes[1].add(expected);
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
-    const compaction = new InstanceDrawCompaction(actual,2);
+    const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true});
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
     const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
     const frames = [];
@@ -49,6 +49,7 @@ try {
       if(frame===7) actual.count=expected.count=170;
       if(frame===9) actual.count=expected.count=n;
       if(frame===12) { actual.geometry.getAttribute('offset').setXYZ(14,1,2,0); expected.geometry.getAttribute('offset').setXYZ(14,1,2,0);actual.geometry.getAttribute('offset').needsUpdate=expected.geometry.getAttribute('offset').needsUpdate=true; }
+      if(frame===14||frame===15) { if(frame===14)matrix.makeScale(0,0,0);else matrix.makeTranslation(0,1,0);actual.setMatrixAt(23,matrix);expected.setMatrixAt(23,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
       const a=await pixels(scenes[0]), b=await pixels(scenes[1]);let difference=0;
       for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)difference++;
       for(const pair of compaction.pairs) {
@@ -59,6 +60,8 @@ try {
         }
       }
       frames.push({frame,submitted:compaction.submittedInstances,total:actual.count,difference});
+      if(frame===14&&compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Collapsed cleared-tree slot was submitted');
+      if(frame===15&&!compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Restored tree did not re-enter the draw');
     }
     compaction.dispose();
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;

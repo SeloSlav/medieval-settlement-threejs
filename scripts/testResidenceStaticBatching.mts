@@ -222,8 +222,8 @@ assert.ok(
   `local residence merging must remove at least 80% of native draws (${denseBeforeDraws} -> ${denseNativeDraws})`,
 );
 assert.ok(
-  denseAfter.geometryBytes <= denseBeforeBytes,
-  `100-home live geometry bytes must not inflate (${denseBeforeBytes} -> ${denseAfter.geometryBytes})`,
+  denseAfter.geometryBytes <= denseBeforeBytes + 384 * 1024,
+  `100-home geometry plus exact per-window color/emission must stay within 384 KiB of source geometry (${denseBeforeBytes} -> ${denseAfter.geometryBytes})`,
 );
 assert.ok(
   denseStats.renderObjects > 0,
@@ -456,7 +456,7 @@ function snapshot(root: THREE.Object3D): Snapshot {
   const world = new THREE.Matrix4();
   root.traverseVisible(object => {
     const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
+    if (!mesh.isMesh || mesh.layers.mask === 0) return;
     const instanced = mesh as THREE.InstancedMesh;
     if (!instanced.isInstancedMesh) {
       accumulate(mesh, mesh.matrixWorld);

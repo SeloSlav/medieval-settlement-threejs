@@ -453,11 +453,20 @@ export class ExactGpuAnimationLibrary {
   }
 
   /** Evaluate only observed chains, at full precision and the exact clip time. */
-  evaluateObserverBones(clip: number, time: number, indices: readonly number[], workspace: ExactGpuAnimationReferenceWorkspace): void {
+  evaluateObserverBones(clip: number, time: number, indices: readonly number[], workspace: ExactGpuAnimationReferenceWorkspace,
+    secondaryClip = EXACT_GPU_ANIMATION_NO_CLIP, secondaryTime = 0, blend = 0): void {
     for (const bone of indices) {
       this.sampleVector(clip, bone, POSITION_SLOT, time, workspace.positionA);
       this.sampleQuaternion(clip, bone, time, workspace.quaternionA);
       this.sampleVector(clip, bone, SCALE_SLOT, time, workspace.scaleA);
+      if (secondaryClip !== EXACT_GPU_ANIMATION_NO_CLIP && blend > 0) {
+        this.sampleVector(secondaryClip, bone, POSITION_SLOT, secondaryTime, workspace.positionB);
+        this.sampleQuaternion(secondaryClip, bone, secondaryTime, workspace.quaternionB);
+        this.sampleVector(secondaryClip, bone, SCALE_SLOT, secondaryTime, workspace.scaleB);
+        workspace.positionA.lerp(workspace.positionB, blend);
+        workspace.quaternionA.slerp(workspace.quaternionB, blend);
+        workspace.scaleA.lerp(workspace.scaleB, blend);
+      }
       workspace.localMatrix.compose(workspace.positionA, workspace.quaternionA, workspace.scaleA);
       const parent = this.upload.parentIndices[bone]!;
       workspace.modelBoneMatrices[bone]!.multiplyMatrices(
