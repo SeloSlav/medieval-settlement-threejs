@@ -77,6 +77,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   manure: 'Manure',
   remedies: 'Remedies',
   roofTiles: 'Roof tiles',
+  dressedStone: 'Dressed stone',
   meat: 'Meat',
   fish: 'Fish',
   berries: 'Raspberries',

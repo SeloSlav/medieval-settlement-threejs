@@ -115,6 +115,7 @@ function industrialFirewoodVisualSignature(building: BuildingState): string {
 export function bulkStockpileVisualSignature(building: BuildingState): string {
   if (building.constructionComplete === false) return '';
   const firewoodState = industrialFirewoodVisualSignature(building);
+  if (building.kind === 'stone_mason') return `:mason:${stockpileVisualLevel(building.stone, 96, 8)}:${stockpileVisualLevel(building.dressedStone ?? 0, 64, 8)}`;
   switch (building.kind) {
     case 'lumber_mill':
       return `:tools:${stockpileVisualLevel(
@@ -246,6 +247,17 @@ export function syncBulkStockpileVisuals(
   marker: THREE.Group,
   building: BuildingState,
 ): void {
+  if (building.kind === 'stone_mason') {
+    const rawCount = stockpileVisualLevel(building.stone, 96, 8);
+    const blockCount = stockpileVisualLevel(building.dressedStone ?? 0, 64, 8);
+    for (let i = 0; i < 8; i++) {
+      const raw = marker.getObjectByName('MasonRawStoneStock' + i);
+      const block = marker.getObjectByName('MasonDressedStoneStock' + i);
+      if (raw) raw.visible = i < rawCount;
+      if (block) block.visible = i < blockCount;
+    }
+    return;
+  }
   const firewoodContract = industrialFirewoodContract(building.kind);
   if (firewoodContract) {
     syncNamedStockpile(

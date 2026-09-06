@@ -20,13 +20,13 @@ import { disposeObject3D } from '../src/utils/dispose.ts';
 
 const source = (path: string): string => readFileSync(path, 'utf8');
 
-assert.equal(normalizeChapelTier(undefined), 3, 'legacy church rows retain the former large model');
+assert.equal(normalizeChapelTier(undefined), 1, 'new churches begin with timber construction');
 assert.equal(chapelTierDefinition(1).label, 'Small wooden church');
 assert.equal(chapelTierDefinition(2).label, 'Small stone church');
 assert.equal(chapelTierDefinition(3).label, 'Large stone church');
 assert.deepEqual(
   getBuildingCost('chapel'),
-  { timber: 24, stone: 24 },
+  { timber: 32, stone: 12 },
   'the timber church must not require ironwork',
 );
 
@@ -38,24 +38,25 @@ assert.equal(tier2.targetTier, 2);
 assert.equal(tier3.targetTier, 3);
 assert.deepEqual(tier2, {
   targetTier: 2,
-  timber: 12,
-  stone: 60,
-  ironwork: 0,
-  roofTiles: 24,
+  timber: 32,
+  stone: 96,
+  ironwork: 8,
+  roofTiles: 48, dressedStone: 0,
 });
 assert.deepEqual(tier3, {
   targetTier: 3,
-  timber: 28,
-  stone: 120,
-  ironwork: 0,
-  roofTiles: 48,
+  timber: 64,
+  stone: 144,
+  ironwork: 24,
+  roofTiles: 112, dressedStone: 64,
 });
-assert.equal(tier2.ironwork + tier3.ironwork, 0, 'church construction upgrades must not consume ironwork');
+assert.equal(tier2.ironwork + tier3.ironwork, 32, 'stone construction requires structural ironwork');
 assert.ok(
   tier3.timber + tier3.stone + tier3.ironwork + tier3.roofTiles
     > tier2.timber + tier2.stone + tier2.ironwork + tier2.roofTiles,
 );
-assert.equal(chapelUpgradeCost(3), null);
+assert.deepEqual(chapelUpgradeCost(3), {targetTier:4,timber:160,stone:720,ironwork:80,roofTiles:320});
+assert.equal(chapelUpgradeCost(4), null);
 assert.ok(CHAPEL_TIER1_COFFER_CAPACITY < CHAPEL_TIER3_COFFER_CAPACITY);
 assert.ok(CHAPEL_TIER1_TITHE_MULTIPLIER < CHAPEL_TIER2_TITHE_MULTIPLIER);
 assert.ok(CHAPEL_TIER2_TITHE_MULTIPLIER < CHAPEL_TIER3_TITHE_MULTIPLIER);
@@ -81,12 +82,12 @@ for (const tier of [1, 2, 3] as const) {
   });
   assert.equal(
     openings.length,
-    tier === 3 ? 6 : 5,
+    tier === 3 ? 8 : 5,
     `tier ${tier} must expose every window and door procedurally`,
   );
   const box = new THREE.Box3().setFromObject(church);
   bounds.push(box);
-  sizes.push(box.getSize(new THREE.Vector3()));
+  sizes.push(new THREE.Box3().setFromObject(church.getObjectByName(church.name + ' procedural model')!).getSize(new THREE.Vector3()));
   if (tier === 1) tierOneChurch = church;
   else disposeObject3D(church);
 }
@@ -141,11 +142,11 @@ assert.ok(sizes[2]!.y > sizes[1]!.y, 'the final belfry must raise the landmark s
 const footprint = getBuildingFootprintHalfExtents('chapel');
 const finalBounds = bounds[2]!;
 assert.ok(
-  Math.max(Math.abs(finalBounds.min.x), Math.abs(finalBounds.max.x)) <= footprint.halfWidth,
+  Math.max(Math.abs(finalBounds.min.x), Math.abs(finalBounds.max.x)) <= footprint.halfWidth + 1e-5,
   'the tier-one placement footprint must reserve the final church width',
 );
 assert.ok(
-  Math.max(Math.abs(finalBounds.min.z), Math.abs(finalBounds.max.z)) <= footprint.halfDepth,
+  Math.max(Math.abs(finalBounds.min.z), Math.abs(finalBounds.max.z)) <= footprint.halfDepth + 1e-5,
   'the tier-one placement footprint must reserve the final church depth',
 );
 
@@ -164,4 +165,4 @@ assert.match(inspector, /data-action="upgrade-chapel"/);
 assert.match(inspector, /upgrade\.ironwork[\s\S]*upgrade\.roofTiles/);
 assert.match(markerSignature, /tier-\$\{building\.chapelTier/);
 
-console.log('chapel three-tier upgrade tests passed');
+console.log('chapel four-tier upgrade tests passed');

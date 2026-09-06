@@ -130,6 +130,7 @@ export function renderBuildingInspector(
     case 'smithy':
     case 'weaponsmith_armorer':
     case 'bowyer_fletcher':
+    case 'stone_mason':
     case 'potter_kiln':
     case 'carpenter':
     case 'spinning_retting_house':

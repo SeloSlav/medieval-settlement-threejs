@@ -63,6 +63,7 @@ export function priceMultiplierFor(
     case 'polearms':
     case 'iron':
     case 'clay':
+    case 'dressedStone':
     case 'roofTiles':
       return state.stonePriceMult;
     case 'firewood':

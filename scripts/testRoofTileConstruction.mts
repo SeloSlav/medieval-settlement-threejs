@@ -106,8 +106,8 @@ assert.match(
   'the ordinary carpenter must use a shingle roof',
 );
 const chapelMesh = read('src/buildings/meshes/chapelMesh.ts');
-assert.match(chapelMesh, /stoneTier[\s\S]*sharedBuildingMaterial\('clayRed'\)[\s\S]*sharedBuildingMaterial\('shingle'\)/);
-assert.match(chapelMesh, /createLargeStoneChurchMesh[\s\S]*sharedBuildingMaterial\('clayRed'\)/);
+assert.match(chapelMesh, /stoneTier[\s\S]*sharedBuildingMaterial\('clay(?:Red|Dark)'\)[\s\S]*sharedBuildingMaterial\('shingle'\)/);
+assert.match(chapelMesh, /createLargeStoneChurchMesh[\s\S]*sharedBuildingMaterial\('clay(?:Red|Dark)'\)/);
 
 const chapelUpgrades = read('server/src/chapel_upgrade_policy.rs');
 assert.match(chapelUpgrades, /CHAPEL_TIER2_UPGRADE_ROOF_TILES/);

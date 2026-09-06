@@ -13,10 +13,11 @@ use crate::resource_units::whole_units;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 
 pub fn effective_settle_ticks(
-    has_chapel_access: bool,
+    chapel_tier: u8,
     sabbath_observance: bool,
     has_monastery_coverage: bool,
 ) -> u32 {
+    let has_chapel_access = chapel_tier > 0;
     let mut ticks = if !has_chapel_access {
         RESIDENCE_SETTLE_TICKS
     } else {
@@ -31,7 +32,7 @@ pub fn effective_settle_ticks(
         ticks = ((ticks as f64) * (1.0 - CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS)).ceil() as u32;
     }
 
-    ticks.max(1)
+    crate::chapel_upgrade_policy::bishop_settlement_ticks(ticks, chapel_tier).max(1)
 }
 
 pub fn recovery_stock_min(
@@ -135,15 +136,15 @@ mod tests {
     #[test]
     fn effective_settle_ticks_matches_balance() {
         assert_eq!(
-            effective_settle_ticks(false, false, false),
+            effective_settle_ticks(0, false, false),
             RESIDENCE_SETTLE_TICKS
         );
         assert_eq!(
-            effective_settle_ticks(true, false, false),
+            effective_settle_ticks(1, false, false),
             (RESIDENCE_SETTLE_TICKS as f64 * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER).ceil() as u32,
         );
         assert_eq!(
-            effective_settle_ticks(true, false, true),
+            effective_settle_ticks(1, false, true),
             ((RESIDENCE_SETTLE_TICKS as f64
                 * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER
                 * MONASTERY_SETTLEMENT_TICKS_MULTIPLIER)

@@ -35,6 +35,8 @@ export const DELIVERY_CARGO_KINDS = [
   'manure',
   'remedies',
   'roofTiles',
+
+  'dressedStone',
   'meat',
   'fish',
   'berries',
@@ -364,6 +366,7 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'manure';
     case 25:
       return 'remedies';
+    case 76: return 'dressedStone';
     case 26:
       return 'roofTiles';
     case 27:
@@ -639,6 +642,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Field manure';
     case 'remedies':
       return 'Dried remedies';
+    case 'dressedStone': return 'Dressed stone';
     case 'roofTiles':
       return 'Fired roof tiles';
     default: {
@@ -1114,6 +1118,7 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x26292a;
     case 'pottery':
       return 0xa65e3b;
+    case 'dressedStone': return 0xc8bfa4;
     case 'roofTiles':
       return 0xb75e3b;
     case 'manure':

@@ -293,6 +293,7 @@ pub struct RaidPortableStores {
     pub charcoal: f64,
     pub pottery: f64,
     pub roof_tiles: f64,
+    pub dressed_stone: f64,
     pub remedies: f64,
     pub meat: f64,
     pub fish: f64,
@@ -384,6 +385,7 @@ impl RaidPortableStores {
             charcoal,
             pottery,
             roof_tiles,
+            dressed_stone,
             remedies,
             meat,
             fish,
@@ -456,7 +458,7 @@ impl RaidPortableStores {
             + positive_store(self.salt) * 1.5
             + positive_store(self.charcoal)
             + positive_store(self.pottery) * 1.25
-            + positive_store(self.roof_tiles)
+            + positive_store(self.roof_tiles) + positive_store(self.dressed_stone)
             + positive_store(self.remedies) * 1.25
             + positive_store(self.meat)
             + positive_store(self.fish)
@@ -526,7 +528,7 @@ impl RaidPortableStores {
             + positive_store(self.salt)
             + positive_store(self.charcoal)
             + positive_store(self.pottery)
-            + positive_store(self.roof_tiles)
+            + positive_store(self.roof_tiles) + positive_store(self.dressed_stone)
             + positive_store(self.remedies)
             + positive_store(self.meat)
             + positive_store(self.fish)
@@ -614,6 +616,7 @@ impl RaidPortableStores {
         plunder_good!(charcoal);
         plunder_good!(pottery);
         plunder_good!(roof_tiles);
+        plunder_good!(dressed_stone);
         plunder_good!(remedies);
         plunder_good!(meat);
         plunder_good!(fish);
@@ -699,6 +702,7 @@ impl RaidPortableStores {
             charcoal: removed!(charcoal),
             pottery: removed!(pottery),
             roof_tiles: removed!(roof_tiles),
+            dressed_stone: removed!(dressed_stone),
             remedies: removed!(remedies),
             meat: removed!(meat),
             fish: removed!(fish),

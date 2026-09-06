@@ -60,6 +60,13 @@ pub fn total_roof_tiles(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f
         }))
     .max(0.0)
 }
+pub fn total_dressed_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    (treasury_dressed_stone(ctx, owner) + building_sum(ctx, owner, |building| building.dressed_stone)
+        - reserved_construction_total(ctx, owner, |building| {
+            building.construction_reserved_dressed_stone
+        }))
+    .max(0.0)
+}
 
 pub(crate) fn available_unreserved_building_timber(
     ctx: &ReducerContext,
@@ -111,6 +118,17 @@ pub(crate) fn available_unreserved_building_roof_tiles(
     });
     (stock - reserved).max(0.0)
 }
+pub(crate) fn available_unreserved_building_dressed_stone(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    let stock = building_sum(ctx, owner, |building| building.dressed_stone);
+    let reserved = reserved_construction_total(ctx, owner, |building| {
+        (building.construction_reserved_dressed_stone - building.construction_treasury_dressed_stone)
+            .max(0.0)
+    });
+    (stock - reserved).max(0.0)
+}
 
 pub(crate) fn available_unreserved_treasury_timber(
     ctx: &ReducerContext,
@@ -149,6 +167,15 @@ pub(crate) fn available_unreserved_treasury_roof_tiles(
     });
     (treasury_roof_tiles(ctx, owner) - reserved).max(0.0)
 }
+pub(crate) fn available_unreserved_treasury_dressed_stone(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    let reserved = reserved_construction_total(ctx, owner, |building| {
+        building.construction_treasury_dressed_stone
+    });
+    (treasury_dressed_stone(ctx, owner) - reserved).max(0.0)
+}
 
 /// Splits a new construction reservation between physical building inventories
 /// and the legacy abstract reserve retained only for pre-founding-site saves.
@@ -159,7 +186,8 @@ pub fn construction_treasury_reservation(
     stone: f64,
     ironwork: f64,
     roof_tiles: f64,
-) -> (f64, f64, f64, f64) {
+    dressed_stone: f64,
+) -> (f64, f64, f64, f64, f64) {
     let timber_from_treasury = (timber - available_unreserved_building_timber(ctx, owner))
         .clamp(0.0, available_unreserved_treasury_timber(ctx, owner));
     let stone_from_treasury = (stone - available_unreserved_building_stone(ctx, owner))
@@ -167,13 +195,15 @@ pub fn construction_treasury_reservation(
     let ironwork_from_treasury = (ironwork - available_unreserved_building_ironwork(ctx, owner))
         .clamp(0.0, available_unreserved_treasury_ironwork(ctx, owner));
     let roof_tiles_from_treasury = (roof_tiles
-        - available_unreserved_building_roof_tiles(ctx, owner))
-    .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
+        - available_unreserved_building_roof_tiles(ctx, owner))    .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
+    let dressed_stone_from_treasury = (dressed_stone
+        - available_unreserved_building_dressed_stone(ctx, owner))    .clamp(0.0, available_unreserved_treasury_dressed_stone(ctx, owner));
     (
         timber_from_treasury,
         stone_from_treasury,
         ironwork_from_treasury,
         roof_tiles_from_treasury,
+        dressed_stone_from_treasury,
     )
 }
 
@@ -188,8 +218,9 @@ pub fn construction_treasury_reservation_excluding_building(
     stone: f64,
     ironwork: f64,
     roof_tiles: f64,
+    dressed_stone: f64,
     excluded_building_id: u64,
-) -> (f64, f64, f64, f64) {
+) -> (f64, f64, f64, f64, f64) {
     let building_timber: f64 = ctx
         .db
         .building()
@@ -222,6 +253,14 @@ pub fn construction_treasury_reservation_excluding_building(
         .filter(|building| building.id != excluded_building_id)
         .map(|building| building.roof_tiles)
         .sum();
+    let building_dressed_stone: f64 = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.id != excluded_building_id)
+        .map(|building| building.dressed_stone)
+        .sum();
     let reserved_timber = reserved_construction_total(ctx, owner, |building| {
         (building.construction_reserved_timber - building.construction_treasury_timber).max(0.0)
     });
@@ -237,23 +276,29 @@ pub fn construction_treasury_reservation_excluding_building(
     }) + reserved_residence_upgrade_total(ctx, owner, |residence| {
         residence.upgrade_reserved_roof_tiles
     });
+    let reserved_dressed_stone = reserved_construction_total(ctx, owner, |building| {
+        (building.construction_reserved_dressed_stone - building.construction_treasury_dressed_stone)
+            .max(0.0)
+    });
     let available_timber = (building_timber - reserved_timber).max(0.0);
     let available_stone = (building_stone - reserved_stone).max(0.0);
     let available_ironwork = (building_ironwork - reserved_ironwork).max(0.0);
     let available_roof_tiles = (building_roof_tiles - reserved_roof_tiles).max(0.0);
+    let available_dressed_stone = (building_dressed_stone - reserved_dressed_stone).max(0.0);
     let timber_from_treasury =
         (timber - available_timber).clamp(0.0, available_unreserved_treasury_timber(ctx, owner));
     let stone_from_treasury =
         (stone - available_stone).clamp(0.0, available_unreserved_treasury_stone(ctx, owner));
     let ironwork_from_treasury = (ironwork - available_ironwork)
         .clamp(0.0, available_unreserved_treasury_ironwork(ctx, owner));
-    let roof_tiles_from_treasury = (roof_tiles - available_roof_tiles)
-        .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
+    let roof_tiles_from_treasury = (roof_tiles - available_roof_tiles)        .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
+    let dressed_stone_from_treasury = (dressed_stone - available_dressed_stone)        .clamp(0.0, available_unreserved_treasury_dressed_stone(ctx, owner));
     (
         timber_from_treasury,
         stone_from_treasury,
         ironwork_from_treasury,
         roof_tiles_from_treasury,
+        dressed_stone_from_treasury,
     )
 }
 
@@ -572,6 +617,15 @@ fn treasury_roof_tiles(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f6
         .find(&owner)
         .filter(|row| !row.physical_founding_site_enabled)
         .map(|row| row.roof_tiles)
+        .unwrap_or(0.0)
+}
+fn treasury_dressed_stone(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .filter(|row| !row.physical_founding_site_enabled)
+        .map(|row| row.dressed_stone)
         .unwrap_or(0.0)
 }
 

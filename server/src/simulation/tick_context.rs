@@ -39,6 +39,7 @@ struct OwnerBuildingIndex {
     construction_stone: Vec<u64>,
     construction_ironwork: Vec<u64>,
     construction_roof_tiles: Vec<u64>,
+    construction_dressed_stone: Vec<u64>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -627,6 +628,7 @@ impl SimTickContext {
                 CommodityKind::Stone => owner_index.construction_stone.clone(),
                 CommodityKind::Ironwork => owner_index.construction_ironwork.clone(),
                 CommodityKind::RoofTiles => owner_index.construction_roof_tiles.clone(),
+                CommodityKind::DressedStone => owner_index.construction_dressed_stone.clone(),
                 _ => Vec::new(),
             })
             .unwrap_or_default()
@@ -652,6 +654,9 @@ impl SimTickContext {
             if building.roof_tiles > 1e-6 {
                 owner_index.construction_roof_tiles.push(building.id);
             }
+            if building.dressed_stone > 1e-6 {
+                owner_index.construction_dressed_stone.push(building.id);
+            }
             owner_index
                 .by_kind
                 .entry(building.kind)
@@ -664,6 +669,7 @@ impl SimTickContext {
             owner_index.construction_stone.sort_unstable();
             owner_index.construction_ironwork.sort_unstable();
             owner_index.construction_roof_tiles.sort_unstable();
+            owner_index.construction_dressed_stone.sort_unstable();
             for ids in owner_index.by_kind.values_mut() {
                 ids.sort_unstable();
             }

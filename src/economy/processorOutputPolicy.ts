@@ -37,6 +37,7 @@ export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'charcoal_burner',
   'smithy',
   'potter_kiln',
+  'stone_mason',
   'tannery',
   'cobbler',
   'chandlery',
@@ -70,6 +71,7 @@ export type ProcessorOutputCommodity =
   | 'ironwork'
   | 'pottery'
   | 'roofTiles'
+  | 'dressedStone'
   | 'leather'
   | 'shoes'
   | 'candles';
@@ -77,6 +79,7 @@ export type ProcessorOutputCommodity =
 export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
 export type ProcessorInputCommodity =
+  | 'dressedStone'
   | 'ryeGrain'
   | 'oatGrain'
   | 'maslinGrain'
@@ -96,6 +99,7 @@ export type ProcessorInputCommodity =
   | 'linen'
   | 'iron'
   | 'clay'
+  | 'stone'
   | 'salt'
   | 'charcoal'
   | 'pottery'
@@ -121,6 +125,7 @@ const OUTPUT_BY_KIND: Record<
   charcoal_burner: 'charcoal',
   smithy: 'ironwork',
   potter_kiln: 'pottery',
+  stone_mason: 'dressedStone',
   tannery: 'leather',
   cobbler: 'shoes',
   chandlery: 'candles',
@@ -140,6 +145,7 @@ const INPUTS_BY_KIND: Record<
   charcoal_burner: ['firewood'],
   smithy: ['iron', 'charcoal', 'water'],
   potter_kiln: ['clay', 'firewood', 'water'],
+  stone_mason: ['stone'],
   tannery: ['hides', 'water', 'firewood'],
   cobbler: ['leather'],
   chandlery: ['wax', 'firewood'],

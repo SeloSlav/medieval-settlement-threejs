@@ -87,3 +87,8 @@ blob-report/
 *.njsproj
 *.sln
 *.sw?
+
+# Reproducible church model review captures.
+/output/church-progression/
+
+/output/dressed-stone/

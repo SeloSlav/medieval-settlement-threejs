@@ -145,6 +145,9 @@ export function buildingDemolishHint(kind: BuildingKind): string {
   const roofTiles = (cost.roofTiles ?? 0) > 0
     ? ` and ${refund.roofTiles ?? 0} roof tiles`
     : '';
+  const dressedStone = (cost.dressedStone ?? 0) > 0
+    ? ` and ${refund.dressedStone ?? 0} dressed stone`
+    : '';
   const gold = (cost.gold ?? 0) > 0
     ? ` and ${refund.gold ?? 0} gold`
     : '';
@@ -154,7 +157,7 @@ export function buildingDemolishHint(kind: BuildingKind): string {
   const goldRate = (cost.gold ?? 0) > 0
     ? `, ${Math.round(GOLD_SALVAGE_FRACTION * 100)}% gold`
     : '';
-  return `Leaves about ${refund.timber} timber, ${refund.stone} stone${fittings}${roofTiles}${gold} at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber${fittingRate}${goldRate} of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
+  return `Leaves about ${refund.timber} timber, ${refund.stone} stone${fittings}${roofTiles}${dressedStone}${gold} at this site (${Math.round(STONE_SALVAGE_FRACTION * 100)}% stone, ${Math.round(TIMBER_SALVAGE_FRACTION * 100)}% timber${fittingRate}${goldRate} of ${formatBuildingCost(cost)}). Carts must recover it, and the footprint remains occupied until the pile is empty.`;
 }
 
 export function buildingLaborView(

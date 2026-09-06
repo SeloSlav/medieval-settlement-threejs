@@ -6,9 +6,11 @@
 is the short combat export: 27 seconds of new native 1080p gameplay, then three
 seconds of the existing Selo Empire logo. The director follows male Croatian
 spearmen, bowmen and men-at-arms, Ottoman foot archers and janissaries, then
-cranes out above the field. Each take stages fresh troops and waits for the
+cranes out above the field. Portrait takes use the trailer-only
+`trailer_infantry_only` staging reducer to keep cavalry out of the close lens.
+Each take stages fresh troops and waits for the
 featured weapon role to be actively fighting. Combat runs at 1× simulation
-speed with the fixed 30 fps presentation clock.
+speed with the fixed 30 fps presentation clock and a pinned summer 14:00 sky.
 
 Use a local server with the `trailer` Cargo feature and an isolated database
 whose name starts with `selo-trailer`. The short was recorded with

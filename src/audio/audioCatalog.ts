@@ -90,7 +90,7 @@ export type UiSoundId =
 
 export type PersonSelectionVoice = 'male' | 'female';
 
-export type ChapelBellTier = 1 | 2 | 3;
+export type ChapelBellTier = 1 | 2 | 3 | 4;
 
 export type BuildingAudioKind = Exclude<
   BuildingKind,
@@ -464,6 +464,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   smithy: { path: '/sounds/buildings/smithy.mp3', volume: 0.065 },
   weaponsmith_armorer: { path: '/sounds/buildings/weaponsmith_armorer.mp3', volume: 0.06 },
   bowyer_fletcher: { path: '/sounds/buildings/bowyer_fletcher.mp3', volume: 0.055 },
+  stone_mason: { path: '/sounds/buildings/stone_quarry.mp3', volume: 0.065 },
   potter_kiln: { path: '/sounds/buildings/potter_kiln.mp3', volume: 0.055 },
   well: { path: '/sounds/buildings/well.mp3', volume: 0.06 },
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },

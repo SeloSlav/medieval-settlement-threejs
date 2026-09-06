@@ -76,6 +76,10 @@ export function buildingMeshSignature(building: BuildingState): string {
       building.constructionDeliveredRoofTiles ?? 0,
       building.constructionRequiredRoofTiles ?? 0,
     ),
+constructionDeliveredRatio(
+      building.constructionDeliveredDressedStone ?? 0,
+      building.constructionRequiredDressedStone ?? 0,
+    ),
   );
 }
 

@@ -6,6 +6,7 @@ import {
 } from '../../economy/economyInspectorViews.ts';
 import { isChapelStaffed } from '../../logistics/landmarkAccess.ts';
 import {
+  CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
@@ -15,6 +16,7 @@ import {
   chapelCofferCapacityForTier,
   chapelTierDefinition,
   chapelUpgradeCost,
+  chapelUpkeepMultiplier,
 } from '../../economy/chapelUpgrade.ts';
 import { computeResourceTotals } from '../resourceTotals.ts';
 import { fireForTarget } from '../../fires/fireIncident.ts';
@@ -124,7 +126,9 @@ export function renderChapelInspector(
   const cofferCapacity = chapelCofferCapacityForTier(building.chapelTier);
   const upgrade = chapelUpgradeCost(building.chapelTier);
   const resources = computeResourceTotals(context.gameState);
-  const upgradeBlocker = suspendedByFire
+  const upgradeBlocker = building.constructionComplete === false
+    ? 'Complete the church before upgrading it.'
+    : suspendedByFire
     ? 'Repair the church before upgrading it.'
     : upgrade == null
       ? null
@@ -134,6 +138,8 @@ export function renderChapelInspector(
           ? `Need ${renderResourceAmount('stone', Math.ceil(upgrade.stone - resources.stone), { compact: true })} more.`
           : resources.ironwork + 1e-6 < upgrade.ironwork
             ? `Need ${renderResourceAmount('ironwork', Math.ceil(upgrade.ironwork - resources.ironwork), { compact: true })} more.`
+            : resources.dressedStone + 1e-6 < upgrade.dressedStone
+              ? `Need ${renderResourceAmount('dressedStone', Math.ceil(upgrade.dressedStone - resources.dressedStone), { compact: true })} more.`
             : resources.roofTiles + 1e-6 < upgrade.roofTiles
               ? `Need ${renderResourceAmount('roofTiles', Math.ceil(upgrade.roofTiles - resources.roofTiles), { compact: true })} more.`
               : null;
@@ -144,6 +150,7 @@ export function renderChapelInspector(
         stone: upgrade.stone,
         ironwork: upgrade.ironwork,
         roofTiles: upgrade.roofTiles,
+        dressedStone: upgrade.dressedStone,
       }, { compact: true });
   const { settlementBoost } = formatChapelCommunityBoosts();
   const economy = buildChapelInspectorEconomyView(
@@ -197,11 +204,12 @@ export function renderChapelInspector(
   const collectPanelHtml = `
     <div class="inspector-action-panel" data-inspector-panel-title="Parish orders">
       ${upgrade == null
-        ? '<p class="inspector-action-panel__hint">The large stone church is fully upgraded.</p>'
+        ? '<p class="inspector-action-panel__hint">The cathedral is fully upgraded. Its bishop’s seat serves this parish.</p>'
         : `<button type="button" class="resource-action-button resource-action-button--icon" data-action="upgrade-chapel" data-upgrade-tier="${upgrade.targetTier}"${upgradeBlocker ? ' disabled' : ''}>
-            <span class="inspector-action-icon" data-action-icon="church-tier-${upgrade.targetTier}" aria-hidden="true"></span><span>Upgrade to tier ${upgrade.targetTier}</span>${upgradeCostLabel}
+            <span class="inspector-action-icon" data-action-icon="church-tier-${upgrade.targetTier}" aria-hidden="true"></span><span>Upgrade to ${chapelTierDefinition(upgrade.targetTier).label}</span>${upgradeCostLabel}
           </button>
-          <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
+          <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild within the permanent 24.84 × 31.46 m churchyard reserved at tier 1.'}</p>
+          <p class="inspector-action-panel__hint">${chapelTierDefinition(upgrade.targetTier).cofferCapacity} gold coffer · +${Math.round((chapelTierDefinition(upgrade.targetTier).titheMultiplier - 1) * 100)}% tithe yield · ${chapelUpkeepMultiplier(upgrade.targetTier)}× base upkeep${upgrade.targetTier === 4 ? ' · Bishop’s seat: 25% shorter settlement time for parish homes while staffed' : ''}.</p>`}
       <p class="inspector-action-panel__hint">${suspendedByFire
         ? 'Structural recovery is required before tithes, parish expenses, or relief resume.'
         : 'Parish tithes belong to the church. They fund clergy, upkeep, alms, poor relief, and pledged monastery support; they cannot be transferred to the civic treasury.'}</p>
@@ -234,10 +242,12 @@ export function renderChapelInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Church tier</span><span>${tier.tier} / 3 · ${tier.material}</span></li>
+      <li><span>Church tier</span><span>${tier.tier} / 4 · ${tier.material}</span></li>
       <li><span>Tier benefits</span><span>${tier.titheMultiplier <= 1 ? 'Base' : `+${Math.round((tier.titheMultiplier - 1) * 100)}%`} tithe yield · ${cofferCapacity} gold coffer</span></li>
       <li><span>Purpose</span><span>Parish hub — tithes, settlement, resilience, and easier recovery</span></li>
-      <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
+      <li><span>${tier.tier === 4 ? 'Bishop' : 'Priest'}</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
+      ${tier.tier === 4 ? `<li><span>Bishop’s seat</span><span>${staffed ? 'Active' : 'Inactive · requires a staffed, undamaged cathedral'} · ${Math.round((1 - CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER) * 100)}% shorter settlement time for homes served by this parish; stacks with Sabbath and monastery hospitality</span></li>` : ''}
+      <li><span>Churchyard</span><span>24.84 × 31.46 m · permanent through all four tiers</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>
       <li><span>Monastery purse</span><span>${monasteryPurseLabel}</span></li>
       <li><span>Devotional candles</span><span>${Math.round(candleStock)} / ${CHAPEL_CANDLE_CAPACITY}${inboundCandles > 0 ? ` · ${Math.round(inboundCandles)} incoming` : ''}</span></li>

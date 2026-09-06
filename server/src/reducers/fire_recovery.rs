@@ -11,7 +11,7 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
     initial_construction_labor, reconcile_building_labor, spend_aggregate_roof_tiles,
-    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
+    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_dressed_stone, total_stone,
     total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
@@ -104,6 +104,7 @@ fn repair_building(
         base.stone,
         base.ironwork,
         base.roof_tiles,
+        base.dressed_stone,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -114,6 +115,7 @@ fn repair_building(
         base.stone,
         base.ironwork,
         base.roof_tiles,
+        base.dressed_stone,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -126,11 +128,13 @@ fn repair_building(
     let onsite_stone = whole_units(building.stone).min(cost.stone);
     let onsite_ironwork = whole_units(building.ironwork).min(cost.ironwork);
     let onsite_roof_tiles = whole_units(building.roof_tiles).min(cost.roof_tiles);
+    let onsite_dressed_stone = whole_units(building.dressed_stone).min(cost.dressed_stone);
     let remaining_timber = (cost.timber - onsite_timber).max(0.0);
     let remaining_stone = (cost.stone - onsite_stone).max(0.0);
     let remaining_ironwork = (cost.ironwork - onsite_ironwork).max(0.0);
     let remaining_roof_tiles = (cost.roof_tiles - onsite_roof_tiles).max(0.0);
-    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles) =
+    let remaining_dressed_stone = (cost.dressed_stone - onsite_dressed_stone).max(0.0);
+    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles, treasury_dressed_stone) =
         construction_treasury_reservation_excluding_building(
             ctx,
             owner,
@@ -138,6 +142,7 @@ fn repair_building(
             remaining_stone,
             remaining_ironwork,
             remaining_roof_tiles,
+            remaining_dressed_stone,
             building.id,
         );
     let available_for_repair =
@@ -147,6 +152,7 @@ fn repair_building(
     building.stone = whole_units(building.stone) - onsite_stone;
     building.ironwork = whole_units(building.ironwork) - onsite_ironwork;
     building.roof_tiles = whole_units(building.roof_tiles) - onsite_roof_tiles;
+    building.dressed_stone = whole_units(building.dressed_stone) - onsite_dressed_stone;
     building.assigned_labor = initial_construction_labor(available_for_repair);
     building.action_cooldown = 0.0;
     building.construction_complete = false;
@@ -156,18 +162,22 @@ fn repair_building(
     building.construction_required_stone = cost.stone;
     building.construction_required_ironwork = cost.ironwork;
     building.construction_required_roof_tiles = cost.roof_tiles;
+    building.construction_required_dressed_stone = cost.dressed_stone;
     building.construction_delivered_timber = onsite_timber;
     building.construction_delivered_stone = onsite_stone;
     building.construction_delivered_ironwork = onsite_ironwork;
     building.construction_delivered_roof_tiles = onsite_roof_tiles;
+    building.construction_delivered_dressed_stone = onsite_dressed_stone;
     building.construction_reserved_timber = remaining_timber;
     building.construction_reserved_stone = remaining_stone;
     building.construction_reserved_ironwork = remaining_ironwork;
     building.construction_reserved_roof_tiles = remaining_roof_tiles;
+    building.construction_reserved_dressed_stone = remaining_dressed_stone;
     building.construction_treasury_timber = treasury_timber;
     building.construction_treasury_stone = treasury_stone;
     building.construction_treasury_ironwork = treasury_ironwork;
     building.construction_treasury_roof_tiles = treasury_roof_tiles;
+    building.construction_treasury_dressed_stone = treasury_dressed_stone;
     ctx.db.building().id().update(building);
     clear_fire_for_target(ctx, FIRE_TARGET_BUILDING, incident.target_id);
     Ok(())
@@ -203,6 +213,7 @@ fn repair_residence(
         base_stone,
         0.0,
         base_roof_tiles,
+        0.0,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -213,6 +224,7 @@ fn repair_residence(
         base_stone,
         0.0,
         base_roof_tiles,
+        0.0,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -262,14 +274,17 @@ fn repair_residence(
         residence.upgrade_required_stone = cost.stone;
         residence.upgrade_required_gold = 0.0;
         residence.upgrade_required_roof_tiles = cost.roof_tiles;
+
         residence.upgrade_delivered_timber = 0.0;
         residence.upgrade_delivered_stone = 0.0;
         residence.upgrade_delivered_gold = 0.0;
         residence.upgrade_delivered_roof_tiles = 0.0;
+
         residence.upgrade_reserved_timber = cost.timber;
         residence.upgrade_reserved_stone = cost.stone;
         residence.upgrade_reserved_gold = 0.0;
         residence.upgrade_reserved_roof_tiles = cost.roof_tiles;
+
         residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
         residence.upgrade_priority = CONSTRUCTION_PRIORITY_URGENT;
         if incident.state == FIRE_STATE_DESTROYED {
@@ -355,6 +370,12 @@ fn ensure_recovery_resources(
         return Err(format!(
             "Not enough fired roof tiles for repairs (need {:.1}).",
             cost.roof_tiles
+        ));
+    }
+    if total_dressed_stone(ctx, owner) + 1e-6 < cost.dressed_stone {
+        return Err(format!(
+            "Not enough dressed stone for repairs (need {:.1}).",
+            cost.dressed_stone
         ));
     }
     Ok(())
@@ -446,7 +467,11 @@ fn record_scriptorium_savings(
     let stone = (without_archive.stone - actual.stone).max(0.0);
     let ironwork = (without_archive.ironwork - actual.ironwork).max(0.0);
     let roof_tiles = (without_archive.roof_tiles - actual.roof_tiles).max(0.0);
-    if timber + stone + ironwork + roof_tiles <= 1e-9 {
+    let dressed_stone = (without_archive.dressed_stone - actual.dressed_stone).max(0.0);
+    if timber + stone + ironwork + roof_tiles + dressed_stone <= 1e-9 {
+        return;
+    }
+    if timber + stone + ironwork + dressed_stone <= 1e-9 {
         return;
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
@@ -458,6 +483,8 @@ fn record_scriptorium_savings(
             whole_units(resources.monastery_scriptorium_ironwork_saved_total) + ironwork;
         resources.monastery_scriptorium_roof_tiles_saved_total =
             whole_units(resources.monastery_scriptorium_roof_tiles_saved_total) + roof_tiles;
+        resources.monastery_scriptorium_dressed_stone_saved_total =
+            whole_units(resources.monastery_scriptorium_dressed_stone_saved_total) + dressed_stone;
         ctx.db.player_resources().owner().update(resources);
     }
 }

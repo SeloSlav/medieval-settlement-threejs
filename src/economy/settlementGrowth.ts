@@ -179,6 +179,7 @@ export function computeSettlementGrowthPlan(input: {
       community.hasChapelAccess,
       community.sabbathObservance,
       community.hasMonasteryCoverage,
+      community.chapelTier,
     );
     const remainingTicks = Math.max(1, requiredTicks - residence.settlementTicks);
     nextArrivalSeconds = Math.min(nextArrivalSeconds, remainingTicks * SIM_TICK_SECONDS);

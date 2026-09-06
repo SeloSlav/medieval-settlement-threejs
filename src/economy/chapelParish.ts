@@ -9,6 +9,7 @@ import {
   CHAPEL_UPKEEP_GOLD_PER_DAY,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { chapelUpkeepMultiplier } from './chapelUpgrade.ts';
 import { chapelCofferGold } from '../resources/chapelCoffer.ts';
 import { hasStaffedChapel } from '../logistics/landmarkAccess.ts';
 
@@ -44,10 +45,9 @@ export function chapelPriestSalaryPerDay(assignedLabor: number): number {
   return assignedLabor > 0 ? CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * assignedLabor : 0;
 }
 
-export function chapelUpkeepPerDay(assignedLabor: number): number {
-  return assignedLabor > 0
-    ? CHAPEL_UPKEEP_GOLD_PER_DAY
-    : CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION;
+export function chapelUpkeepPerDay(assignedLabor: number, tier = 1): number {
+  return CHAPEL_UPKEEP_GOLD_PER_DAY * chapelUpkeepMultiplier(tier)
+    * (assignedLabor > 0 ? 1 : CHAPEL_UNSTAFFED_UPKEEP_FRACTION);
 }
 
 export function chapelCharityPerDay(cofferGold: number, assignedLabor: number): number {
@@ -68,9 +68,10 @@ export type ChapelParishExpensePerDay = {
 export function chapelParishExpensePerDay(
   assignedLabor: number,
   cofferGold: number,
+  tier = 1,
 ): ChapelParishExpensePerDay {
   const salary = chapelPriestSalaryPerDay(assignedLabor);
-  const upkeep = chapelUpkeepPerDay(assignedLabor);
+  const upkeep = chapelUpkeepPerDay(assignedLabor, tier);
   const charity = chapelCharityPerDay(cofferGold, assignedLabor);
   return { salary, upkeep, charity, total: salary + upkeep + charity };
 }
@@ -82,13 +83,14 @@ export function chapelParishExpensePerDay(
 export function payableParishExpensePerDay(
   assignedLabor: number,
   cofferGold: number,
+  tier = 1,
 ): ChapelParishExpensePerDay {
   let balance = cofferGold;
 
   const salary = Math.min(chapelPriestSalaryPerDay(assignedLabor), balance);
   balance -= salary;
 
-  const upkeep = Math.min(chapelUpkeepPerDay(assignedLabor), balance);
+  const upkeep = Math.min(chapelUpkeepPerDay(assignedLabor, tier), balance);
   balance -= upkeep;
 
   const charity = assignedLabor > 0 && balance >= CHAPEL_CHARITY_MIN_COFFER_GOLD
@@ -104,7 +106,7 @@ export function sumPayableParishExpensePerDay(chapels: Iterable<BuildingState>):
     if (chapel.kind !== 'chapel' || chapel.constructionComplete === false) {
       continue;
     }
-    total += payableParishExpensePerDay(chapel.assignedLabor, chapelCofferGold(chapel)).total;
+    total += payableParishExpensePerDay(chapel.assignedLabor, chapelCofferGold(chapel), chapel.chapelTier).total;
   }
   return total;
 }

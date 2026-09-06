@@ -166,8 +166,8 @@ export function buildChapelInspectorEconomyView(
   const staffed = isChapelStaffed(building);
   const cofferGold = chapelCofferGold(building);
   const cofferFull = cofferGold >= cofferCapacity - 0.05;
-  const uncapped = payableParishExpensePerDay(building.assignedLabor, cofferGold);
-  const uncappedAtInfinity = payableParishExpensePerDay(building.assignedLabor, Number.POSITIVE_INFINITY);
+  const uncapped = payableParishExpensePerDay(building.assignedLabor, cofferGold, building.chapelTier);
+  const uncappedAtInfinity = payableParishExpensePerDay(building.assignedLabor, Number.POSITIVE_INFINITY, building.chapelTier);
   const needsRequired = recoveryNeedsRequired(true);
   const needsTotal = RESIDENCE_NEED_KINDS.length;
   const candleLiturgy = devotionalCandlesSupplied(building.candles);

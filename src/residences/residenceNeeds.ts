@@ -248,6 +248,7 @@ function describeAwaitingSettlers(
     community.hasChapelAccess,
     community.sabbathObservance,
     community.hasMonasteryCoverage,
+    community.chapelTier,
   );
   const settleSeconds = Math.max(
     1,

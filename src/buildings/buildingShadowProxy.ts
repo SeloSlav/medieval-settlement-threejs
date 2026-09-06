@@ -38,7 +38,7 @@ export class BatchedBuildingShadowProxies {
     _id: string,
     _kind: BuildingKind,
     _marker: THREE.Object3D,
-    _chapelTier: 1 | 2 | 3 = 3,
+    _chapelTier: 1 | 2 | 3 | 4 = 3,
   ): boolean {
     return false;
   }

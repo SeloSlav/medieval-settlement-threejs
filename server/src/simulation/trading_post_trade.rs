@@ -10,7 +10,7 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor, available_unreserved_building_ironwork,
-    available_unreserved_building_roof_tiles, available_unreserved_building_stone,
+    available_unreserved_building_roof_tiles, available_unreserved_building_dressed_stone, available_unreserved_building_stone,
     available_unreserved_building_timber, building_commodity_room, building_commodity_stock,
     credit_treasury_gold_for_settlement, deposit_building_commodity, ensure_market_state,
     price_multiplier_for, record_market_trade, spend_treasury_gold, trade_resource_for_commodity,
@@ -478,6 +478,7 @@ fn protected_outside_stock(ctx: &ReducerContext, owner: Identity, commodity: Com
         CommodityKind::Stone => available_unreserved_building_stone(ctx, owner),
         CommodityKind::Ironwork => available_unreserved_building_ironwork(ctx, owner),
         CommodityKind::RoofTiles => available_unreserved_building_roof_tiles(ctx, owner),
+        CommodityKind::DressedStone => available_unreserved_building_dressed_stone(ctx, owner),
         _ => all_raw,
     };
     let reserved = (all_raw - available_all).max(0.0);

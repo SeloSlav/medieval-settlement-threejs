@@ -20,6 +20,7 @@ export const BUILDING_PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   smithy: { radiusX: 4.6, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
   weaponsmith_armorer: { radiusX: 5.6, radiusZ: 4.6, innerFade: 0.88, outerFade: 1.3 },
   bowyer_fletcher: { radiusX: 5.8, radiusZ: 4.6, innerFade: 0.88, outerFade: 1.3 },
+  stone_mason: { radiusX: 7.8, radiusZ: 6.5, innerFade: 0.9, outerFade: 1.22 },
   potter_kiln: { radiusX: 4.7, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.3 },
   well: { radiusX: 2.2, radiusZ: 2.2, innerFade: 0.9, outerFade: 1.2 },
   stable: { radiusX: 6.4, radiusZ: 4.2, innerFade: 0.9, outerFade: 1.3 },
@@ -28,9 +29,9 @@ export const BUILDING_PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   hunters_hall: { radiusX: 6.1, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.34 },
   foragers_shed: { radiusX: 4.2, radiusZ: 3.8, innerFade: 0.88, outerFade: 1.3 },
   fishing_camp: { radiusX: 5.55, radiusZ: 5.15, innerFade: 0.88, outerFade: 1.3 },
-  // Permanent fenced churchyard: 14.076 x 18.7956 m at every church tier.
+  // Permanent fenced churchyard: 24.84 x 31.464 m at every church tier.
   // Reserves the largest church's buttresses, eaves, steps and entrance court.
-  chapel: { radiusX: 8.5, radiusZ: 11.35, innerFade: 0.9, outerFade: 1.22 },
+  chapel: { radiusX: 15, radiusZ: 19, innerFade: 0.9, outerFade: 1.22 },
   wayside_shrine: { radiusX: 1.65, radiusZ: 1.5, innerFade: 0.9, outerFade: 1.24 },
   marketplace: { radiusX: 4.2, radiusZ: 3.4, innerFade: 0.9, outerFade: 1.3 },
   trading_post: { radiusX: 6.6, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.3 },

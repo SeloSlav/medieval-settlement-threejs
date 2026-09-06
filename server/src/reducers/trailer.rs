@@ -181,6 +181,30 @@ pub fn trailer_battle(ctx: &ReducerContext, action: u8, x: f64, z: f64) -> Resul
     stage_battle(ctx,ctx.sender(),action,x,z)
 }
 
+/// Foot-only production takes keep mounted bodies out of portrait-scale lenses.
+/// This reducer is compiled only into the isolated trailer authoring module.
+#[reducer]
+pub fn trailer_infantry_only(ctx: &ReducerContext) {
+    let owner=ctx.sender();
+    let mounted=ctx.db.combat_agent().owner().filter(&owner)
+        .filter(|a| matches!(a.faction,11|15|16) || (a.faction==1 && a.source_slot%8>=5))
+        .collect::<Vec<_>>();
+    for a in mounted {
+        ctx.db.military_member().combat_agent_id().delete(a.id);
+        ctx.db.raid_incursion_route().combat_agent_id().delete(a.id);
+        ctx.db.combat_agent().id().delete(a.id);
+    }
+    for c in ctx.db.military_company().owner().filter(&owner).filter(|c|matches!(c.kind,8|9|10)).collect::<Vec<_>>() {
+        ctx.db.military_company().id().delete(c.id);
+    }
+    for h in ctx.db.cavalry_horse().owner().filter(&owner).collect::<Vec<_>>() {ctx.db.cavalry_horse().id().delete(h.id);}
+    if let Some(mut raid)=ctx.db.active_raid().owner().find(&owner) {
+        raid.initial_raiders=ctx.db.combat_agent().owner().filter(&owner).filter(|a|a.faction==1&&a.health>0.0).count() as u32;
+        raid.initial_guards=ctx.db.combat_agent().owner().filter(&owner).filter(|a|a.faction>=3&&a.health>0.0).count() as u32;
+        ctx.db.active_raid().owner().update(raid);
+    }
+}
+
 /// Local production recovery when the rendering client is unavailable.
 #[reducer]
 pub fn trailer_battle_saved(ctx: &ReducerContext, action: u8, x: f64, z: f64) -> Result<(),String> {

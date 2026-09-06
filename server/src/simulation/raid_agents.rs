@@ -2284,6 +2284,7 @@ pub(super) fn reclamation_from_raid_stores(stores: RaidPortableStores) -> Reclam
         charcoal: stores.charcoal,
         pottery: stores.pottery,
         roof_tiles: stores.roof_tiles,
+        dressed_stone: stores.dressed_stone,
         remedies: stores.remedies,
         meat: stores.meat,
         fish: stores.fish,

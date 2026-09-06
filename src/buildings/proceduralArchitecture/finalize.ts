@@ -53,7 +53,7 @@ export function finalizeProceduralBuilding(
   kind: BuildingKind,
   options: {
     readonly seed?: number;
-    readonly developmentTier?: 0 | 1 | 2 | 3;
+    readonly developmentTier?: 0 | 1 | 2 | 3 | 4;
     readonly visualRequest?: ProceduralVisualRequest;
   } = {},
 ): THREE.Group {

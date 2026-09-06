@@ -180,6 +180,7 @@ pub struct PlayerResources {
     pub monastery_scriptorium_ironwork_saved_total: f64,
     #[default(0.0)]
     pub monastery_scriptorium_roof_tiles_saved_total: f64,
+    pub monastery_scriptorium_dressed_stone_saved_total: f64,
     /// Imported wrought-iron heads and fittings awaiting local hafting.
     ///
     /// Appended for additive save compatibility; resource grouping is handled
@@ -308,6 +309,7 @@ pub struct PlayerResources {
     /// Fresh production remains physically at a kiln until hauled.
     #[default(0.0)]
     pub roof_tiles: f64,
+    pub dressed_stone: f64,
     /// Typed ready-to-eat provisions. Physical food remains identifiable from
     /// production through storage, delivery, and consumption.
     #[default(0.0)]
@@ -909,6 +911,7 @@ pub struct Building {
     /// Appended after the established building schema for additive migration.
     #[default(0.0)]
     pub roof_tiles: f64,
+    pub dressed_stone: f64,
     /// Kiln firing choice: 0 household/preserving vessels, 1 roof tiles.
     #[default(0u8)]
     pub potter_firing_policy: u8,
@@ -1030,12 +1033,16 @@ pub struct Building {
     /// save-compatible group after every previously deployed Building column.
     #[default(0.0)]
     pub construction_required_roof_tiles: f64,
+    pub construction_required_dressed_stone: f64,
     #[default(0.0)]
     pub construction_delivered_roof_tiles: f64,
+    pub construction_delivered_dressed_stone: f64,
     #[default(0.0)]
     pub construction_reserved_roof_tiles: f64,
+    pub construction_reserved_dressed_stone: f64,
     #[default(0.0)]
     pub construction_treasury_roof_tiles: f64,
+    pub construction_treasury_dressed_stone: f64,
     /// Fermented orchard drink held by brewhouses, taverns, and haulers.
     #[default(0.0)]
     pub cider: f64,

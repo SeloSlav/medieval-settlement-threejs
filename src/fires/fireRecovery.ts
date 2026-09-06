@@ -56,6 +56,7 @@ export function fireRecoveryCost(
     stone: roundToTenth(base.stone * fraction * archiveMultiplier),
     ironwork: roundToTenth((base.ironwork ?? 0) * fraction * archiveMultiplier),
     roofTiles: roundToTenth((base.roofTiles ?? 0) * fraction * archiveMultiplier),
+    dressedStone: roundToTenth((base.dressedStone ?? 0) * fraction * archiveMultiplier),
   };
 }
 
@@ -133,6 +134,7 @@ export function residenceStructuralCost(
     timber,
     stone,
     roofTiles: tier >= 4 ? RESIDENCE_TILE_ROOF_TILE_COST : 0,
+    dressedStone: tier >= 4 ? RESIDENCE_TILE_ROOF_TILE_COST : 0,
   };
 }
 

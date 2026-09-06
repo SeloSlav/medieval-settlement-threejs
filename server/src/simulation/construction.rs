@@ -66,9 +66,8 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
                         building.construction_treasury_timber,
                         building.construction_treasury_stone,
                         building.construction_treasury_ironwork,
-                        building.construction_required_roof_tiles,
-                        building.construction_delivered_roof_tiles,
-                        building.construction_treasury_roof_tiles,
+                        building.construction_required_roof_tiles, building.construction_delivered_roof_tiles, building.construction_treasury_roof_tiles,
+ building.construction_required_dressed_stone, building.construction_delivered_dressed_stone, building.construction_treasury_dressed_stone,
                     ),
                     // The baseline queue never recalls crews, so inbound state
                     // is intentionally irrelevant here. The Town Hall rotation
@@ -92,6 +91,7 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Timber);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::Ironwork);
         dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::RoofTiles);
+        dispatch_reserved_stock(ctx, tick, clock, &mut site, CommodityKind::DressedStone);
         advance_builder_work(ctx, tick, clock, site);
     }
 }
@@ -200,6 +200,15 @@ fn transfer_treasury_reserve(
         site.construction_reserved_roof_tiles =
             (site.construction_reserved_roof_tiles - roof_tiles).max(0.0);
         site.construction_delivered_roof_tiles += roof_tiles;
+        transfer_budget -= roof_tiles;
+    }
+    let dressed_stone = transfer_budget.min(whole_units(site.construction_treasury_dressed_stone)).min(whole_units(treasury.dressed_stone));
+    if dressed_stone > 1e-6 {
+        treasury.dressed_stone -= dressed_stone;
+        site.construction_treasury_dressed_stone -= dressed_stone;
+        site.construction_reserved_dressed_stone =
+            (site.construction_reserved_dressed_stone - dressed_stone).max(0.0);
+        site.construction_delivered_dressed_stone += dressed_stone;
     }
 
     ctx.db.player_resources().owner().update(treasury);
@@ -225,6 +234,9 @@ fn dispatch_reserved_stock(
         }
         CommodityKind::RoofTiles => {
             (site.construction_reserved_roof_tiles - site.construction_treasury_roof_tiles).max(0.0)
+        }
+        CommodityKind::DressedStone => {
+            (site.construction_reserved_dressed_stone - site.construction_treasury_dressed_stone).max(0.0)
         }
         _ => 0.0,
     };
@@ -298,6 +310,7 @@ fn construction_source_stock(source: &Building, commodity: CommodityKind) -> f64
         CommodityKind::Stone => "stone",
         CommodityKind::Ironwork => "ironwork",
         CommodityKind::RoofTiles => "roofTiles",
+        CommodityKind::DressedStone => "dressedStone",
         _ => "",
     };
     construction_source_available_stock(
@@ -330,11 +343,13 @@ fn advance_builder_work(
     let required_total = site.construction_required_timber
         + site.construction_required_stone
         + site.construction_required_ironwork
-        + site.construction_required_roof_tiles;
+        + site.construction_required_roof_tiles
+        + site.construction_required_dressed_stone;
     let delivered_total = site.construction_delivered_timber
         + site.construction_delivered_stone
         + site.construction_delivered_ironwork
-        + site.construction_delivered_roof_tiles;
+        + site.construction_delivered_roof_tiles
+        + site.construction_delivered_dressed_stone;
     let material_readiness = if required_total <= 1e-6 {
         1.0
     } else {
@@ -354,10 +369,13 @@ fn advance_builder_work(
         site.construction_delivered_ironwork + 1e-6 >= site.construction_required_ironwork;
     let roof_tiles_ready =
         site.construction_delivered_roof_tiles + 1e-6 >= site.construction_required_roof_tiles;
+    let dressed_stone_ready =
+        site.construction_delivered_dressed_stone + 1e-6 >= site.construction_required_dressed_stone;
     if timber_ready
         && stone_ready
         && ironwork_ready
         && roof_tiles_ready
+        && dressed_stone_ready
         && site.construction_progress >= 1.0 - 1e-6
     {
         complete_site(ctx, &mut site);
@@ -376,10 +394,12 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     site.construction_reserved_stone = 0.0;
     site.construction_reserved_ironwork = 0.0;
     site.construction_reserved_roof_tiles = 0.0;
+    site.construction_reserved_dressed_stone = 0.0;
     site.construction_treasury_timber = 0.0;
     site.construction_treasury_stone = 0.0;
     site.construction_treasury_ironwork = 0.0;
     site.construction_treasury_roof_tiles = 0.0;
+    site.construction_treasury_dressed_stone = 0.0;
     site.construction_priority = CONSTRUCTION_PRIORITY_NORMAL;
     site.assigned_labor = 0;
 

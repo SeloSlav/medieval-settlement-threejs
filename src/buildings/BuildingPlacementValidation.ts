@@ -85,7 +85,7 @@ type BuildingPlacementContext = {
   vineyardParcels?: Iterable<VineyardParcelState>;
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
-  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'gold'>;
+  stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'dressedStone' | 'gold'>;
   isWaterAt: (x: number, z: number) => boolean;
   isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
@@ -358,6 +358,7 @@ export function validateBuildingPlacement(
       || context.stockpile.stone + 1e-6 < cost.stone
       || context.stockpile.ironwork + 1e-6 < (cost.ironwork ?? 0)
       || context.stockpile.roofTiles + 1e-6 < (cost.roofTiles ?? 0)
+      || context.stockpile.dressedStone + 1e-6 < (cost.dressedStone ?? 0)
       || context.stockpile.gold + 1e-6 < (cost.gold ?? 0)
     )
   ) {

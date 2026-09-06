@@ -19,6 +19,9 @@ pub mod apiary_policy;
 #[path = "../../src/chapel_parish_policy.rs"]
 pub mod chapel_parish_policy;
 
+#[path = "../../src/chapel_upgrade_policy.rs"]
+pub mod chapel_upgrade_policy;
+
 #[path = "../../src/civilian_tool_policy.rs"]
 pub mod civilian_tool_policy;
 

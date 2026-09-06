@@ -68,7 +68,7 @@ function hasBuildingResourceCost(cost: BuildingResourceCost): boolean {
   return cost.timber > 0
     || cost.stone > 0
     || (cost.ironwork ?? 0) > 0
-    || (cost.roofTiles ?? 0) > 0
+    || (cost.roofTiles ?? 0) > 0 || (cost.dressedStone ?? 0) > 0
     || (cost.gold ?? 0) > 0;
 }
 

@@ -7,6 +7,7 @@ export const RESOURCE_DESCRIPTIONS: Readonly<Record<ResourceCostKind, string>> =
   stone: 'Quarried stone for walls, foundations, and other masonry.',
   ironwork: 'Forged tools and fittings for construction, workshop upkeep, carts, and military equipment.',
   roofTiles: 'Fired clay tiles for durable roofs on homes and other buildings.',
+  dressedStone: 'Precisely cut ashlar blocks. Stonemasons dress two rough stone per block for grand churches and civic masonry.',
   gold: 'Coin used to pay for construction, trade, wages, and supplies.',
   iron: 'Iron from mineral deposits, forged with charcoal into tools and fittings at a Smithy.',
   clay: 'Clay dug from deposits and fired into pottery or roof tiles at a Potter’s kiln.',

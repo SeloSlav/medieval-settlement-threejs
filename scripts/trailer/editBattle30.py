@@ -5,6 +5,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / 'artifacts/trailer/battle-30s'
@@ -22,6 +23,12 @@ EDIT = [
 
 
 def run(args, capture=False):
+    if '--audio-only' in sys.argv and pathlib.Path(args[-1]).name in {
+        'picture-30s.mp4', *(f'cut-{i:02d}.mp4' for i in range(8))
+    }:
+        if not pathlib.Path(args[-1]).is_file():
+            raise RuntimeError('Encode the picture cuts before using --audio-only')
+        return
     return subprocess.run([str(FF), '-hide_banner', '-loglevel', 'warning', '-y', *map(str, args)],
                           cwd=OUT, check=True, capture_output=capture, text=capture)
 
@@ -73,7 +80,7 @@ args = ['-i', OUT / 'picture-30s.mp4', '-i', OUT / 'selo-empire-frontier-score.m
 filters = ['[1:a]atrim=0:30,asetpts=PTS-STARTPTS,volume=1.1[music]']
 for n, (sound, at, length, volume) in enumerate(effects, 2):
     args += ['-i', ROOT / 'public/sounds' / sound]
-    filters.append(f'[{n}:a]atrim=0:{length},asetpts=PTS-STARTPTS,afade=t=out:st={length-.15}:d=.15,volume={volume},adelay={round(at*1000)}|{round(at*1000)}[s{n}]')
+    filters.append(f'[{n}:a]atrim=0:{length},asetpts=PTS-STARTPTS,afade=t=out:st={length-.15:.3f}:d=0.15,volume={volume},adelay={round(at*1000)}|{round(at*1000)}[s{n}]')
 filters.append('[music]' + ''.join(f'[s{n}]' for n in range(2, len(effects)+2))
                + f'amix=inputs={len(effects)+1}:duration=first:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=9,afade=t=out:st=29:d=1,apad=whole_dur=30[mix]')
 final = OUT / 'Selo-Empire-Croatian-Frontier-Battle-30s-X.mp4'

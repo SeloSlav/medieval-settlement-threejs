@@ -146,6 +146,8 @@
     "test:production-rate": "npx tsx scripts/testProductionRatePolicy.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
+    "test:cathedral": "node --experimental-strip-types scripts/testCathedralProgression.mts",
+    "test:church-browser": "node scripts/testChurchProgressionBrowser.mjs",
     "test:chapel-upgrade": "npx tsx scripts/testChapelUpgrade.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",
     "test:residence-upgrade": "node --experimental-strip-types scripts/testResidenceUpgrade.mts",

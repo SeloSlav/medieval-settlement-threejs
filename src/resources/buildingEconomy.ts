@@ -47,6 +47,7 @@ export function residenceZoneSalvageRefund(residenceCount: number): BuildingReso
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
     ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
     roofTiles: Math.round((cost.roofTiles ?? 0) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION),
+    dressedStone: Math.round((cost.dressedStone ?? 0) * STONE_SALVAGE_FRACTION),
   };
 }
 
@@ -61,12 +62,13 @@ export function buildingSalvageRefund(kind: BuildingKind): BuildingResourceCost 
     stone: Math.round(cost.stone * STONE_SALVAGE_FRACTION),
     ironwork: Math.round((cost.ironwork ?? 0) * IRONWORK_SALVAGE_FRACTION),
     roofTiles: Math.round((cost.roofTiles ?? 0) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION),
+    dressedStone: Math.round((cost.dressedStone ?? 0) * STONE_SALVAGE_FRACTION),
     gold: Math.round((cost.gold ?? 0) * GOLD_SALVAGE_FRACTION),
   };
 }
 
 export function canAffordBuilding(
-  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'gold'>,
+  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'dressedStone' | 'gold'>,
   kind: BuildingKind,
 ): boolean {
   const cost = getBuildingCost(kind);
@@ -74,6 +76,7 @@ export function canAffordBuilding(
     && totals.stone >= cost.stone
     && totals.ironwork >= (cost.ironwork ?? 0)
     && totals.roofTiles >= (cost.roofTiles ?? 0)
+    && totals.dressedStone >= (cost.dressedStone ?? 0)
     && totals.gold >= (cost.gold ?? 0);
 }
 
@@ -91,6 +94,7 @@ export function formatBuildingCost(cost: BuildingResourceCost): string {
   if (cost.stone > 0) parts.push(`${cost.stone} stone`);
   if ((cost.ironwork ?? 0) > 0) parts.push(`${cost.ironwork} ironwork`);
   if ((cost.roofTiles ?? 0) > 0) parts.push(`${cost.roofTiles} roof tiles`);
+  if ((cost.dressedStone ?? 0) > 0) parts.push(`${cost.dressedStone} dressed stone`);
   if ((cost.gold ?? 0) > 0) parts.push(`${cost.gold} gold`);
   return parts.length > 0 ? parts.join(', ') : 'free';
 }

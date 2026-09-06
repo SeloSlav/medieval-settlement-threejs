@@ -549,6 +549,7 @@ export function renderResidenceInspector(
     community.hasChapelAccess,
     community.sabbathObservance,
     community.hasMonasteryCoverage,
+    community.chapelTier,
   );
   const settleEtaSeconds = residence.tier > 0
     && settlersRemaining > 0

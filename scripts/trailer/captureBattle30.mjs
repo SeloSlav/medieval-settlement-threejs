@@ -31,5 +31,10 @@ try {
   await writeFile(path.join(output, 'browser-errors.json'), JSON.stringify(errors, null, 2));
   if (!previous?.includes('30-second battle footage complete')) throw new Error('The recording did not complete');
 } finally {
+  await writeFile(path.join(output, 'capture-run.json'), JSON.stringify({
+    capturedAt: new Date().toISOString(), requestedShots: shot ?? 'all',
+    completed: previous?.includes('30-second battle footage complete') ?? false,
+    lastStatus: previous, errors,
+  }, null, 2));
   await context.close();
 }

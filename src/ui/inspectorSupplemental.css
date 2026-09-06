@@ -865,3 +865,7 @@
   padding: 8px;
   border: 1px solid rgba(210, 177, 99, 0.2);
 }
+
+.inspector-action-icon[data-action-icon='church-tier-4'] {
+  background-image: url('/assets/ui/icons/upgrades/church-tier-4.svg');
+}

@@ -14,11 +14,12 @@ use crate::tables::Residence;
 pub fn step_residence_settlement(
     ctx: &ReducerContext,
     residence: Residence,
-    has_chapel_access: bool,
+    chapel_tier: u8,
     has_monastery_coverage: bool,
     sabbath_observance: bool,
     needs: &[NeedState],
 ) {
+    let has_chapel_access = chapel_tier > 0;
     if residence.tier == 0 || residence.population_capacity == 0 {
         return;
     }
@@ -59,11 +60,8 @@ pub fn step_residence_settlement(
         return;
     }
 
-    let base_required_ticks = effective_settle_ticks(
-        has_chapel_access,
-        sabbath_observance,
-        has_monastery_coverage,
-    );
+    let base_required_ticks =
+        effective_settle_ticks(chapel_tier, sabbath_observance, has_monastery_coverage);
     let attraction_multiplier = ctx
         .db
         .backyard_garden()

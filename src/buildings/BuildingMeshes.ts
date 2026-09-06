@@ -1,3 +1,4 @@
+import { createStoneMasonMesh } from './meshes/stoneMasonMesh.ts';
 import * as THREE from 'three';
 import type { BuildingKind } from '../resources/types.ts';
 import { createFoundersCampMesh } from './meshes/foundersCampMesh.ts';
@@ -71,7 +72,7 @@ import type {
 const CANONICAL_PROCEDURAL_SEED = 1550;
 
 type ProceduralGeneratorContext = {
-  readonly developmentTier?: 0 | 1 | 2 | 3;
+  readonly developmentTier?: 0 | 1 | 2 | 3 | 4;
   readonly monasteryPlanting?: {
     readonly orchard: number;
     readonly croft: number;
@@ -97,6 +98,7 @@ export const PROCEDURAL_BUILDING_GENERATORS = {
   smithy: () => createSmithyMesh(),
   weaponsmith_armorer: () => createWeaponsmithArmorerMesh(),
   bowyer_fletcher: () => createBowyerFletcherMesh(),
+  stone_mason: () => createStoneMasonMesh(),
   potter_kiln: () => createPotterKilnMesh(),
   well: () => createWellMesh(),
   stable: () => createStableMesh(),
@@ -106,7 +108,7 @@ export const PROCEDURAL_BUILDING_GENERATORS = {
   foragers_shed: () => createForagersShedMesh(),
   fishing_camp: () => createFishingCampMesh(),
   chapel: ({ developmentTier }) => createChapelMesh(
-    Math.max(1, developmentTier ?? 3) as 1 | 2 | 3,
+    Math.max(1, developmentTier ?? 3) as 1 | 2 | 3 | 4,
   ),
   wayside_shrine: () => createWaysideShrineMesh(),
   marketplace: () => createMarketplaceMesh(),
@@ -143,7 +145,7 @@ export const PROCEDURAL_BUILDING_GENERATORS = {
 
 function createRawBuildingMesh(
   kind: BuildingKind,
-  developmentTier?: 0 | 1 | 2 | 3,
+  developmentTier?: 0 | 1 | 2 | 3 | 4,
   monasteryPlanting?: ProceduralGeneratorContext['monasteryPlanting'],
 ): THREE.Group {
   return PROCEDURAL_BUILDING_GENERATORS[kind]({
@@ -159,7 +161,7 @@ function createRawBuildingMesh(
  */
 export function createBuildingMesh(
   kind: BuildingKind,
-  developmentTier?: 0 | 1 | 2 | 3,
+  developmentTier?: 0 | 1 | 2 | 3 | 4,
   monasteryPlanting?: {
     orchard: number;
     croft: number;
@@ -176,7 +178,7 @@ export function createBuildingMesh(
     kind,
     request: visualRequest,
     developmentTier: kind === 'chapel'
-      ? Math.max(1, developmentTier ?? 3) as 1 | 2 | 3
+      ? Math.max(1, developmentTier ?? 3) as 1 | 2 | 3 | 4
       : 0,
     generate: () => createRawBuildingMesh(kind, developmentTier, monasteryPlanting),
   });
@@ -184,7 +186,7 @@ export function createBuildingMesh(
 
 function createCanonicalVisualRequest(
   kind: BuildingKind,
-  developmentTier: 0 | 1 | 2 | 3 | undefined,
+  developmentTier: 0 | 1 | 2 | 3 | 4 | undefined,
   monasteryPlanting: {
     orchard: number;
     croft: number;
@@ -196,7 +198,7 @@ function createCanonicalVisualRequest(
     return {
       type: 'church',
       kind,
-      tier: Math.max(1, developmentTier ?? 3) as 1 | 2 | 3,
+      tier: Math.max(1, developmentTier ?? 3) as 1 | 2 | 3 | 4,
       seed: CANONICAL_PROCEDURAL_SEED,
     };
   }

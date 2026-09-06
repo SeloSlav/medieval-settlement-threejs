@@ -100,8 +100,10 @@ fn step_one_chapel_parish(
         }
 
         if monthly_expenses_due {
-            let upkeep_paid =
-                withdraw_coffer_in_place(&mut chapel_row, chapel_upkeep_lot(assigned_labor));
+            let upkeep_paid = {
+                let upkeep = chapel_upkeep_lot(assigned_labor, chapel_row.chapel_tier);
+                withdraw_coffer_in_place(&mut chapel_row, upkeep)
+            };
             record_parish_ledger(ctx, owner, ParishLedgerKind::Upkeep, upkeep_paid);
         }
 
@@ -374,9 +376,9 @@ mod tests {
             * CHAPEL_UNSTAFFED_UPKEEP_FRACTION
             * CALENDAR_DAYS_PER_MONTH as f64)
             .round();
-        assert_eq!(chapel_upkeep_lot(1), staffed);
-        assert_eq!(chapel_upkeep_lot(0), idle);
-        assert_eq!(chapel_upkeep_lot(1).fract(), 0.0);
-        assert_eq!(chapel_upkeep_lot(0).fract(), 0.0);
+        assert_eq!(chapel_upkeep_lot(1, 1), staffed);
+        assert_eq!(chapel_upkeep_lot(0, 1), idle);
+        assert_eq!(chapel_upkeep_lot(1, 1).fract(), 0.0);
+        assert_eq!(chapel_upkeep_lot(0, 1).fract(), 0.0);
     }
 }

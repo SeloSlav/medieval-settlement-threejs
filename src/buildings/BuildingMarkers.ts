@@ -825,6 +825,7 @@ export class BuildingMarkers {
       building.constructionDeliveredIronwork ?? 0,
       building.constructionRequiredIronwork ?? 0,
     );
+    const dressedStoneRatio = constructionDeliveredRatio(building.constructionDeliveredDressedStone ?? 0, building.constructionRequiredDressedStone ?? 0);
     const roofTilesRatio = constructionDeliveredRatio(
       building.constructionDeliveredRoofTiles ?? 0,
       building.constructionRequiredRoofTiles ?? 0,
@@ -881,6 +882,7 @@ export class BuildingMarkers {
             stoneRatio,
             ironworkRatio,
             roofTilesRatio,
+            dressedStoneRatio,
           );
       markerNeedsRegistration = true;
     }
@@ -1181,7 +1183,7 @@ function syncBuildingVisualState(
           + (building.salt ?? 0)
           + (building.charcoal ?? 0)
           + (building.pottery ?? 0)
-          + (building.roofTiles ?? 0)
+          + (building.roofTiles ?? 0) + (building.dressedStone ?? 0)
           + (building.wool ?? 0)
           + (building.flax ?? 0)
           + (building.cloth ?? 0)

@@ -162,8 +162,8 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
       const enemy=targetFor(subject),length=enemy?Math.hypot(enemy.x-subject.x,enemy.z-subject.z):1;
       const fx=enemy&&length>.01?(enemy.x-subject.x)/length:0,fz=enemy&&length>.01?(enemy.z-subject.z)/length:1;
       return [-1,1].map(side=>{
-        const distance=(name.includes('_bow')?2.1:2.35)*1.8;
-        const forward=(name.includes('_bow')?1.05:.45)*1.8;
+        const distance=(name.includes('_bow')?1.1:1.3)*1.8;
+        const forward=(name.includes('_bow')?.55:.45)*1.8;
         const ex=subject.x-fz*side*distance+fx*forward,ez=subject.z+fx*side*distance+fz*forward;
         const vx=subject.x-ex,vz=subject.z-ez,ll=vx*vx+vz*vz;
         let score=0;
@@ -209,9 +209,9 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
           const u=t*t*(3-2*t),distance=6+u*86;
           directView(focusX,focusZ,sideX*distance-facingX*distance*.48,sideZ*distance-facingZ*distance*.48,2+u*64,1,48);
         }else{
-          const side=(bow?2.1:twoShot?3.0:2.35)*h-t*.28;
-          const forward=(bow?1.05:twoShot?.2:.45)*h;
-          directView(focusX+facingX*(twoShot?.8:.25),focusZ+facingZ*(twoShot?.8:.25),sideX*side+facingX*forward,sideZ*side+facingZ*forward,h*.88,h*.66,bow?42:46);
+          const side=(bow?1.1:twoShot?1.8:1.3)*h-t*.12;
+          const forward=(bow?.55:twoShot?.2:.45)*h;
+          directView(focusX+facingX*(twoShot?.8:.25),focusZ+facingZ*(twoShot?.8:.25),sideX*side+facingX*forward,sideZ*side+facingZ*forward,h*.88,h*.7,bow?42:46);
         }
         return;
       }
@@ -287,7 +287,11 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
         if(!members.length||company.state!==1)continue;
         const target=enemies.reduce((best,a)=>Math.hypot(a.x-members[0].x,a.z-members[0].z)<Math.hypot(best.x-members[0].x,best.z-members[0].z)?a:best);
         await call('set_military_tactics',[Number(company.id),true,[3,7,10].includes(company.kind)]);
-        await call('command_militia',[members.map(a=>Number(a.id)),target.x,target.z,0,Number(target.id)]);
+        if(names[0].includes('_bow')&&![3,7,10].includes(company.kind)){
+          const x=members.reduce((sum,a)=>sum+a.x,0)/members.length;
+          const z=members.reduce((sum,a)=>sum+a.z,0)/members.length;
+          await call('command_militia',[members.map(a=>Number(a.id)),x,z-6,0,0]);
+        }else await call('command_militia',[members.map(a=>Number(a.id)),target.x,target.z,0,Number(target.id)]);
       }
     };
     await issueOrders();
@@ -339,6 +343,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
       await call('trailer_calm',[]);await call('trailer_battle',[0,250,0]);
       await new Promise(r=>setTimeout(r,650));
       await call('trailer_battle',[1,250,24]);await new Promise(r=>setTimeout(r,650));
+      await call('trailer_infantry_only',[]);await new Promise(r=>setTimeout(r,250));
       clearArena();await recordBattle([name]);
     }
     status.textContent='30-second battle footage complete. World paused.';

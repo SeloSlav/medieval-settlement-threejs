@@ -291,9 +291,13 @@ pub(crate) fn place_founding_camp(
         construction_treasury_stone: 0.0,
         construction_treasury_ironwork: 0.0,
         construction_required_roof_tiles: 0.0,
+        construction_required_dressed_stone: 0.0,
         construction_delivered_roof_tiles: 0.0,
+        construction_delivered_dressed_stone: 0.0,
         construction_reserved_roof_tiles: 0.0,
+        construction_reserved_dressed_stone: 0.0,
         construction_treasury_roof_tiles: 0.0,
+        construction_treasury_dressed_stone: 0.0,
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
@@ -342,6 +346,7 @@ pub(crate) fn place_founding_camp(
         charcoal: resources.charcoal.max(0.0),
         pottery: resources.pottery.max(0.0),
         roof_tiles: resources.roof_tiles.max(0.0),
+        dressed_stone: resources.dressed_stone.max(0.0),
         manure: 0.0,
         remedies: 0.0,
         marketplace_iron_target: 0,
@@ -468,6 +473,7 @@ pub(crate) fn place_founding_camp(
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
     resources.roof_tiles = 0.0;
+    resources.dressed_stone = 0.0;
     resources.cloth = 0.0;
     resources.gold = 0.0;
     resources.barley = 0.0;

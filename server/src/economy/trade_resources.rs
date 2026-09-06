@@ -54,6 +54,7 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Manure => TradeResource::Manure,
         CommodityKind::Remedies => TradeResource::Remedies,
         CommodityKind::RoofTiles => TradeResource::RoofTiles,
+        CommodityKind::DressedStone => TradeResource::DressedStone,
         CommodityKind::Meat => TradeResource::Meat,
         CommodityKind::Fish => TradeResource::Fish,
         CommodityKind::Berries => TradeResource::Berries,

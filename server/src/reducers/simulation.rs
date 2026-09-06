@@ -16,7 +16,7 @@ use crate::simulation::{
     step_large_quarry, step_live_raids, step_local_material_dispatch, step_lumber_mill,
     step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_military_requisitions, step_military_world, step_mine,
-    step_monastery, step_natural_tree_regrowth, step_pastoral_farmstead, step_potter_kiln,
+    step_monastery, step_natural_tree_regrowth, step_pastoral_farmstead, step_potter_kiln, step_stone_mason,
     step_production_labor_stewards, step_reclamation_piles, step_reforester, step_residence,
     step_residence_upgrades, step_seasonal_labor_stewards, step_seed_grain_distribution,
     step_settlement_security, step_smithy, step_smokehouse, step_spinning_retting_house,
@@ -326,6 +326,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::WeaponsmithArmorer
             | crate::building_defs::BuildingSimKind::BowyerFletcher
             | crate::building_defs::BuildingSimKind::PotterKiln
+            | crate::building_defs::BuildingSimKind::StoneMason
             | crate::building_defs::BuildingSimKind::Monastery
             | crate::building_defs::BuildingSimKind::Brewery
             | crate::building_defs::BuildingSimKind::Smokehouse
@@ -517,6 +518,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             crate::building_defs::BuildingSimKind::BowyerFletcher => {
                 step_bowyer_fletcher(ctx, &tick, &clock, building)
             }
+            crate::building_defs::BuildingSimKind::StoneMason => { step_stone_mason(ctx, &tick, &clock, building) },
             crate::building_defs::BuildingSimKind::PotterKiln => {
                 step_potter_kiln(ctx, &tick, &clock, building)
             }

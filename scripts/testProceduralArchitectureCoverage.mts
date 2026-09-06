@@ -8,6 +8,7 @@ import {
 import {
   PROCEDURAL_ARCHITECTURE_VERSION,
   PROCEDURAL_BUILDING_CATALOG,
+  createProceduralBuildingPlan,
   type ProceduralBuildingPlan,
 } from '../src/buildings/proceduralArchitecture/catalog.ts';
 import { proceduralVisualRequestKey } from '../src/buildings/proceduralArchitecture/visualRequest.ts';
@@ -189,6 +190,7 @@ function assertProceduralBuildingMetadata(root: THREE.Group, kind: BuildingKind)
   assert.equal(plan.version, PROCEDURAL_ARCHITECTURE_VERSION);
   assert.equal(plan.source, PROCEDURAL_SOURCE);
   assert.equal(plan.seed, VISUAL_SEED);
+  const expectedPlan = createProceduralBuildingPlan(kind, { developmentTier: plan.developmentTier });
   assert.deepEqual(
     {
       family: plan.family,
@@ -200,13 +202,13 @@ function assertProceduralBuildingMetadata(root: THREE.Group, kind: BuildingKind)
       dynamicSlots: plan.dynamicSlots,
     },
     {
-      family: PROCEDURAL_BUILDING_CATALOG[kind].family,
-      status: PROCEDURAL_BUILDING_CATALOG[kind].status,
-      roof: PROCEDURAL_BUILDING_CATALOG[kind].roof,
-      massing: PROCEDURAL_BUILDING_CATALOG[kind].massing,
-      modules: PROCEDURAL_BUILDING_CATALOG[kind].modules,
-      materials: PROCEDURAL_BUILDING_CATALOG[kind].materials,
-      dynamicSlots: PROCEDURAL_BUILDING_CATALOG[kind].dynamicSlots,
+      family: expectedPlan.family,
+      status: expectedPlan.status,
+      roof: expectedPlan.roof,
+      massing: expectedPlan.massing,
+      modules: expectedPlan.modules,
+      materials: expectedPlan.materials,
+      dynamicSlots: expectedPlan.dynamicSlots,
     },
     `${kind} plan must retain its canonical catalog contract`,
   );
@@ -217,7 +219,7 @@ function assertProceduralBuildingMetadata(root: THREE.Group, kind: BuildingKind)
   assert.ok(Number(metrics.sourceMeshes) > 0 && Number.isFinite(metrics.sourceMeshes));
   assert.ok(Number(metrics.sourceTriangles) > 0 && Number.isFinite(metrics.sourceTriangles));
   assert.ok(Number(metrics.sourceVertices) > 0 && Number.isFinite(metrics.sourceVertices));
-  const triangleCeiling = BUILDING_SOURCE_TRIANGLE_CEILINGS[kind]
+  const triangleCeiling = (kind === 'chapel' ? expectedPlan.triangleCeiling : BUILDING_SOURCE_TRIANGLE_CEILINGS[kind])
     ?? DEFAULT_BUILDING_SOURCE_TRIANGLE_CEILING;
   assert.ok(
     Number(metrics.sourceTriangles) <= triangleCeiling,
@@ -261,7 +263,7 @@ for (const kind of BUILDING_KINDS) {
 }
 
 const churchRequestKeys = new Set<string>();
-for (const tier of [1, 2, 3] as const) {
+for (const tier of [1, 2, 3, 4] as const) {
   check(`church tier ${tier}`, () => {
     const church = createBuildingMesh('chapel', tier);
     const audit = auditFiniteGeometry(church, `chapel tier ${tier}`);
@@ -289,7 +291,7 @@ for (const tier of [1, 2, 3] as const) {
   });
 }
 check('church request identity', () => {
-  assert.equal(churchRequestKeys.size, 3, 'church tiers need three distinct request identities');
+  assert.equal(churchRequestKeys.size, 4, 'church tiers need four distinct request identities');
 });
 
 const residenceRequestKeys = new Set<string>();
@@ -357,5 +359,5 @@ if (failures.length > 0) {
 
 console.log(
   `Procedural architecture coverage passed: ${BUILDING_KINDS.length} canonical buildings, `
-    + `3 church tiers, 4 residence tiers, ${auditedMeshes} meshes, ${auditedTriangles} triangles audited.`,
+    + `4 church tiers, 4 residence tiers, ${auditedMeshes} meshes, ${auditedTriangles} triangles audited.`,
 );

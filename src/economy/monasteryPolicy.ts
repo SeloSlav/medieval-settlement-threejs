@@ -17,6 +17,7 @@ export type MonasteryPolicyState = {
   scriptoriumStoneSavedTotal: number;
   scriptoriumIronworkSavedTotal: number;
   scriptoriumRoofTilesSavedTotal: number;
+  scriptoriumDressedStoneSavedTotal: number;
 };
 
 export const DEFAULT_MONASTERY_POLICY: MonasteryPolicyState = {
@@ -33,6 +34,7 @@ export const DEFAULT_MONASTERY_POLICY: MonasteryPolicyState = {
   scriptoriumStoneSavedTotal: 0,
   scriptoriumIronworkSavedTotal: 0,
   scriptoriumRoofTilesSavedTotal: 0,
+  scriptoriumDressedStoneSavedTotal: 0,
 };
 
 export const MONASTERY_CHARTER_RATES = [0, 0.10, 0.25] as const;

@@ -106,6 +106,7 @@ const STORAGE_CHANNEL_LABELS: Record<keyof StorageCaps, string> = {
   leather: 'Leather store',
   shoes: 'Shoe store',
   roofTiles: 'Roof-tile stack',
+  dressedStone: 'Dressed stone',
   manure: 'Manure store',
   remedies: 'Remedy store',
   animalFeed: 'Animal feed store',

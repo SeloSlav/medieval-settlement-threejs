@@ -54,7 +54,7 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Polearms
         | TradeResource::Iron
         | TradeResource::Clay
-        | TradeResource::RoofTiles => state.stone_price_mult,
+        | TradeResource::DressedStone | TradeResource::RoofTiles => state.stone_price_mult,
         TradeResource::Firewood | TradeResource::Water | TradeResource::Charcoal => {
             state.firewood_price_mult
         }
@@ -206,7 +206,7 @@ pub fn record_market_trade(
         | TradeResource::Polearms
         | TradeResource::Iron
         | TradeResource::Clay
-        | TradeResource::RoofTiles => {
+        | TradeResource::DressedStone | TradeResource::RoofTiles => {
             state.regional_stone_supply =
                 adjust_supply_index(state.regional_stone_supply, direction, amount);
         }

@@ -14,7 +14,7 @@ export type ProceduralVisualRequest =
   | {
       readonly type: 'church';
       readonly kind: 'chapel';
-      readonly tier: 1 | 2 | 3;
+      readonly tier: 1 | 2 | 3 | 4;
       readonly seed: number;
     }
   | {

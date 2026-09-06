@@ -973,6 +973,7 @@ pub fn demolish_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(),
         }) * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
     );
     let salvage = ResourceAmount {
+        dressed_stone: 0.0,
         timber: whole_units(
             (refund.timber
                 + if recover_project_materials {

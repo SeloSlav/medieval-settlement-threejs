@@ -18,7 +18,7 @@ export type ProceduralBuildingVisualRequest = Extract<
 export type ProceduralBuildingCompilerInput = {
   readonly kind: BuildingKind;
   readonly request: ProceduralBuildingVisualRequest;
-  readonly developmentTier: 0 | 1 | 2 | 3;
+  readonly developmentTier: 0 | 1 | 2 | 3 | 4;
   readonly generate: () => THREE.Group;
 };
 

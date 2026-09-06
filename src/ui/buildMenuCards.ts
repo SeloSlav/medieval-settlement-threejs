@@ -26,7 +26,7 @@ export type PlacementBuildMenuAction =
   | 'watchtower'
   | 'guardhouse'
   | 'palisaded-refuge'
-  | 'charcoal-burner' | 'smithy' | 'potter-kiln'
+  | 'charcoal-burner' | 'smithy' | 'potter-kiln' | 'stone-mason'
   | 'weaponsmith-armorer' | 'bowyer-fletcher'
   | 'residences'
   | 'dry-stone-wall';
@@ -94,6 +94,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   smithy: ['Smithy', 'Uses charcoal to forge iron into tools and fittings for buildings, workshops, and military equipment.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
   weaponsmith_armorer: ['Weaponsmith & Armorer', 'Turns finished settlement materials into sidearms, shields, polearms, padded armor, and mail armor.', flow(['timber', 'ironwork', 'leather', 'linen'], ['polearms', 'sidearms', 'shields', 'paddedArmor', 'mailArmor'])],
   bowyer_fletcher: ['Bowyer & Fletcher', 'Crafts bows, crossbows, and bundled ammunition for ranged companies.', flow(['timber', 'ironwork', 'linen', 'leather'], ['bows', 'crossbows', 'ammunition'])],
+  stone_mason: ["Stonemason's Yard", 'Dresses 8 rough stone into 4 precisely cut blocks for grand churches and civic masonry.', flow(['stone'], ['dressedStone'])],
   potter_kiln: ["Potter's kiln", 'Fires clay into household pottery or sturdy roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
   reforester: ['Reforester', 'Restores felled woodland with young native trees.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'Fells nearby trees and splits them into firewood for settlement hearths.', flow([], ['firewood'])],
@@ -151,7 +152,7 @@ export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 /** Workshops that process gathered or agricultural inputs into finished goods. */
 export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
-  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'), entry('stone_mason'),
   entry('weaponsmith_armorer'), entry('bowyer_fletcher'),
 ];
 
@@ -190,7 +191,7 @@ const FOOD_BUILD_MENU_ENTRIES = [
   entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('tavern'), entry('smokehouse'),
 ] as const;
 const WORKSHOP_BUILD_MENU_ENTRIES = [
-  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('weaponsmith_armorer'), entry('bowyer_fletcher'), entry('potter_kiln'),
+  entry('carpenter'), entry('spinning_retting_house'), entry('weaver'), entry('tannery'), entry('cobbler'), entry('chandlery'), entry('charcoal_burner'), entry('smithy'), entry('weaponsmith_armorer'), entry('bowyer_fletcher'), entry('potter_kiln'), entry('stone_mason'),
 ] as const;
 const FAITH_BUILD_MENU_ENTRIES = [entry('chapel'), entry('monastery')] as const;
 const DECORATION_BUILD_MENU_ENTRIES = [entry('wayside_shrine'), entry('dry_stone_wall')] as const;

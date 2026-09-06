@@ -1,3 +1,4 @@
+import { MASON_STONE_PER_CYCLE, MASON_DRESSED_STONE_PER_CYCLE } from '../../generated/gameBalance.ts';
 import {
   BREWERY_ALE_PER_CYCLE,
   BREWERY_FRUIT_PER_CIDER_CYCLE,
@@ -134,9 +135,11 @@ type StockKey =
   | 'cloth'
   | 'iron'
   | 'clay'
+  | 'stone'
   | 'salt'
   | 'charcoal'
   | 'pottery'
+  | 'dressedStone'
   | 'ironwork'
   | 'honey'
   | 'apples'
@@ -246,6 +249,12 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     outputPerCycle: SMITHY_IRONWORK_PER_CYCLE,
     operatingLabel: 'Smelting the iron charge, consolidating the bloom, and forging ironwork',
     idleNoWorkersLabel: 'Idle - assign smelters and smiths',
+  },
+  stone_mason: {
+    requiresLabor: true, waterPerCycle: 0,
+    inputs: [{ key: 'stone', label: 'rough stone', required: MASON_STONE_PER_CYCLE, deliveryHint: 'road-linked quarry and storehouse carts supply stone' }],
+    output: 'dressedStone', outputPerCycle: MASON_DRESSED_STONE_PER_CYCLE,
+    operatingLabel: 'Squaring and dressing ashlar blocks', idleNoWorkersLabel: 'Idle - assign stonemasons',
   },
   potter_kiln: {
     requiresLabor: true,

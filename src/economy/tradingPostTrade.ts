@@ -31,7 +31,7 @@ export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> =
   firewood: 0, water: 1, timber: 3, ale: 6,
   honey: 8, wine: 9, stone: 10, polearms: 11, ironwork: 12, wool: 13,
   cloth: 14, barley: 16, malt: 17, flax: 18, iron: 19, clay: 20, salt: 21,
-  charcoal: 22, pottery: 23, manure: 24, remedies: 25, roofTiles: 26,
+  charcoal: 22, pottery: 23, manure: 24, remedies: 25, roofTiles: 26, dressedStone: 76,
   meat: 28, fish: 29, berries: 30, mushrooms: 31, milk: 32, apples: 33,
   cherries: 34, eggs: 36, grapes: 37,
   curedMeat: 39, smokedFish: 40, cheese: 41, ryeSheaves: 42, oatSheaves: 43,
@@ -68,14 +68,14 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   ale: 'Ale', cider: 'Cider', wine: 'Wine', wool: 'Wool',
   yarn: 'Yarn', linen: 'Linen', cloth: 'Clothing', iron: 'Iron', clay: 'Clay', salt: 'Salt', ironwork: 'Ironwork',
   pelts: 'Pelts', hides: 'Hides', leather: 'Leather', shoes: 'Shoes',
-  polearms: 'Polearms', pottery: 'Pottery', roofTiles: 'Roof tiles', manure: 'Manure',
+  polearms: 'Polearms', pottery: 'Pottery', roofTiles: 'Roof tiles', dressedStone: 'Dressed stone', manure: 'Manure',
   sidearms: 'Sidearms', shields: 'Shields', bows: 'Bows', crossbows: 'Crossbows',
   paddedArmor: 'Padded armor', mailArmor: 'Mail armor', ammunition: 'Ammunition',
   remedies: 'Remedies',
 };
 
 export const TRADING_POST_TRADE_CATEGORIES = [
-  { label: 'Construction & raw materials', resources: ['timber', 'stone', 'clay', 'iron', 'salt', 'ironwork', 'roofTiles'] },
+  { label: 'Construction & raw materials', resources: ['timber', 'stone', 'dressedStone', 'clay', 'iron', 'salt', 'ironwork', 'roofTiles'] },
   { label: 'Fuel & utilities', resources: ['firewood', 'charcoal', 'water'] },
   { label: 'Crops & harvest', resources: ['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'flax', 'manure'] },
   { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread'] },

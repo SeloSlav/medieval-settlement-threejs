@@ -620,6 +620,7 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
+        "stone_mason" => BuildingPadParams { radius_x: 7.8, radius_z: 6.5, inner_fade: 0.9, outer_fade: 1.22 },
         "potter_kiln" => BuildingPadParams {
             radius_x: 4.7,
             radius_z: 4.1,
@@ -664,8 +665,8 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
         },
         "chapel" => BuildingPadParams {
             // Permanent fenced churchyard, shared by every upgrade tier.
-            radius_x: 8.5,
-            radius_z: 11.35,
+            radius_x: 15.0,
+            radius_z: 19.0,
             inner_fade: 0.9,
             outer_fade: 1.22,
         },

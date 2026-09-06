@@ -99,6 +99,7 @@ fn resource_ledger_slot(
         CommodityKind::Manure => None,
         CommodityKind::Remedies => None,
         CommodityKind::RoofTiles => Some(&mut resources.roof_tiles),
+        CommodityKind::DressedStone => Some(&mut resources.dressed_stone),
         CommodityKind::Meat => Some(&mut resources.meat),
         CommodityKind::Fish => Some(&mut resources.fish),
         CommodityKind::Berries => Some(&mut resources.berries),

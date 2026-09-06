@@ -67,6 +67,7 @@ export function constructionVisualSignature(
   stoneRatio: number,
   ironworkRatio = 0,
   roofTilesRatio = 0,
+  dressedStoneRatio = 0,
 ): string {
   const clampedProgress = THREE.MathUtils.clamp(progress, 0, 1);
   const stage = Math.min(4, Math.floor(clampedProgress * 5));
@@ -86,7 +87,7 @@ export function constructionVisualSignature(
     3,
     Math.ceil(constructionMaterialPileRatio(clampedProgress, roofTilesRatio) * 3),
   );
-  return `site:${stage}:${timberPile}:${stonePile}:${fittings}:${roofTiles}`;
+  return `site:${stage}:${timberPile}:${stonePile}:${fittings}:${roofTiles}:${Math.ceil(constructionMaterialPileRatio(clampedProgress, dressedStoneRatio) * 3)}`;
 }
 
 export function createConstructionSiteMesh(
@@ -96,6 +97,7 @@ export function createConstructionSiteMesh(
   stoneRatio: number,
   ironworkRatio = 0,
   roofTilesRatio = 0,
+  dressedStoneRatio = 0,
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'Construction site';
@@ -116,8 +118,16 @@ export function createConstructionSiteMesh(
     stone: remainingStoneRatio,
     ironwork: remainingIronworkRatio,
     roofTiles: remainingRoofTilesRatio,
+    dressedStone: constructionMaterialPileRatio(clampedProgress, dressedStoneRatio),
   };
 
+  const blockLayers = Math.ceil(constructionMaterialPileRatio(clampedProgress, dressedStoneRatio) * 3);
+  for (let i = 0; i < blockLayers * 3; i++) {
+    const block = constructionMesh(new THREE.BoxGeometry(.62, .32, .46), PALE_STONE);
+    block.name = 'Construction dressed stone block';
+    block.position.set(-halfWidth * .6 + (i % 3) * .66, .17 + Math.floor(i / 3) * .34, halfDepth + .8);
+    root.add(block);
+  }
   addStakeLine(root, halfWidth, halfDepth);
   addFoundation(root, halfWidth, halfDepth, Math.min(1, clampedProgress * 5));
   if (stage >= 1) addWallFrames(root, halfWidth, halfDepth, stage);

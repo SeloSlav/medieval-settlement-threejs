@@ -7,6 +7,7 @@ export const STORAGE_COMMODITY_CODES = {
   honey: 8,
   wine: 9,
   stone: 10,
+  dressedStone: 76,
   polearms: 11,
   ironwork: 12,
   wool: 13,
@@ -77,6 +78,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
   honey: 'Honey',
   wine: 'Wine',
   stone: 'Stone',
+  dressedStone: 'Dressed stone',
   wool: 'Wool',
   cloth: 'Clothing',
   barley: 'Threshed barley',
@@ -139,7 +141,7 @@ export const STORAGE_COMMODITY_LABELS: Record<StorageCommodity, string> = {
 };
 
 export const STOREHOUSE_STORAGE_GROUPS = [
-  { label: 'Building materials', commodities: ['timber', 'stone'] },
+  { label: 'Building materials', commodities: ['timber', 'stone', 'dressedStone'] },
   { label: 'Fuel and minerals', commodities: ['firewood', 'charcoal', 'iron', 'clay', 'salt'] },
   { label: 'Textile materials', commodities: ['wool', 'yarn', 'linen'] },
   { label: 'Market wares', commodities: ['cloth', 'pelts', 'hides', 'leather', 'shoes', 'pottery', 'remedies', 'wax', 'candles'] },

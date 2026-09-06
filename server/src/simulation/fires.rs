@@ -719,6 +719,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.cloth = 0.0;
             building.pelts = 0.0;
             building.roof_tiles = 0.0;
+            building.dressed_stone = 0.0;
             building.ironwork = 0.0;
             building.polearms = 0.0;
             building.sidearms = 0.0;
@@ -824,6 +825,7 @@ fn fire_recoverable_stock(building: &Building) -> ReclamationStock {
         salt: building.salt.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         pottery: building.pottery.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         roof_tiles: building.roof_tiles.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        dressed_stone: building.dressed_stone.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         ..ReclamationStock::default()
     }
 }

@@ -1715,6 +1715,7 @@ pub fn try_start_residence_upgrade_supply_trip(
         CommodityKind::Stone => residence.upgrade_reserved_stone,
         CommodityKind::Gold => residence.upgrade_reserved_gold,
         CommodityKind::RoofTiles => residence.upgrade_reserved_roof_tiles,
+
         _ => 0.0,
     }
     .max(0.0);
@@ -1767,6 +1768,7 @@ pub fn try_start_residence_upgrade_supply_trip(
             residence.upgrade_reserved_roof_tiles =
                 (residence.upgrade_reserved_roof_tiles - withdrawn).max(0.0)
         }
+
         _ => return false,
     }
     *origin = source.clone();
@@ -1917,6 +1919,9 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::RoofTiles => {
             (site.construction_reserved_roof_tiles - site.construction_treasury_roof_tiles).max(0.0)
         }
+        CommodityKind::DressedStone => {
+            (site.construction_reserved_dressed_stone - site.construction_treasury_dressed_stone).max(0.0)
+        }
         _ => 0.0,
     };
     let storehouse_workers = if origin.kind == "village_storehouse" {
@@ -1938,6 +1943,7 @@ pub fn try_start_construction_supply_trip(
         site.construction_required_roof_tiles,
         site.construction_delivered_roof_tiles,
         site.construction_treasury_roof_tiles,
+        site.construction_required_dressed_stone, site.construction_delivered_dressed_stone, site.construction_treasury_dressed_stone,
     );
     let onsite_builders = onsite_building_labor(ctx, site);
     let crew = construction_supply_crew(
@@ -1968,6 +1974,7 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Stone => "stone",
         CommodityKind::Ironwork => "ironwork",
         CommodityKind::RoofTiles => "roofTiles",
+        CommodityKind::DressedStone => "dressedStone",
         _ => "",
     };
     let Some(local_route) = local_delivery_route(network, origin.x, origin.z, site.x, site.z)
@@ -2011,6 +2018,10 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::RoofTiles => {
             site.construction_reserved_roof_tiles =
                 (site.construction_reserved_roof_tiles - withdrawn).max(0.0)
+        }
+        CommodityKind::DressedStone => {
+            site.construction_reserved_dressed_stone =
+                (site.construction_reserved_dressed_stone - withdrawn).max(0.0)
         }
         _ => return false,
     }
@@ -2688,6 +2699,7 @@ fn unload_residence_upgrade_material(
         CommodityKind::RoofTiles => (residence.upgrade_required_roof_tiles
             - residence.upgrade_delivered_roof_tiles)
             .max(0.0),
+
         _ => 0.0,
     };
     let delivered = trip.amount.min(room);
@@ -2699,6 +2711,7 @@ fn unload_residence_upgrade_material(
         CommodityKind::Stone => residence.upgrade_delivered_stone += delivered,
         CommodityKind::Gold => residence.upgrade_delivered_gold += delivered,
         CommodityKind::RoofTiles => residence.upgrade_delivered_roof_tiles += delivered,
+
         _ => {}
     }
     trip.amount = (trip.amount - delivered).max(0.0);
@@ -2795,6 +2808,14 @@ fn unload_commodity_to_building(
                     .max(0.0);
                 let amount = trip.amount.min(room);
                 target.construction_delivered_roof_tiles += amount;
+                amount
+            }
+            CommodityKind::DressedStone => {
+                let room = (target.construction_required_dressed_stone
+                    - target.construction_delivered_dressed_stone)
+                    .max(0.0);
+                let amount = trip.amount.min(room);
+                target.construction_delivered_dressed_stone += amount;
                 amount
             }
             _ => 0.0,
@@ -3105,6 +3126,9 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                     CommodityKind::RoofTiles => {
                         site.construction_reserved_roof_tiles += trip.amount
                     }
+                    CommodityKind::DressedStone => {
+                        site.construction_reserved_dressed_stone += trip.amount
+                    }
                     _ => {}
                 }
                 ctx.db.building().id().update(site);
@@ -3136,6 +3160,7 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                     CommodityKind::RoofTiles => {
                         residence.upgrade_reserved_roof_tiles += trip.amount
                     }
+
                     _ => {}
                 }
                 ctx.db.residence().id().update(residence);

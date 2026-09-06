@@ -97,15 +97,16 @@ pub fn construction_labor_ready(
     required_roof_tiles: f64,
     delivered_roof_tiles: f64,
     treasury_roof_tiles: f64,
+    required_dressed_stone: f64, delivered_dressed_stone: f64, treasury_dressed_stone: f64,
 ) -> bool {
     let required_total = nonnegative(required_timber)
         + nonnegative(required_stone)
         + nonnegative(required_ironwork)
-        + nonnegative(required_roof_tiles);
+        + nonnegative(required_roof_tiles) + nonnegative(required_dressed_stone);
     let delivered_total = nonnegative(delivered_timber)
         + nonnegative(delivered_stone)
         + nonnegative(delivered_ironwork)
-        + nonnegative(delivered_roof_tiles);
+        + nonnegative(delivered_roof_tiles) + nonnegative(delivered_dressed_stone);
     let material_readiness = if required_total <= STOCK_EPSILON {
         1.0
     } else {
@@ -116,7 +117,7 @@ pub fn construction_labor_ready(
         || nonnegative(treasury_timber)
             + nonnegative(treasury_stone)
             + nonnegative(treasury_ironwork)
-            + nonnegative(treasury_roof_tiles)
+            + nonnegative(treasury_roof_tiles) + nonnegative(treasury_dressed_stone)
             > STOCK_EPSILON
 }
 
@@ -384,33 +385,11 @@ mod tests {
 
     #[test]
     fn material_readiness_and_founders_reserve_are_productive_work() {
-        assert!(construction_labor_ready(
-            20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        ));
-        assert!(!construction_labor_ready(
-            20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.55, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        ));
-        assert!(construction_labor_ready(
-            20.0, 10.0, 2.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        ));
-        assert!(construction_labor_ready(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-        ));
-        assert!(!construction_labor_ready(
-            f64::NAN,
-            10.0,
-            f64::NAN,
-            f64::NAN,
-            0.0,
-            f64::NAN,
-            f64::NAN,
-            0.0,
-            f64::NAN,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ));
+        assert!(construction_labor_ready(20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(!construction_labor_ready(20.0, 10.0, 2.0, 15.0, 0.0, 2.0, 0.55, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(construction_labor_ready(20.0, 10.0, 2.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(construction_labor_ready(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assert!(!construction_labor_ready(f64::NAN, 10.0, f64::NAN, f64::NAN, 0.0, f64::NAN, f64::NAN, 0.0, f64::NAN, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
     }
 
     #[test]

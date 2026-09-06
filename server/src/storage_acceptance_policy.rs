@@ -28,7 +28,7 @@ pub const STOREHOUSE_ACCEPTANCE_MASK_HIGH: u64 = high_bit(64) // wax
     | high_bit(72) // crossbows
     | high_bit(73) // padded armor
     | high_bit(74) // mail armor
-    | high_bit(75); // ammunition
+    | high_bit(75) | high_bit(76); // ammunition
 
 pub const GRANARY_ACCEPTANCE_MASK: u64 = bit(6) // ale
     | bit(8) // honey

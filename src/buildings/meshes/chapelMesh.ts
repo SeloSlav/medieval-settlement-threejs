@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createCathedralMesh } from './cathedralMesh.ts';
 import {
   addMesh,
   metalMaterial,
@@ -78,7 +79,7 @@ function addBelfryRoofBase(
 }
 
 /** The fence belongs to the permanent plot, outside the scaled tier model. */
-function addChurchyardFence(root: THREE.Group): void {
+function addChurchyardFence(root: THREE.Group, tier: number): void {
   const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents('chapel');
   const fence = new THREE.Group();
   fence.name = 'Churchyard permanent footprint fence';
@@ -88,7 +89,7 @@ function addChurchyardFence(root: THREE.Group): void {
   const postWidth = 0.2;
   const x = halfWidth - postWidth * 0.5;
   const z = halfDepth - postWidth * 0.5;
-  const gateHalfWidth = 1.5;
+  const gateHalfWidth = 2.4;
   const runs = [
     [-x, -z, x, -z],
     [-x, -z, -x, z],
@@ -106,11 +107,16 @@ function addChurchyardFence(root: THREE.Group): void {
       const key = `${px.toFixed(4)}:${pz.toFixed(4)}`;
       if (placedPosts.has(key)) continue;
       placedPosts.add(key);
-      addMesh(fence, new THREE.BoxGeometry(postWidth, 1.25, postWidth), timberMaterial('dark'),
+      addMesh(fence, new THREE.BoxGeometry(postWidth, 1.25, postWidth), tier >= 3 ? stoneMaterial('mid') : timberMaterial('dark'),
         new THREE.Vector3(px, 0.625, pz)).name = 'Churchyard fence post';
     }
-    for (const y of [0.4, 0.92]) {
-      addMesh(fence, new THREE.BoxGeometry(length, 0.12, 0.1), timberMaterial('weathered'),
+    if (tier === 4) {
+      addMesh(fence, new THREE.BoxGeometry(length, .7, .18), stoneMaterial('mid'),
+        new THREE.Vector3((x1+x2)/2,.35,(z1+z2)/2),
+        new THREE.Euler(0,-Math.atan2(z2-z1,x2-x1),0)).name='Cathedral consecrated precinct wall';
+    }
+    for (const y of (tier === 4 ? [.77] : [0.4, 0.92])) {
+      addMesh(fence, new THREE.BoxGeometry(length, 0.12, 0.1), tier === 4 ? stoneMaterial('mortar') : timberMaterial('weathered'),
         new THREE.Vector3((x1 + x2) * 0.5, y, (z1 + z2) * 0.5),
         new THREE.Euler(0, -Math.atan2(z2 - z1, x2 - x1), 0)).name = 'Churchyard fence rail';
     }
@@ -749,7 +755,7 @@ function addCompactBellCote(
   const height = stoneTier ? 1.72 : 1.45;
   const upperBeamHeight = 0.2;
   const bellHeight = 0.58;
-  const bellClearance = 0.04;
+  const bellClearance = 0.025;
   const bellY = baseY + height - upperBeamHeight * 0.5 - bellClearance - bellHeight * 0.5;
   const postMaterial = stoneTier ? stoneMaterial('light') : timberMaterial('dark');
   addBelfryRoofBase(group, roof, span + 0.2, span + 0.2, z, baseY + 0.04, postMaterial);
@@ -994,9 +1000,9 @@ function createLargeStoneChurchMesh(): THREE.Group {
   const roofMaterial = sharedBuildingMaterial('clayDark');
 
   const width = 5.2;
-  const depth = 6.9;
+  const depth = 9.6;
   const foundationHeight = 0.48;
-  const wallHeight = 3.15;
+  const wallHeight = 3.75;
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
   const wallTop = foundationHeight + wallHeight;
@@ -1025,7 +1031,7 @@ function createLargeStoneChurchMesh(): THREE.Group {
       height: 2.22,
       shape: 'lancet',
     },
-    sideWindows: [-1.65, 1.15].map((z): ChurchWallAperture => ({
+    sideWindows: [-3, 0, 3].map((z): ChurchWallAperture => ({
       center: z,
       bottom: 1.28 - foundationHeight,
       width: 0.66,
@@ -1041,11 +1047,9 @@ function createLargeStoneChurchMesh(): THREE.Group {
     new THREE.Vector3(0, wallTop - 0.12, 0),
   );
 
-  for (const z of [-1.65, 1.15]) {
+  for (const z of [-3, 0, 3]) {
     addLancetWindow(group, materials, 'left', z, 1.28, halfW);
     addLancetWindow(group, materials, 'right', z, 1.28, halfW);
-    addSideButtress(group, -1, z - 0.72, wallTop, halfW);
-    addSideButtress(group, 1, z - 0.72, wallTop, halfW);
   }
 
   addPlankDoor(group, materials, frontZ, foundationHeight + 0.08);
@@ -1111,8 +1115,61 @@ function createLargeStoneChurchMesh(): THREE.Group {
   return root;
 }
 
-export function createChapelMesh(tier: 1 | 2 | 3 = 3): THREE.Group {
-  const root = tier === 3 ? createLargeStoneChurchMesh() : createCompactChurchMesh(tier);
-  addChurchyardFence(root);
+export function createChapelMesh(tier: 1 | 2 | 3 | 4 = 1): THREE.Group {
+  const root = tier === 4 ? createCathedralMesh()
+    : tier === 3 ? createLargeStoneChurchMesh() : createCompactChurchMesh(tier);
+  if (tier === 4) addParishCoffer(root, 11, -3.1);
+  addChurchProgressionDetails(root, tier);
+  addChurchyardFence(root, tier);
   return root;
+}
+
+/** Architectural and site work grows inside the same reserved churchyard. */
+function addChurchProgressionDetails(root: THREE.Group, tier: 1 | 2 | 3 | 4): void {
+  const model = root.getObjectByName(`${root.name} procedural model`) as THREE.Group;
+  if (tier === 1) {
+    const porch = new THREE.Group(); porch.name = 'Wooden church sheltered oak porch';
+    porch.position.z = 2.95; model.add(porch);
+    for (const x of [-.95,.95]) {
+      addMesh(porch,new THREE.BoxGeometry(.16,2.12,.16),timberMaterial('dark'),new THREE.Vector3(x,1.3,.52)).name='Wooden church porch oak column';
+      const brace=addMesh(porch,new THREE.BoxGeometry(.1,.68,.1),timberMaterial('mid'),new THREE.Vector3(x-Math.sign(x)*.18,2.13,.52));
+      brace.rotation.z=Math.sign(x)*-.55; brace.name='Wooden church porch pegged knee brace';
+    }
+    addMesh(porch,new THREE.BoxGeometry(2.08,.18,1.45),stoneMaterial('mid'),new THREE.Vector3(0,.14,0)).name='Wooden church porch stone landing';
+    addCompactChurchRoof(porch,1.95,1.4,2.36,.75,sharedBuildingMaterial('shingle'));
+    porch.traverse(o=>{ if(o.name.startsWith('Church ')) o.name='Wooden porch '+o.name; });
+    for(const z of [-2.29,2.3]) {
+      addMesh(model,new THREE.BoxGeometry(3.55,.15,.14),timberMaterial('dark'),new THREE.Vector3(0,2.55,z)).name='Wooden church gable tie beam';
+    }
+  } else if (tier === 2) {
+    // Square quoins and a dressed entrance identify the first masonry church.
+    for(const x of [-2.2,2.2]) for(const z of [-2.76,2.76]) for(let i=0;i<8;i++) {
+      addMesh(model,new THREE.BoxGeometry(i%2?.36:.5,.29,i%2?.5:.36),stoneMaterial(i%2?'mortar':'light'),new THREE.Vector3(x,.58+i*.35,z)).name='Stone church alternating corner quoin';
+    }
+    for(const side of [-1,1]) {
+      addMesh(model,new THREE.BoxGeometry(.14,.18,5.65),stoneMaterial('mortar'),new THREE.Vector3(side*2.28,3.15,0)).name='Stone church carved eaves course';
+    }
+    const canopy = new THREE.Group();canopy.name='Stone church tiled portal hood';canopy.position.z=3.12;model.add(canopy);
+    addCompactChurchRoof(canopy,2.05,.8,2.95,.65,sharedBuildingMaterial('clayDark'));
+    canopy.traverse(o=>{ if(o.name.startsWith('Church ')) o.name='Stone portal hood '+o.name; });
+  } else if (tier === 3) {
+    for(const side of [-1,1] as const) for(const z of [-4.55,-1.5,1.5,4.55]) {
+      addSideButtress(model,side,z,4.23,2.6);
+    }
+    // Dressed stone banding keeps the larger limewashed mass rooted in local masonry.
+    for(const x of [-2.52,2.52]) for(const z of [-4.7,4.7]) {
+      addMesh(model,new THREE.BoxGeometry(.33,3.75,.33),stoneMaterial('light'),new THREE.Vector3(x,2.2,z)).name='Parish church tall corner pilaster';
+    }
+  }
+  const plot = getBuildingFootprintHalfExtents('chapel');
+  const front = tier===4 ? 12.5 : tier===3 ? 8.2 : tier===2 ? 5.9 : 5.8;
+  const width = tier===4 ? 4.7 : tier===3 ? 3.6 : 2.5;
+  const path = addMesh(root,new THREE.BoxGeometry(width,.06,plot.halfDepth-front-.3),
+    stoneMaterial(tier===1?'mortar':'mid'),new THREE.Vector3(0,.035,(plot.halfDepth+front-.3)/2));
+  path.name='Churchyard processional approach';
+  for(const side of [-1,1]) for(const z of [10.5,13]) {
+    const x=side*(tier===4?8.5:5.5);
+    addMesh(root,new THREE.BoxGeometry(1.8,.16,.5),timberMaterial('weathered'),new THREE.Vector3(x,.62,z)).name='Churchyard gathering bench';
+    for(const dx of [-.6,.6]) addMesh(root,new THREE.BoxGeometry(.18,.5,.4),stoneMaterial('mid'),new THREE.Vector3(x+dx,.3,z));
+  }
 }

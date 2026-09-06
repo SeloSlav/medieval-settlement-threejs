@@ -65,13 +65,13 @@ pub fn chapel_priest_salary_lot(assigned_labor: u32) -> f64 {
     chapel_monthly_gold_lot(CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * assigned_labor as f64)
 }
 
-pub fn chapel_upkeep_lot(assigned_labor: u32) -> f64 {
+pub fn chapel_upkeep_lot(assigned_labor: u32, tier: u8) -> f64 {
     let daily = if assigned_labor > 0 {
         CHAPEL_UPKEEP_GOLD_PER_DAY
     } else {
         CHAPEL_UPKEEP_GOLD_PER_DAY * CHAPEL_UNSTAFFED_UPKEEP_FRACTION
     };
-    chapel_monthly_gold_lot(daily)
+    chapel_monthly_gold_lot(daily * crate::chapel_upgrade_policy::chapel_upkeep_multiplier(tier))
 }
 
 /// A chapel accrues its small continuous alms budget until one whole coin can
@@ -123,11 +123,11 @@ mod tests {
             (CHAPEL_PRIEST_SALARY_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round()
         );
         assert_eq!(
-            chapel_upkeep_lot(1),
+            chapel_upkeep_lot(1, 1),
             (CHAPEL_UPKEEP_GOLD_PER_DAY * CALENDAR_DAYS_PER_MONTH as f64).round()
         );
         assert_eq!(
-            chapel_upkeep_lot(0),
+            chapel_upkeep_lot(0, 1),
             (CHAPEL_UPKEEP_GOLD_PER_DAY
                 * CHAPEL_UNSTAFFED_UPKEEP_FRACTION
                 * CALENDAR_DAYS_PER_MONTH as f64)

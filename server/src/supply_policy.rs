@@ -42,6 +42,7 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "swineherd",
 ];
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
+    "stone_mason", "large_quarry",
     "stone_quarry",
     "mine",
     "charcoal_burner",
@@ -526,6 +527,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("brewery", "apples" | "pears") => BREWERY_FRUIT_PER_CIDER_CYCLE,
         ("brewery", "honey") => BREWERY_HONEY_PER_MEAD_CYCLE,
         ("brewery", "water") => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
+        ("stone_mason", "stone") => crate::balance_generated::MASON_STONE_PER_CYCLE,
         ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,
         ("potter_kiln", "water") => POTTER_WATER_PER_CYCLE,
         ("tannery", "hides") => TANNERY_HIDES_PER_CYCLE,

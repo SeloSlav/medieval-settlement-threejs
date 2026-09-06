@@ -1432,6 +1432,7 @@ fn dispatch_local_material_candidates(
 }
 
 const LOCAL_MATERIAL_COMMODITIES: &[CommodityKind] = &[
+    CommodityKind::Stone, CommodityKind::DressedStone,
     CommodityKind::Wool,
     CommodityKind::Flax,
     CommodityKind::Yarn,
@@ -1458,6 +1459,8 @@ fn local_material_target_kinds(
         ("stone_quarry" | "mine", CommodityKind::Salt) => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
+        ("stone_quarry" | "large_quarry" | "mine" | "village_storehouse" | "trading_post", CommodityKind::Stone) => Some(&["stone_mason"]),
+        ("stone_mason", CommodityKind::DressedStone) => Some(&["village_storehouse", "trading_post"]),
         ("stone_quarry" | "mine", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy", "village_storehouse"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
@@ -1556,6 +1559,8 @@ fn local_material_target_plan(
         CommodityKind::Iron => "iron",
         CommodityKind::Salt => "salt",
         CommodityKind::Clay => "clay",
+        CommodityKind::Stone => "stone",
+        CommodityKind::DressedStone => "dressedStone",
         CommodityKind::Charcoal => "charcoal",
         CommodityKind::Ironwork => "ironwork",
         CommodityKind::Pottery => "pottery",
@@ -3639,6 +3644,14 @@ fn step_cavalry_company_field_resupply(
     }
 }
 
+pub fn step_stone_mason(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
+    if crate::economy::total_stone(ctx, building.owner) < crate::balance_generated::MASON_STONE_PER_CYCLE { return; }
+    let mason = step_processor(ctx, tick, clock, building,
+        &[(CommodityKind::Stone, crate::balance_generated::MASON_STONE_PER_CYCLE)],
+        &[(CommodityKind::DressedStone, crate::balance_generated::MASON_DRESSED_STONE_PER_CYCLE)]);
+    ctx.db.building().id().update(mason);
+}
+
 pub fn step_potter_kiln(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -4757,6 +4770,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
+        ProcessorOutputKind::DressedStone => Some(CommodityKind::DressedStone),
         ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
         ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
         ProcessorOutputKind::Candles => Some(CommodityKind::Candles),
@@ -4908,6 +4922,7 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                 | CommodityKind::Leather
                 | CommodityKind::Linen
         ),
+        "stone_mason" => commodity == CommodityKind::Stone,
         "potter_kiln" => matches!(
             commodity,
             CommodityKind::Clay | CommodityKind::Firewood | CommodityKind::Water
@@ -5542,6 +5557,8 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Linen => Some("linen"),
         CommodityKind::Ironwork => Some("ironwork"),
         CommodityKind::Clay => Some("clay"),
+        CommodityKind::Stone => Some("stone"),
+        CommodityKind::DressedStone => Some("dressedStone"),
         CommodityKind::Charcoal => Some("charcoal"),
         CommodityKind::Pottery => Some("pottery"),
         CommodityKind::Pelts => Some("pelts"),

@@ -5,6 +5,7 @@ export const RESOURCE_COST_KINDS = [
   'stone',
   'ironwork',
   'roofTiles',
+  'dressedStone',
   'gold',
   'iron',
   'clay',
@@ -93,6 +94,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   stone: 'stone',
   ironwork: 'ironwork',
   roofTiles: 'roof tiles',
+  dressedStone: 'dressed stone',
   gold: 'gold',
   iron: 'iron',
   clay: 'clay',
@@ -186,6 +188,7 @@ export function buildingResourceCostAmounts(
     stone: cost.stone,
     ironwork: cost.ironwork,
     roofTiles: cost.roofTiles,
+    dressedStone: cost.dressedStone,
     gold: cost.gold,
   };
 }

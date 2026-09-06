@@ -601,7 +601,9 @@ export function validateProceduralBuildingPlanMaterials(
       plan,
       /(?:limestone|ashlar)[-_ ](?:niche|portal|opening|threshold|surround|trim|quoin)/i,
     );
-    if (!permittedStatus && !explicitlyRestrictedToTrim) {
+    // Mason yards hold dressed blocks as merchandise; their building is timber-framed.
+    const masonryStockyard = plan.kind === 'stone_mason' && containsVocabulary(plan, /ashlar-stacks/);
+    if (!permittedStatus && !explicitlyRestrictedToTrim && !masonryStockyard) {
       addIssue(
         'ashlar-use-restricted',
         `${plan.kind} uses dressed limestone outside a major or landmark building without explicitly restricting it to small trim.`,

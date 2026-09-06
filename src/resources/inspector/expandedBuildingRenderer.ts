@@ -234,6 +234,7 @@ const PROCESS: Record<string, string> = {
   mine: 'Rich iron, salt, or clay + timber-supported deep labor → raw material for linked local processing',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Small direct-process bloomery reduces local ore or reheats imported blooms and bars; the smithing bay then uses charcoal and automatically staged well water to finish tools, fittings, and weapon heads',
+  stone_mason: 'Quarried stone → dressed ashlar blocks for large churches, cathedrals, and civic stonework',
   potter_kiln: 'Local clay + firewood + automatically staged well water -> either vessels or rare prosperous-house roof tiles',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
@@ -277,6 +278,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'weaponsmith_armorer',
   'bowyer_fletcher',
   'potter_kiln',
+  'stone_mason',
 ]);
 
 const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>(['marketplace']);
@@ -332,6 +334,7 @@ function buildingHasOutboundStock(
       return (building.charcoal ?? 0) > 0;
     case 'smithy':
       return (building.ironwork ?? 0) > 0;
+    case 'stone_mason': return (building.dressedStone ?? 0) > 0;
     case 'potter_kiln':
       return (building.pottery ?? 0) > 0;
     case 'chandlery':
@@ -504,6 +507,7 @@ function outboundTripTarget(
       'charcoal',
     )?.target ?? null;
   }
+  if (building.kind === 'stone_mason') return context.worldQueries.getNextDirectProcessorInputDispatch(building, 'dressedStone')?.target ?? null;
   if (building.kind === 'potter_kiln') {
     const householdTarget = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
       building,

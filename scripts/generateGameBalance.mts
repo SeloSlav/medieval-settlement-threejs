@@ -19,7 +19,7 @@ import {
 
 type BuildingBalance = {
   label: string;
-  cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number; gold?: number };
+  cost: { timber: number; stone: number; ironwork?: number; roofTiles?: number; dressedStone?: number; gold?: number };
   storage: {
     total?: number;
     timber: number;
@@ -62,7 +62,7 @@ type BuildingBalance = {
     salt?: number;
     charcoal?: number;
     pottery?: number;
-    roofTiles?: number;
+    roofTiles?: number; dressedStone?: number;
     manure?: number;
     remedies?: number;
     animalFeed?: number;
@@ -552,10 +552,23 @@ export type GameBalance = {
     chapelTier2UpgradeStone: number;
     chapelTier2UpgradeIronwork: number;
     chapelTier2UpgradeRoofTiles: number;
+    chapelTier2UpgradeDressedStone: number;
     chapelTier3UpgradeTimber: number;
     chapelTier3UpgradeStone: number;
     chapelTier3UpgradeIronwork: number;
     chapelTier3UpgradeRoofTiles: number;
+    chapelTier3UpgradeDressedStone: number;
+    chapelTier4CofferCapacity: number;
+    chapelTier4TitheMultiplier: number;
+    chapelTier4UpgradeTimber: number;
+    chapelTier4UpgradeStone: number;
+    chapelTier4UpgradeIronwork: number;
+    chapelTier4UpgradeRoofTiles: number;
+    chapelTier4UpgradeDressedStone: number;
+    chapelTier2UpkeepMultiplier: number;
+    chapelTier3UpkeepMultiplier: number;
+    chapelTier4UpkeepMultiplier: number;
+    cathedralBishopSettlementTicksMultiplier: number;
     chapelPriestSalaryGoldPerDay: number;
     chapelUpkeepGoldPerDay: number;
     chapelUnstaffedUpkeepFraction: number;
@@ -721,6 +734,8 @@ export type GameBalance = {
     potterWaterPerCycle: number;
     potterPotteryPerCycle: number;
     potterRoofTilesPerCycle: number;
+    masonStonePerCycle: number;
+    masonDressedStonePerCycle: number;
     apiaryHoneyPerCycle: number;
     apiaryWaxPerHoneyCycles: number;
     apiaryWaxPerHarvest: number;
@@ -888,6 +903,7 @@ const simKindByKind: Record<string, string | null> = {
   weaponsmith_armorer: 'WeaponsmithArmorer',
   bowyer_fletcher: 'BowyerFletcher',
   potter_kiln: 'PotterKiln',
+  stone_mason: 'StoneMason',
   woodcutters_lodge: 'WoodcuttersLodge',
   well: 'Well',
   hunters_hall: 'HuntersHall',
@@ -1265,10 +1281,23 @@ function generateRust(): string {
     `pub const CHAPEL_TIER2_UPGRADE_STONE: f64 = ${rustF64(b.population.chapelTier2UpgradeStone)};`,
     `pub const CHAPEL_TIER2_UPGRADE_IRONWORK: f64 = ${rustF64(b.population.chapelTier2UpgradeIronwork)};`,
     `pub const CHAPEL_TIER2_UPGRADE_ROOF_TILES: f64 = ${rustF64(b.population.chapelTier2UpgradeRoofTiles)};`,
+    `pub const CHAPEL_TIER2_UPGRADE_DRESSED_STONE: f64 = ${rustF64(b.population.chapelTier2UpgradeDressedStone)};`,
     `pub const CHAPEL_TIER3_UPGRADE_TIMBER: f64 = ${rustF64(b.population.chapelTier3UpgradeTimber)};`,
     `pub const CHAPEL_TIER3_UPGRADE_STONE: f64 = ${rustF64(b.population.chapelTier3UpgradeStone)};`,
     `pub const CHAPEL_TIER3_UPGRADE_IRONWORK: f64 = ${rustF64(b.population.chapelTier3UpgradeIronwork)};`,
     `pub const CHAPEL_TIER3_UPGRADE_ROOF_TILES: f64 = ${rustF64(b.population.chapelTier3UpgradeRoofTiles)};`,
+    `pub const CHAPEL_TIER3_UPGRADE_DRESSED_STONE: f64 = ${rustF64(b.population.chapelTier3UpgradeDressedStone)};`,
+    `pub const CHAPEL_TIER4_COFFER_CAPACITY: f64 = ${rustF64(b.population.chapelTier4CofferCapacity)};`,
+    `pub const CHAPEL_TIER4_TITHE_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier4TitheMultiplier)};`,
+    `pub const CHAPEL_TIER4_UPGRADE_TIMBER: f64 = ${rustF64(b.population.chapelTier4UpgradeTimber)};`,
+    `pub const CHAPEL_TIER4_UPGRADE_STONE: f64 = ${rustF64(b.population.chapelTier4UpgradeStone)};`,
+    `pub const CHAPEL_TIER4_UPGRADE_IRONWORK: f64 = ${rustF64(b.population.chapelTier4UpgradeIronwork)};`,
+    `pub const CHAPEL_TIER4_UPGRADE_ROOF_TILES: f64 = ${rustF64(b.population.chapelTier4UpgradeRoofTiles)};`,
+    `pub const CHAPEL_TIER4_UPGRADE_DRESSED_STONE: f64 = ${rustF64(b.population.chapelTier4UpgradeDressedStone)};`,
+    `pub const CHAPEL_TIER2_UPKEEP_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier2UpkeepMultiplier)};`,
+    `pub const CHAPEL_TIER3_UPKEEP_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier3UpkeepMultiplier)};`,
+    `pub const CHAPEL_TIER4_UPKEEP_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier4UpkeepMultiplier)};`,
+    `pub const CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER: f64 = ${rustF64(b.population.cathedralBishopSettlementTicksMultiplier)};`,
     `pub const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelPriestSalaryGoldPerDay)};`,
     `pub const CHAPEL_UPKEEP_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelUpkeepGoldPerDay)};`,
     `pub const CHAPEL_UNSTAFFED_UPKEEP_FRACTION: f64 = ${rustF64(b.population.chapelUnstaffedUpkeepFraction)};`,
@@ -1430,6 +1459,8 @@ function generateRust(): string {
     `pub const POTTER_WATER_PER_CYCLE: f64 = ${rustF64(b.production.potterWaterPerCycle)};`,
     `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
     `pub const POTTER_ROOF_TILES_PER_CYCLE: f64 = ${rustF64(b.production.potterRoofTilesPerCycle)};`,
+    `pub const MASON_STONE_PER_CYCLE: f64 = ${rustF64(b.production.masonStonePerCycle)};`,
+    `pub const MASON_DRESSED_STONE_PER_CYCLE: f64 = ${rustF64(b.production.masonDressedStonePerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
     `pub const APIARY_WAX_PER_HONEY_CYCLES: u8 = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
     `pub const APIARY_WAX_PER_HARVEST: f64 = ${rustF64(b.production.apiaryWaxPerHarvest)};`,
@@ -1747,6 +1778,7 @@ function generateRust(): string {
   lines.push('    WeaponsmithArmorer,');
   lines.push('    BowyerFletcher,');
   lines.push('    PotterKiln,');
+  lines.push('    StoneMason,');
   lines.push('    WoodcuttersLodge,');
   lines.push('    Well,');
   lines.push('    HuntersHall,');
@@ -1781,6 +1813,7 @@ function generateRust(): string {
   lines.push('    pub cost_gold: f64,');
   lines.push('    pub cost_ironwork: f64,');
   lines.push('    pub cost_roof_tiles: f64,');
+  lines.push('    pub cost_dressed_stone: f64,');
   lines.push('    pub storage_total: f64,');
   lines.push('    pub storage_timber: f64,');
   lines.push('    pub storage_firewood: f64,');
@@ -1823,6 +1856,7 @@ function generateRust(): string {
   lines.push('    pub storage_charcoal: f64,');
   lines.push('    pub storage_pottery: f64,');
   lines.push('    pub storage_roof_tiles: f64,');
+  lines.push('    pub storage_dressed_stone: f64,');
   lines.push('    pub storage_manure: f64,');
   lines.push('    pub storage_remedies: f64,');
   lines.push('    pub storage_animal_feed: f64,');
@@ -1854,6 +1888,7 @@ function generateRust(): string {
     lines.push(`    cost_gold: ${rustF64(def.cost.gold ?? 0)},`);
     lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
     lines.push(`    cost_roof_tiles: ${rustF64(def.cost.roofTiles ?? 0)},`);
+    lines.push(`    cost_dressed_stone: ${rustF64(def.cost.dressedStone ?? 0)},`);
     lines.push(`    storage_total: ${rustF64(def.storage.total ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
     lines.push(`    storage_firewood: ${rustF64(def.storage.firewood)},`);
@@ -1896,6 +1931,7 @@ function generateRust(): string {
     lines.push(`    storage_charcoal: ${rustF64(def.storage.charcoal ?? 0)},`);
     lines.push(`    storage_pottery: ${rustF64(def.storage.pottery ?? 0)},`);
     lines.push(`    storage_roof_tiles: ${rustF64(def.storage.roofTiles ?? 0)},`);
+    lines.push(`    storage_dressed_stone: ${rustF64(def.storage.dressedStone ?? 0)},`);
     lines.push(`    storage_manure: ${rustF64(def.storage.manure ?? 0)},`);
     lines.push(`    storage_remedies: ${rustF64(def.storage.remedies ?? 0)},`);
     lines.push(`    storage_animal_feed: ${rustF64(def.storage.animalFeed ?? 0)},`);
@@ -2395,10 +2431,23 @@ function generateTypeScript(): string {
     `export const CHAPEL_TIER2_UPGRADE_STONE = ${b.population.chapelTier2UpgradeStone};`,
     `export const CHAPEL_TIER2_UPGRADE_IRONWORK = ${b.population.chapelTier2UpgradeIronwork};`,
     `export const CHAPEL_TIER2_UPGRADE_ROOF_TILES = ${b.population.chapelTier2UpgradeRoofTiles};`,
+    `export const CHAPEL_TIER2_UPGRADE_DRESSED_STONE = ${b.population.chapelTier2UpgradeDressedStone};`,
     `export const CHAPEL_TIER3_UPGRADE_TIMBER = ${b.population.chapelTier3UpgradeTimber};`,
     `export const CHAPEL_TIER3_UPGRADE_STONE = ${b.population.chapelTier3UpgradeStone};`,
     `export const CHAPEL_TIER3_UPGRADE_IRONWORK = ${b.population.chapelTier3UpgradeIronwork};`,
     `export const CHAPEL_TIER3_UPGRADE_ROOF_TILES = ${b.population.chapelTier3UpgradeRoofTiles};`,
+    `export const CHAPEL_TIER3_UPGRADE_DRESSED_STONE = ${b.population.chapelTier3UpgradeDressedStone};`,
+    `export const CHAPEL_TIER4_COFFER_CAPACITY = ${b.population.chapelTier4CofferCapacity};`,
+    `export const CHAPEL_TIER4_TITHE_MULTIPLIER = ${b.population.chapelTier4TitheMultiplier};`,
+    `export const CHAPEL_TIER4_UPGRADE_TIMBER = ${b.population.chapelTier4UpgradeTimber};`,
+    `export const CHAPEL_TIER4_UPGRADE_STONE = ${b.population.chapelTier4UpgradeStone};`,
+    `export const CHAPEL_TIER4_UPGRADE_IRONWORK = ${b.population.chapelTier4UpgradeIronwork};`,
+    `export const CHAPEL_TIER4_UPGRADE_ROOF_TILES = ${b.population.chapelTier4UpgradeRoofTiles};`,
+    `export const CHAPEL_TIER4_UPGRADE_DRESSED_STONE = ${b.population.chapelTier4UpgradeDressedStone};`,
+    `export const CHAPEL_TIER2_UPKEEP_MULTIPLIER = ${b.population.chapelTier2UpkeepMultiplier};`,
+    `export const CHAPEL_TIER3_UPKEEP_MULTIPLIER = ${b.population.chapelTier3UpkeepMultiplier};`,
+    `export const CHAPEL_TIER4_UPKEEP_MULTIPLIER = ${b.population.chapelTier4UpkeepMultiplier};`,
+    `export const CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER = ${b.population.cathedralBishopSettlementTicksMultiplier};`,
     `export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = ${b.population.chapelPriestSalaryGoldPerDay};`,
     `export const CHAPEL_UPKEEP_GOLD_PER_DAY = ${b.population.chapelUpkeepGoldPerDay};`,
     `export const CHAPEL_UNSTAFFED_UPKEEP_FRACTION = ${b.population.chapelUnstaffedUpkeepFraction};`,
@@ -2560,6 +2609,8 @@ function generateTypeScript(): string {
     `export const POTTER_WATER_PER_CYCLE = ${b.production.potterWaterPerCycle};`,
     `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
     `export const POTTER_ROOF_TILES_PER_CYCLE = ${b.production.potterRoofTilesPerCycle};`,
+    `export const MASON_STONE_PER_CYCLE = ${b.production.masonStonePerCycle};`,
+    `export const MASON_DRESSED_STONE_PER_CYCLE = ${b.production.masonDressedStonePerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
     `export const APIARY_WAX_PER_HONEY_CYCLES = ${Math.max(1, Math.round(b.production.apiaryWaxPerHoneyCycles))};`,
     `export const APIARY_WAX_PER_HARVEST = ${b.production.apiaryWaxPerHarvest};`,
@@ -2801,7 +2852,7 @@ function generateTypeScript(): string {
     '  timber: number;',
     '  stone: number;',
     '  ironwork?: number;',
-    '  roofTiles?: number;',
+    '  roofTiles?: number; dressedStone?: number;',
     '  gold?: number;',
     '};',
     '',
@@ -2847,7 +2898,7 @@ function generateTypeScript(): string {
     '  hides?: number;',
     '  leather?: number;',
     '  shoes?: number;',
-    '  roofTiles?: number;',
+    '  roofTiles?: number; dressedStone?: number;',
     '  manure?: number;',
     '  remedies?: number;',
     '  animalFeed?: number;',
@@ -2906,13 +2957,14 @@ function generateTypeScript(): string {
     const ironwork = def.cost.ironwork
       ? `, ironwork: ${def.cost.ironwork}`
       : '';
+    const dressedStone = def.cost.dressedStone ? `, dressedStone: ${def.cost.dressedStone}` : "";
     const roofTiles = def.cost.roofTiles
       ? `, roofTiles: ${def.cost.roofTiles}`
       : '';
     const gold = def.cost.gold
       ? `, gold: ${def.cost.gold}`
       : '';
-    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork}${roofTiles}${gold} },`);
+    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}${ironwork}${roofTiles}${dressedStone}${gold} },`);
   }
 
   lines.push('} as const satisfies Record<BuildingKind, BuildingResourceCost>;');
@@ -2959,6 +3011,7 @@ function generateTypeScript(): string {
     const leather = def.storage.leather ?? 0;
     const shoes = def.storage.shoes ?? 0;
     const roofTiles = def.storage.roofTiles ?? 0;
+    const dressedStone = def.storage.dressedStone ?? 0;
     const manure = def.storage.manure ?? 0;
     const remedies = def.storage.remedies ?? 0;
     const animalFeed = def.storage.animalFeed ?? 0;
@@ -3002,6 +3055,7 @@ function generateTypeScript(): string {
     if (leather > 0) extras.push(`leather: ${leather}`);
     if (shoes > 0) extras.push(`shoes: ${shoes}`);
     if (roofTiles > 0) extras.push(`roofTiles: ${roofTiles}`);
+    if (dressedStone > 0) extras.push(`dressedStone: ${dressedStone}`);
     if (manure > 0) extras.push(`manure: ${manure}`);
     if (remedies > 0) extras.push(`remedies: ${remedies}`);
     if (animalFeed > 0) extras.push(`animalFeed: ${animalFeed}`);

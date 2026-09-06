@@ -10,11 +10,11 @@ export type ConstructionSourceLike = Pick<
   'id' | 'kind' | 'assignedLabor'
 >;
 
-export type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
+export type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'dressedStone';
 export type ConstructionStockSourceLike = ConstructionSourceLike
   & Pick<
     BuildingState,
-    'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'carpenterCartServiceTargetTrips'
+    'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'dressedStone' | 'carpenterCartServiceTargetTrips'
   >;
 
 export type RoutedConstructionSource<T extends ConstructionSourceLike> = {

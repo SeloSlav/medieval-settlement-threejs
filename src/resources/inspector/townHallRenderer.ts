@@ -796,24 +796,26 @@ function formatConstructionRoads(
   const stone = plan.materials.stone;
   const ironwork = plan.materials.ironwork;
   const roofTiles = plan.materials.roofTiles;
+  const dressedStone = plan.materials.dressedStone;
   if (
     timber.roadBoundClaim + stone.roadBoundClaim
       + ironwork.roadBoundClaim
-      + roofTiles.roadBoundClaim
-      + timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim + roofTiles.offroadClaim
+      + roofTiles.roadBoundClaim + dressedStone.roadBoundClaim
+      + timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim + roofTiles.offroadClaim + dressedStone.offroadClaim
     <= 0.05
   ) {
     return `No building-held material awaits pickup · ${timber.sourceStock.toFixed(0)} usable timber + ${stone.sourceStock.toFixed(0)} usable stone + ${ironwork.sourceStock.toFixed(0)} usable ironwork + ${roofTiles.sourceStock.toFixed(0)} usable roof tiles remain at completed sources`;
   }
   const roadCoverage =
-    timber.roadBoundClaim + stone.roadBoundClaim + ironwork.roadBoundClaim + roofTiles.roadBoundClaim > 0.05
+    timber.roadBoundClaim + stone.roadBoundClaim + ironwork.roadBoundClaim + roofTiles.roadBoundClaim + dressedStone.roadBoundClaim > 0.05
       ? `${plan.suppliedClaimBranches} / ${plan.claimBranches} road-bound claim branches fully sourced · ${timber.matchedRoadBoundClaim.toFixed(0)} / ${timber.roadBoundClaim.toFixed(0)} timber + ${stone.matchedRoadBoundClaim.toFixed(0)} / ${stone.roadBoundClaim.toFixed(0)} stone + ${ironwork.matchedRoadBoundClaim.toFixed(0)} / ${ironwork.roadBoundClaim.toFixed(0)} ironwork + ${roofTiles.matchedRoadBoundClaim.toFixed(0)} / ${roofTiles.roadBoundClaim.toFixed(0)} roof tiles matched`
       : 'No road-bound physical claims';
   const fragmentedTimber = timber.fragmentationCoverage;
   const fragmentedStone = stone.fragmentationCoverage;
   const fragmentedIronwork = ironwork.fragmentationCoverage;
   const fragmentedRoofTiles = roofTiles.fragmentationCoverage;
-  const fragmentation = fragmentedTimber + fragmentedStone + fragmentedIronwork + fragmentedRoofTiles > 0.05
+  const fragmentedDressedStone = dressedStone.fragmentationCoverage;
+  const fragmentation = fragmentedTimber + fragmentedStone + fragmentedIronwork + fragmentedRoofTiles + fragmentedDressedStone > 0.05
     ? ` · ${fragmentedTimber.toFixed(0)} timber + ${fragmentedStone.toFixed(0)} stone + ${fragmentedIronwork.toFixed(0)} ironwork + ${fragmentedRoofTiles.toFixed(0)} roof tiles earmarked but stranded between road branches`
     : '';
   const scarceTimber = Math.max(
@@ -832,14 +834,18 @@ function formatConstructionRoads(
     0,
     roofTiles.strandedRoadBoundClaim - roofTiles.fragmentationCoverage,
   );
-  const scarcity = scarceTimber + scarceStone + scarceIronwork + scarceRoofTiles > 0.05
+  const scarceDressedStone = Math.max(
+    0,
+    dressedStone.strandedRoadBoundClaim - dressedStone.fragmentationCoverage,
+  );
+  const scarcity = scarceTimber + scarceStone + scarceIronwork + scarceRoofTiles + scarceDressedStone > 0.05
     ? ` · ${scarceTimber.toFixed(0)} timber + ${scarceStone.toFixed(0)} stone + ${scarceIronwork.toFixed(0)} ironwork + ${scarceRoofTiles.toFixed(0)} roof tiles exceed all usable source stock`
     : '';
-  const offroad = timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim + roofTiles.offroadClaim > 0.05
+  const offroad = timber.offroadClaim + stone.offroadClaim + ironwork.offroadClaim + roofTiles.offroadClaim + dressedStone.offroadClaim > 0.05
     ? ` · off-road-capable sites can cover ${timber.offroadPotentialCoverage.toFixed(0)} / ${timber.offroadClaim.toFixed(0)} timber + ${stone.offroadPotentialCoverage.toFixed(0)} / ${stone.offroadClaim.toFixed(0)} stone + ${ironwork.offroadPotentialCoverage.toFixed(0)} / ${ironwork.offroadClaim.toFixed(0)} ironwork + ${roofTiles.offroadPotentialCoverage.toFixed(0)} / ${roofTiles.offroadClaim.toFixed(0)} roof tiles from remaining stores`
     : '';
   const unmatched = timber.unmatchedSourceStock + stone.unmatchedSourceStock
-    + ironwork.unmatchedSourceStock + roofTiles.unmatchedSourceStock > 0.05
+    + ironwork.unmatchedSourceStock + roofTiles.unmatchedSourceStock + dressedStone.unmatchedSourceStock > 0.05
     ? ` · ${timber.unmatchedSourceStock.toFixed(0)} timber + ${stone.unmatchedSourceStock.toFixed(0)} stone + ${ironwork.unmatchedSourceStock.toFixed(0)} ironwork + ${roofTiles.unmatchedSourceStock.toFixed(0)} roof tiles remain outside matched claims`
     : '';
   const inspect = plan.firstExposedBuildingId === null
@@ -864,6 +870,7 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
   const stone = plan.materials.stone;
   const ironwork = plan.materials.ironwork;
   const roofTiles = plan.materials.roofTiles;
+  const dressedStone = plan.materials.dressedStone;
   const roadRow = plan.roadPlan === null
     ? ''
     : `<li><span>Construction roads</span><span>${formatConstructionRoads(plan.roadPlan)}</span></li>`;
@@ -873,8 +880,8 @@ export function renderConstructionQueueRows(plan: SettlementConstructionPlan): s
   return `
     <li><span>Construction queue</span><span>${queueLabel} · urgent ${priorities.urgent} / normal ${priorities.normal} / low ${priorities.low}</span></li>
     <li><span>Builder load</span><span>${plan.assignedBuilders} / ${plan.builderCapacity} assigned · ${plan.remainingBuilderDays.toFixed(1)} builder-days after supply</span></li>
-    <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone · ${ironwork.delivered.toFixed(0)} / ${ironwork.required.toFixed(0)} ironwork · ${roofTiles.delivered.toFixed(0)} / ${roofTiles.required.toFixed(0)} roof tiles delivered</span></li>
-    <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)} · ${formatConstructionMaterialCoverage('ironwork earmarked', ironwork)} · ${formatConstructionMaterialCoverage('roof tiles earmarked', roofTiles)}${timber.uncovered + stone.uncovered + ironwork.uncovered + roofTiles.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone + ${ironwork.uncovered.toFixed(0)} ironwork + ${roofTiles.uncovered.toFixed(0)} roof tiles uncovered` : ''}</span></li>
+    <li><span>Queue materials</span><span>${timber.delivered.toFixed(0)} / ${timber.required.toFixed(0)} timber · ${stone.delivered.toFixed(0)} / ${stone.required.toFixed(0)} stone · ${ironwork.delivered.toFixed(0)} / ${ironwork.required.toFixed(0)} ironwork · ${roofTiles.delivered.toFixed(0)} / ${roofTiles.required.toFixed(0)} roof tiles delivered · ${dressedStone.delivered.toFixed(0)} / ${dressedStone.required.toFixed(0)} dressed stone delivered</span></li>
+    <li><span>Supply coverage</span><span>${formatConstructionMaterialCoverage('timber earmarked', timber)} · ${formatConstructionMaterialCoverage('stone earmarked', stone)} · ${formatConstructionMaterialCoverage('ironwork earmarked', ironwork)} · ${formatConstructionMaterialCoverage('roof tiles earmarked', roofTiles)}${timber.uncovered + stone.uncovered + ironwork.uncovered + roofTiles.uncovered + dressedStone.uncovered > 0.05 ? ` · ${timber.uncovered.toFixed(0)} timber + ${stone.uncovered.toFixed(0)} stone + ${ironwork.uncovered.toFixed(0)} ironwork + ${roofTiles.uncovered.toFixed(0)} roof tiles uncovered` : ''}</span></li>
     <li><span>Material movement</span><span>${timber.awaitingPickup.toFixed(0)} timber + ${stone.awaitingPickup.toFixed(0)} stone + ${ironwork.awaitingPickup.toFixed(0)} ironwork + ${roofTiles.awaitingPickup.toFixed(0)} roof tiles await pickup · ${timber.inTransit.toFixed(0)} + ${stone.inTransit.toFixed(0)} + ${ironwork.inTransit.toFixed(0)} + ${roofTiles.inTransit.toFixed(0)} on carts · ${timber.foundersReserve.toFixed(0)} timber + ${stone.foundersReserve.toFixed(0)} stone + ${ironwork.foundersReserve.toFixed(0)} ironwork + ${roofTiles.foundersReserve.toFixed(0)} roof tiles in legacy ledger reserve</span></li>
     ${fireBlockedRow}
     ${roadRow}

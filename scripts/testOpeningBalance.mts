@@ -99,7 +99,8 @@ assert.ok(
   'the finite starter maintenance reserve must have a finite local Smithy replacement path',
 );
 const tierFourChurchIronwork = CHAPEL_TIER2_UPGRADE_IRONWORK + CHAPEL_TIER3_UPGRADE_IRONWORK;
-assert.equal(tierFourChurchIronwork, 0, 'church upgrades must not reintroduce an ironwork construction gate');
+assert.equal(BUILDING_COSTS.chapel.ironwork ?? 0, 0, 'the opening timber church must remain accessible without ironwork');
+assert.equal(tierFourChurchIronwork, 32, 'masonry church upgrades use the established smithy or import chain');
 const ironworkImport = MARKETPLACE_TRADE_OFFERS.find(
   (offer) => offer.kind === 'goldBuy' && offer.resource === 'ironwork',
 );

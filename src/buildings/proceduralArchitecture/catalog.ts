@@ -63,7 +63,7 @@ export type ProceduralBuildingPlan = ProceduralBuildingCatalogEntry & {
   readonly version: typeof PROCEDURAL_ARCHITECTURE_VERSION;
   readonly kind: BuildingKind;
   readonly seed: number;
-  readonly developmentTier: 0 | 1 | 2 | 3;
+  readonly developmentTier: 0 | 1 | 2 | 3 | 4;
   readonly region: 'Gorski Kotar and Croatian Littoral';
   readonly period: 'circa 1550';
   readonly source: 'threejs-procedural';
@@ -138,6 +138,7 @@ export const PROCEDURAL_BUILDING_CATALOG = {
   smithy: { ...commonWorkshop, family: 'craft', status: 'standard', modules: [...commonWorkshop.modules, 'masonry-hearth', 'forge-hood', 'working-canopy'], historicalNote: 'Timber-and-daub smithy kept low and ventilated around a masonry hearth.' },
   weaponsmith_armorer: { ...commonWorkshop, family: 'craft', status: 'major', modules: [...commonWorkshop.modules, 'masonry-hearth', 'forge-hood', 'armorers-bench'], triangleTarget: 7_000, triangleCeiling: 13_000 },
   bowyer_fletcher: { ...commonWorkshop, family: 'craft', status: 'standard', modules: [...commonWorkshop.modules, 'seasoning-rack', 'long-workbench'], materials: [...commonWorkshop.materials, 'weathered-boards'], dynamicSlots: ['timber-stock', 'ironwork-stock', 'finished-arms'] },
+  stone_mason: { ...commonWorkshop, family: 'craft', status: 'standard', roof: 'open-workyard', massing: ['roofed-banker-bays', 'open-stone-apron'], modules: ['braced-post-frame', 'banker-benches', 'lifting-shear', 'dressed-ashlar-stacks'], materials: ['rough-timber', 'split-shingles', 'fieldstone', 'limestone-ashlar', 'wrought-iron'], dynamicSlots: ['mason-raw-stone', 'mason-dressed-stone'], triangleTarget: 3500, triangleCeiling: 8000, historicalNote: 'Roofed stone bankers and an open delivery apron for chiselled ashlar masonry.' },
   potter_kiln: { ...commonWorkshop, family: 'craft', status: 'standard', roof: 'industrial-hood', massing: ['open-potters-yard', 'domed-kiln', 'weather-shelter'], modules: ['lime-rendered-shelter', 'domed-kiln', 'iron-fitted-door', 'firebox', 'drying-shelves', 'lean-to'], materials: ['packed-earth', 'fieldstone', 'lime-plaster', 'rough-timber', 'split-shingles', 'wrought-iron'], dynamicSlots: ['clay-stock', 'firewood', 'pottery-stock'], historicalNote: 'A detached fired-clay kiln and open drying yard, not a clay extraction building.' },
   well: {
     family: 'service', status: 'small', roof: 'tower-cap', massing: ['stone-well-head', 'open-weather-cap'],
@@ -208,11 +209,16 @@ export function createProceduralBuildingPlan(
   kind: BuildingKind,
   options: {
     readonly seed?: number;
-    readonly developmentTier?: 0 | 1 | 2 | 3;
+    readonly developmentTier?: 0 | 1 | 2 | 3 | 4;
   } = {},
 ): ProceduralBuildingPlan {
   return {
     ...PROCEDURAL_BUILDING_CATALOG[kind],
+    ...(kind === 'chapel' && options.developmentTier === 4 ? {
+      massing: ['high-nave', 'paired-bell-towers', 'side-aisles', 'bishop-choir', 'walled-precinct'],
+      modules: ['pierced-clerestory', 'flying-buttress', 'rose-tracery', 'processional-portal', 'open-bell-stage', 'bishop-cathedra'],
+      triangleTarget: 28_000, triangleCeiling: 36_000, drawCallTarget: 14,
+    } : {}),
     version: PROCEDURAL_ARCHITECTURE_VERSION,
     kind,
     seed: options.seed ?? 1550,

@@ -58,6 +58,7 @@ export function computeSettlementResourceReport(
       add(rows, 'stone', 'committed', building.constructionReservedStone);
       add(rows, 'ironwork', 'committed', building.constructionReservedIronwork ?? 0);
       add(rows, 'roofTiles', 'committed', building.constructionReservedRoofTiles ?? 0);
+      add(rows, 'dressedStone', 'committed', building.constructionReservedDressedStone ?? 0);
     }
   }
 

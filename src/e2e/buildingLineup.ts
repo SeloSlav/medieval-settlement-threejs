@@ -245,7 +245,7 @@ const STOCKED_PREVIEW_PREFIXES = [
 const COLS = compareServiceCoverage
   ? 3
   : compareChurchTiers
-    ? showChurchResidenceReference ? 4 : 3
+    ? showChurchResidenceReference ? 5 : 4
   : compareArchitectureKit
     ? 4
   : compareResidences
@@ -288,7 +288,7 @@ if (compareResidences && requestedResidenceTier !== null) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
   if (heading) heading.textContent = 'Church Upgrade Lineup';
-  if (subtitle) subtitle.textContent = 'Fixed fenced plot · tier 1 church = twice tier 1 residence height';
+  if (subtitle) subtitle.textContent = 'Four tiers · cathedral-ready plot · bishop’s seat at tier 4';
 } else if (compareArchitectureKit) {
   const heading = document.querySelector('h1');
   const subtitle = document.querySelector('header p');
@@ -374,6 +374,7 @@ const viewSpecs = architectureKitViewSpecs ?? (constructionKind
       { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Wooden church' },
       { mesh: createBuildingMesh('chapel', 2), label: 'Tier 2 · Small stone church' },
       { mesh: createBuildingMesh('chapel', 3), label: 'Tier 3 · Large stone church' },
+      { mesh: createBuildingMesh('chapel', 4), label: 'Tier 4 · Cathedral' },
       ...(showChurchResidenceReference
         ? [{ mesh: createResidenceMesh(6, 1), label: 'Tier 1 residence · height reference' }]
         : []),

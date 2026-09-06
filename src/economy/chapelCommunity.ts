@@ -1,4 +1,5 @@
 import {
+  CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER,
   CHAPEL_RECOVERY_NEEDS_REQUIRED,
   CHAPEL_RECOVERY_STOCK_MULTIPLIER,
   CALENDAR_DAYS_PER_WEEK,
@@ -23,6 +24,7 @@ export function effectiveResidenceSettleTicks(
   hasChapelAccess: boolean,
   sabbathObservance = false,
   hasMonasteryCoverage = false,
+  chapelTier = 1,
 ): number {
   let ticks = hasChapelAccess
     ? Math.ceil(RESIDENCE_SETTLE_TICKS * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER)
@@ -36,6 +38,9 @@ export function effectiveResidenceSettleTicks(
     ticks = Math.ceil(ticks * (1 - CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS));
   }
 
+  if (hasChapelAccess && chapelTier === 4) {
+    ticks = Math.ceil(ticks * CATHEDRAL_BISHOP_SETTLEMENT_TICKS_MULTIPLIER);
+  }
   return Math.max(1, ticks);
 }
 

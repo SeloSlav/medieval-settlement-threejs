@@ -302,7 +302,9 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                         - building.construction_treasury_ironwork)
                         .max(0.0),
                     CommodityKind::RoofTiles => (building.construction_reserved_roof_tiles
-                        - building.construction_treasury_roof_tiles)
+                        - building.construction_treasury_roof_tiles).max(0.0),
+                    CommodityKind::DressedStone => (building.construction_reserved_dressed_stone
+                        - building.construction_treasury_dressed_stone)
                         .max(0.0),
                     _ => 0.0,
                 })

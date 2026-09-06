@@ -42,13 +42,18 @@ function buildingStateFromRow(
   const id = buildingClientId(row.id);
   const materialRow = row as Building & Partial<{
     roofTiles: number;
+    dressedStone: number;
     potterFiringPolicy: number;
     chapelTier: number;
     fireRepairActive: boolean;
     constructionRequiredRoofTiles: number;
+    constructionRequiredDressedStone: number;
     constructionDeliveredRoofTiles: number;
+    constructionDeliveredDressedStone: number;
     constructionReservedRoofTiles: number;
+    constructionReservedDressedStone: number;
     constructionTreasuryRoofTiles: number;
+    constructionTreasuryDressedStone: number;
     cider: number;
     mead: number;
     breweryRecipePolicy: number;
@@ -164,6 +169,7 @@ function buildingStateFromRow(
     charcoal: wholeResourceUnits(row.charcoal),
     pottery: wholeResourceUnits(row.pottery),
     roofTiles: wholeResourceUnits(materialRow.roofTiles),
+    dressedStone: wholeResourceUnits(materialRow.dressedStone),
     manure: wholeResourceUnits(row.manure),
     remedies: wholeResourceUnits(row.remedies),
     ryeBread: wholeResourceUnits(row.ryeBread),
@@ -197,18 +203,22 @@ function buildingStateFromRow(
     constructionRequiredStone: wholeResourceUnits(row.constructionRequiredStone),
     constructionRequiredIronwork: wholeResourceUnits(row.constructionRequiredIronwork),
     constructionRequiredRoofTiles: wholeResourceUnits(materialRow.constructionRequiredRoofTiles),
+    constructionRequiredDressedStone: wholeResourceUnits(materialRow.constructionRequiredDressedStone),
     constructionDeliveredTimber: wholeResourceUnits(row.constructionDeliveredTimber),
     constructionDeliveredStone: wholeResourceUnits(row.constructionDeliveredStone),
     constructionDeliveredIronwork: wholeResourceUnits(row.constructionDeliveredIronwork),
     constructionDeliveredRoofTiles: wholeResourceUnits(materialRow.constructionDeliveredRoofTiles),
+    constructionDeliveredDressedStone: wholeResourceUnits(materialRow.constructionDeliveredDressedStone),
     constructionReservedTimber: wholeResourceUnits(row.constructionReservedTimber),
     constructionReservedStone: wholeResourceUnits(row.constructionReservedStone),
     constructionReservedIronwork: wholeResourceUnits(row.constructionReservedIronwork),
     constructionReservedRoofTiles: wholeResourceUnits(materialRow.constructionReservedRoofTiles),
+    constructionReservedDressedStone: wholeResourceUnits(materialRow.constructionReservedDressedStone),
     constructionTreasuryTimber: wholeResourceUnits(row.constructionTreasuryTimber),
     constructionTreasuryStone: wholeResourceUnits(row.constructionTreasuryStone),
     constructionTreasuryIronwork: wholeResourceUnits(row.constructionTreasuryIronwork),
     constructionTreasuryRoofTiles: wholeResourceUnits(materialRow.constructionTreasuryRoofTiles),
+    constructionTreasuryDressedStone: wholeResourceUnits(materialRow.constructionTreasuryDressedStone),
     storehouseAcceptsTimber: row.storehouseAcceptsTimber,
     storehouseAcceptsStone: row.storehouseAcceptsStone,
     storehouseAcceptsFirewood: row.storehouseAcceptsFirewood,
@@ -258,7 +268,7 @@ function buildingStateFromRow(
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
     chapelMonasteryTitheDue: wholeResourceUnits(row.chapelMonasteryTitheDue),
-    chapelTier: Math.max(1, Math.min(3, Number(materialRow.chapelTier ?? 3))) as 1 | 2 | 3,
+    chapelTier: Math.max(1, Math.min(row.kind === 'monastery' ? 3 : 4, Number(materialRow.chapelTier ?? 1))) as 1 | 2 | 3 | 4,
     civicReceiptsGold: wholeResourceUnits(row.civicReceiptsGold),
     privateExportProceedsGold: wholeResourceUnits(row.privateExportProceedsGold),
     vineyardFermentingGrapes: wholeResourceUnits(row.vineyardFermentingGrapes),

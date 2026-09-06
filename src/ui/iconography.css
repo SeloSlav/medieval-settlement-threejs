@@ -1094,3 +1094,11 @@
     --gk-icon-size: 28px;
   }
 }
+
+.settlement-hud__stat[data-resource='dressedStone']::before,
+.resource-cost__item[data-resource-cost='dressedStone'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/dressed-stone.svg');
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}

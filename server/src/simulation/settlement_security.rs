@@ -802,6 +802,7 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         charcoal: building.charcoal,
         pottery: building.pottery,
         roof_tiles: building.roof_tiles,
+        dressed_stone: building.dressed_stone,
         remedies: building.remedies,
         meat: building.meat,
         fish: building.fish,
@@ -1077,6 +1078,7 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Charcoal) => stores.charcoal = amount,
         Some(CommodityKind::Pottery) => stores.pottery = amount,
         Some(CommodityKind::RoofTiles) => stores.roof_tiles = amount,
+        Some(CommodityKind::DressedStone) => stores.dressed_stone = amount,
         Some(CommodityKind::Remedies) => stores.remedies = amount,
         // Raiders do not select bulk stone or water as plunder even when a
         // settlement cart happens to be carrying it.
@@ -1154,6 +1156,7 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Charcoal) => stores.charcoal,
         Some(CommodityKind::Pottery) => stores.pottery,
         Some(CommodityKind::RoofTiles) => stores.roof_tiles,
+        Some(CommodityKind::DressedStone) => stores.dressed_stone,
         Some(CommodityKind::Remedies) => stores.remedies,
         Some(CommodityKind::Stone | CommodityKind::Water | CommodityKind::Manure) | None => 0.0,
     }
@@ -1223,6 +1226,7 @@ fn treasury_portable_stores(
         charcoal: treasury.charcoal,
         pottery: treasury.pottery,
         roof_tiles: treasury.roof_tiles,
+        dressed_stone: treasury.dressed_stone,
         remedies: 0.0,
         meat: treasury.meat,
         fish: treasury.fish,
@@ -1351,6 +1355,7 @@ pub(super) fn retain_unplundered_stores(building: &mut Building, stores: RaidPor
     building.charcoal = stores.charcoal;
     building.pottery = stores.pottery;
     building.roof_tiles = stores.roof_tiles;
+    building.dressed_stone = stores.dressed_stone;
     building.remedies = stores.remedies;
     building.meat = stores.meat;
     building.fish = stores.fish;
@@ -1428,6 +1433,7 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(charcoal);
     subtract_loss!(pottery);
     subtract_loss!(roof_tiles);
+    subtract_loss!(dressed_stone);
     subtract_loss!(meat);
     subtract_loss!(fish);
     subtract_loss!(berries);

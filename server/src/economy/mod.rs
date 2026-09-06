@@ -36,7 +36,7 @@ pub use commodities::{
 pub(crate) use marketplace_trade_policy::adriatic_trade_entry_point;
 
 pub use aggregate_spend::{
-    spend_aggregate_ironwork, spend_aggregate_roof_tiles, spend_aggregate_stone,
+    spend_aggregate_ironwork, spend_aggregate_roof_tiles, spend_aggregate_dressed_stone, spend_aggregate_stone,
     spend_aggregate_timber,
 };
 pub use chapel_coffer::{
@@ -71,7 +71,7 @@ pub use regional_market::{
 };
 pub(crate) use regional_market_policy::MarketTradeDirection;
 pub(crate) use storage::{
-    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles,
+    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles, available_unreserved_building_dressed_stone,
     available_unreserved_building_stone, available_unreserved_building_timber,
 };
 pub use storage::{
@@ -80,7 +80,7 @@ pub use storage::{
     credit_treasury_gold_for_settlement, credit_treasury_stone, credit_treasury_timber,
     residence_firewood_capacity, residence_food_capacity,
     residence_water_capacity, spend_treasury_gold, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
+    total_roof_tiles, total_dressed_stone, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };
 pub(crate) use storage::{physical_treasury_seat, physical_treasury_seat_for_settlement};
@@ -101,6 +101,7 @@ pub struct ResourceAmount {
     pub stone: f64,
     pub ironwork: f64,
     pub roof_tiles: f64,
+    pub dressed_stone: f64,
 }
 
 pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
@@ -110,6 +111,7 @@ pub fn building_cost(kind: &str) -> Result<ResourceAmount, String> {
         stone: def.cost_stone,
         ironwork: def.cost_ironwork,
         roof_tiles: def.cost_roof_tiles,
+        dressed_stone: def.cost_dressed_stone,
     })
 }
 
@@ -122,6 +124,9 @@ pub fn building_salvage_refund(kind: &str) -> Result<ResourceAmount, String> {
         roof_tiles: crate::resource_units::whole_units(
             cost.roof_tiles * RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
         ),
+        dressed_stone: crate::resource_units::whole_units(
+            cost.dressed_stone * STONE_SALVAGE_FRACTION,
+        ),
     })
 }
 
@@ -132,6 +137,7 @@ pub fn backyard_garden_cost(kind: crate::balance_generated::BackyardGardenKind) 
         stone: def.cost_stone,
         ironwork: 0.0,
         roof_tiles: 0.0,
+        dressed_stone: 0.0,
     }
 }
 
@@ -144,6 +150,7 @@ pub fn backyard_garden_salvage_refund(
         stone: (cost.stone * STONE_SALVAGE_FRACTION).round(),
         ironwork: 0.0,
         roof_tiles: 0.0,
+        dressed_stone: 0.0,
     }
 }
 
@@ -157,5 +164,6 @@ pub fn residence_zone_cost_for_units(cost_units: f64) -> ResourceAmount {
         stone: (RESIDENCE_STONE_COST * cost_units.max(0.0)).ceil(),
         ironwork: 0.0,
         roof_tiles: 0.0,
+        dressed_stone: 0.0,
     }
 }

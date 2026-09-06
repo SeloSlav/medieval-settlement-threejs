@@ -76,7 +76,7 @@ pub use expanded_economy::{
     step_charcoal_burner, step_cobbler, step_granary, step_guardhouse,
     step_industrial_firewood_dispatch, step_institutional_food_dispatch,
     step_local_material_dispatch, step_marketplace_material_dispatch, step_military_requisitions,
-    step_mine, step_monastery, step_potter_kiln, step_seed_grain_distribution, step_smithy,
+    step_mine, step_monastery, step_potter_kiln, step_stone_mason, step_seed_grain_distribution, step_smithy,
     step_smokehouse, step_spinning_retting_house, step_tannery, step_threshing_barn,
     step_watermill, step_weaponsmith_armorer, step_weaver, step_windmill,
 };

@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'jam', 'animalFeed'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'honey', 'wax', 'candles', 'wine', 'wool', 'flax', 'yarn', 'linen', 'cloth', 'pelts', 'hides', 'leather', 'shoes', 'ironwork', 'polearms', 'sidearms', 'shields', 'bows', 'crossbows', 'paddedArmor', 'mailArmor', 'ammunition', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'manure', 'remedies', 'roofTiles', 'dressedStone', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'pears', 'cherries', 'aronia', 'rosehips', 'cabbage', 'carrots', 'beetroot', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese', 'jam', 'animalFeed'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -173,6 +173,7 @@ export type BuildingState = {
   charcoal?: number;
   pottery?: number;
   roofTiles?: number;
+  dressedStone?: number;
   manure?: number;
   remedies?: number;
   ryeBread?: number;
@@ -207,18 +208,22 @@ export type BuildingState = {
   constructionRequiredStone: number;
   constructionRequiredIronwork?: number;
   constructionRequiredRoofTiles?: number;
+  constructionRequiredDressedStone?: number;
   constructionDeliveredTimber: number;
   constructionDeliveredStone: number;
   constructionDeliveredIronwork?: number;
   constructionDeliveredRoofTiles?: number;
+  constructionDeliveredDressedStone?: number;
   constructionReservedTimber: number;
   constructionReservedStone: number;
   constructionReservedIronwork?: number;
   constructionReservedRoofTiles?: number;
+  constructionReservedDressedStone?: number;
   constructionTreasuryTimber: number;
   constructionTreasuryStone: number;
   constructionTreasuryIronwork?: number;
   constructionTreasuryRoofTiles?: number;
+  constructionTreasuryDressedStone?: number;
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;
@@ -281,7 +286,7 @@ export type BuildingState = {
   foundingShelterActive?: boolean;
   chapelMonasteryTitheDue?: number;
   /** 1 small timber, 2 small stone, 3 large stone; legacy rows default to 3. */
-  chapelTier?: 1 | 2 | 3;
+  chapelTier?: 1 | 2 | 3 | 4;
   /** Source-held fares or gifts pledged to the civic treasury. */
   civicReceiptsGold?: number;
   /** Private automatic-export proceeds awaiting distribution to producer households. */

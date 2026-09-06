@@ -112,6 +112,7 @@ export type ResourceTotals = {
   charcoal: number;
   pottery: number;
   roofTiles: number;
+  dressedStone: number;
   manure: number;
   remedies: number;
   ryeBread: number;
@@ -186,7 +187,7 @@ export const HUD_RESOURCE_KINDS = [
   'salt',
   'charcoal',
   'pottery',
-  'roofTiles',
+  'roofTiles', 'dressedStone',
   'manure',
   'remedies',
 ] as const satisfies readonly (keyof ResourceTotals)[];
@@ -301,6 +302,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let charcoal = ledger?.charcoal ?? 0;
   let pottery = ledger?.pottery ?? 0;
   let roofTiles = ledger?.roofTiles ?? 0;
+  let dressedStone = ledger?.dressedStone ?? 0;
   let manure = 0;
   let remedies = 0;
   let ryeBread = ledger?.ryeBread ?? 0;
@@ -337,6 +339,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedIronwork = 0;
   let reservedGold = 0;
   let reservedRoofTiles = 0;
+  let reservedDressedStone = 0;
   let reservedOatGrain = 0;
   let reservedHoney = 0;
   let reservedRyeBread = 0;
@@ -416,6 +419,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     charcoal += building.charcoal ?? 0;
     pottery += building.pottery ?? 0;
     roofTiles += building.roofTiles ?? 0;
+    dressedStone += building.dressedStone ?? 0;
     manure += building.manure ?? 0;
     remedies += building.remedies ?? 0;
     ryeBread += building.ryeBread ?? 0;
@@ -479,6 +483,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
       reservedStone += Math.max(0, building.constructionReservedStone);
       reservedIronwork += Math.max(0, building.constructionReservedIronwork ?? 0);
       reservedRoofTiles += Math.max(0, building.constructionReservedRoofTiles ?? 0);
+      reservedDressedStone += Math.max(0, building.constructionReservedDressedStone ?? 0);
     }
   }
 
@@ -660,6 +665,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     charcoal,
     pottery,
     roofTiles,
+    dressedStone,
     manure,
     remedies,
     ryeBread,
@@ -745,6 +751,7 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     ironwork: Math.max(0, ironwork - reservedIronwork),
     gold: Math.max(0, gold - reservedGold),
     roofTiles: Math.max(0, roofTiles - reservedRoofTiles),
+    dressedStone: Math.max(0, dressedStone - reservedDressedStone),
     food: surplusFood,
     oatGrain: surplusOatGrain,
     preservedFood: surplusPreservedFood,
@@ -921,14 +928,17 @@ export function computeMarketplaceTradeAvailability(
   let allBuildingStone = 0;
   let allBuildingIronwork = 0;
   let allBuildingRoofTiles = 0;
+  let allBuildingDressedStone = 0;
   let reservedBuildingTimber = 0;
   let reservedBuildingStone = 0;
   let reservedBuildingIronwork = 0;
   let reservedBuildingRoofTiles = 0;
+  let reservedBuildingDressedStone = 0;
   let reservedTreasuryTimber = 0;
   let reservedTreasuryStone = 0;
   let reservedTreasuryIronwork = 0;
   let reservedTreasuryRoofTiles = 0;
+  let reservedTreasuryDressedStone = 0;
   let reservedResidenceTimber = 0;
   let reservedResidenceStone = 0;
   let reservedResidenceRoofTiles = 0;
@@ -938,6 +948,7 @@ export function computeMarketplaceTradeAvailability(
     allBuildingStone += building.stone;
     allBuildingIronwork += building.ironwork ?? 0;
     allBuildingRoofTiles += building.roofTiles ?? 0;
+    allBuildingDressedStone += building.dressedStone ?? 0;
     if (building.constructionComplete === false) {
       reservedBuildingTimber += Math.max(
         0,
@@ -957,10 +968,16 @@ export function computeMarketplaceTradeAvailability(
         (building.constructionReservedRoofTiles ?? 0)
           - (building.constructionTreasuryRoofTiles ?? 0),
       );
+      reservedBuildingDressedStone += Math.max(
+        0,
+        (building.constructionReservedDressedStone ?? 0)
+          - (building.constructionTreasuryDressedStone ?? 0),
+      );
       reservedTreasuryTimber += building.constructionTreasuryTimber;
       reservedTreasuryStone += building.constructionTreasuryStone;
       reservedTreasuryIronwork += building.constructionTreasuryIronwork ?? 0;
       reservedTreasuryRoofTiles += building.constructionTreasuryRoofTiles ?? 0;
+      reservedTreasuryDressedStone += building.constructionTreasuryDressedStone ?? 0;
       continue;
     }
     if (fireDisabled.has(building.id)) continue;
@@ -1011,6 +1028,10 @@ export function computeMarketplaceTradeAvailability(
     0,
     allBuildingRoofTiles - reservedBuildingRoofTiles - reservedResidenceRoofTiles,
   );
+  const unreservedBuildingDressedStone = Math.max(
+    0,
+    allBuildingDressedStone - reservedBuildingDressedStone,
+  );
   const ledgerTimber = includeLegacyLedger
     ? Math.max(0, state.stockpile.timber - reservedTreasuryTimber)
     : 0;
@@ -1025,13 +1046,16 @@ export function computeMarketplaceTradeAvailability(
   availability.roofTiles = (includeLegacyLedger
     ? Math.max(0, (state.stockpile.roofTiles ?? 0) - reservedTreasuryRoofTiles)
     : 0) + Math.min(availability.roofTiles, unreservedBuildingRoofTiles);
+  availability.dressedStone = (includeLegacyLedger
+    ? Math.max(0, (state.stockpile.dressedStone ?? 0) - reservedTreasuryDressedStone)
+    : 0) + Math.min(availability.dressedStone, unreservedBuildingDressedStone);
   if (includeLegacyLedger) {
     for (const resource of TRADE_RESOURCE_KINDS) {
       if (
         resource === 'timber'
         || resource === 'stone'
         || resource === 'ironwork'
-        || resource === 'roofTiles'
+        || resource === 'roofTiles' || resource === 'dressedStone'
       ) continue;
       availability[resource] += tradeResourceLedgerStock(state, resource);
     }
@@ -1191,6 +1215,7 @@ function emptyResourceTotals(): ResourceTotals {
     charcoal: 0,
     pottery: 0,
     roofTiles: 0,
+    dressedStone: 0,
     manure: 0,
     remedies: 0,
     ryeBread: 0,

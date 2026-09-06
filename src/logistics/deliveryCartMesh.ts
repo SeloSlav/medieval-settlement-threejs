@@ -4,6 +4,7 @@ import {
   addMesh,
   metalMaterial,
   timberMaterial,
+  stoneMaterial,
 } from '../buildings/buildingMaterials.ts';
 import type { DeliveryCargoKind } from './deliveryTrips.ts';
 import { addSharedFirewoodLog } from '../buildings/firewoodPileMesh.ts';
@@ -250,6 +251,12 @@ function addCargo(
       break;
     case 'pottery':
       addPotteryLoad(group);
+      break;
+    case 'dressedStone':
+      for (let i = 0; i < 6; i++) {
+        const block = addMesh(group, new THREE.BoxGeometry(.48, .27, .38), stoneMaterial('light'), new THREE.Vector3((i % 2 - .5) * .51, .88 + Math.floor(i / 4) * .28, -.36 + (Math.floor(i / 2) % 2) * .4));
+        block.name = 'Cart dressed ashlar block';
+      }
       break;
     case 'roofTiles':
       addRoofTileLoad(group);

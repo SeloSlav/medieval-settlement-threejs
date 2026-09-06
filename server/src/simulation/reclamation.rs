@@ -30,7 +30,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 71] = [
+const RECOVERY_ORDER: [CommodityKind; 72] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::RyeSheaves,
@@ -85,6 +85,7 @@ const RECOVERY_ORDER: [CommodityKind; 71] = [
     CommodityKind::Salt,
     CommodityKind::Pottery,
     CommodityKind::RoofTiles,
+    CommodityKind::DressedStone,
     CommodityKind::Charcoal,
     CommodityKind::Clay,
     CommodityKind::Manure,
@@ -146,6 +147,7 @@ pub struct ReclamationStock {
     pub manure: f64,
     pub remedies: f64,
     pub roof_tiles: f64,
+    pub dressed_stone: f64,
     pub meat: f64,
     pub fish: f64,
     pub berries: f64,
@@ -320,6 +322,10 @@ impl ReclamationStock {
             },
             CommodityKind::RoofTiles => Self {
                 roof_tiles: amount,
+                ..Self::default()
+            },
+            CommodityKind::DressedStone => Self {
+                dressed_stone: amount,
                 ..Self::default()
             },
             CommodityKind::Meat => Self {
@@ -499,6 +505,7 @@ impl ReclamationStock {
             manure,
             remedies,
             roof_tiles,
+            dressed_stone,
             meat,
             fish,
             berries,
@@ -590,6 +597,7 @@ impl ReclamationStock {
             manure: cargo.manure,
             remedies: cargo.remedies,
             roof_tiles: cargo.roof_tiles,
+            dressed_stone: cargo.dressed_stone,
             meat: cargo.meat,
             fish: cargo.fish,
             berries: cargo.berries,
@@ -625,7 +633,7 @@ impl ReclamationStock {
         .normalized()
     }
 
-    pub fn commodities() -> [CommodityKind; 71] {
+    pub fn commodities() -> [CommodityKind; 72] {
         RECOVERY_ORDER
     }
 
@@ -679,6 +687,7 @@ impl ReclamationStock {
             manure,
             remedies,
             roof_tiles,
+            dressed_stone,
             meat,
             fish,
             berries,
@@ -763,6 +772,7 @@ impl ReclamationStock {
             manure: 0.0,
             remedies: 0.0,
             roof_tiles: resources.roof_tiles.max(0.0),
+            dressed_stone: resources.dressed_stone.max(0.0),
             meat: resources.meat.max(0.0),
             fish: resources.fish.max(0.0),
             berries: resources.berries.max(0.0),
@@ -840,6 +850,7 @@ impl ReclamationStock {
             CommodityKind::Manure => self.manure,
             CommodityKind::Remedies => self.remedies,
             CommodityKind::RoofTiles => self.roof_tiles,
+            CommodityKind::DressedStone => self.dressed_stone,
             CommodityKind::Meat => self.meat,
             CommodityKind::Fish => self.fish,
             CommodityKind::Berries => self.berries,
@@ -926,6 +937,7 @@ impl ReclamationStock {
             manure,
             remedies,
             roof_tiles,
+            dressed_stone,
             meat,
             fish,
             berries,
@@ -1124,6 +1136,7 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
     resources.roof_tiles = 0.0;
+    resources.dressed_stone = 0.0;
     resources.meat = 0.0;
     resources.fish = 0.0;
     resources.berries = 0.0;
@@ -1321,9 +1334,13 @@ pub fn insert_reclamation_pile(
         construction_treasury_stone: 0.0,
         construction_treasury_ironwork: 0.0,
         construction_required_roof_tiles: 0.0,
+        construction_required_dressed_stone: 0.0,
         construction_delivered_roof_tiles: 0.0,
+        construction_delivered_dressed_stone: 0.0,
         construction_reserved_roof_tiles: 0.0,
+        construction_reserved_dressed_stone: 0.0,
         construction_treasury_roof_tiles: 0.0,
+        construction_treasury_dressed_stone: 0.0,
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
@@ -1383,6 +1400,7 @@ pub fn insert_reclamation_pile(
         charcoal: stock.charcoal.max(0.0),
         pottery: stock.pottery.max(0.0),
         roof_tiles: stock.roof_tiles.max(0.0),
+        dressed_stone: stock.dressed_stone.max(0.0),
         manure: stock.manure.max(0.0),
         remedies: stock.remedies.max(0.0),
         marketplace_iron_target: 0,
@@ -1668,7 +1686,7 @@ pub fn materialize_physical_construction_reservations(
                 && (building.construction_treasury_timber > EPSILON
                     || building.construction_treasury_stone > EPSILON
                     || building.construction_treasury_ironwork > EPSILON
-                    || building.construction_treasury_roof_tiles > EPSILON)
+                    || building.construction_treasury_roof_tiles > EPSILON || building.construction_treasury_dressed_stone > EPSILON)
         })
         .collect::<Vec<_>>();
     for mut site in sites {
@@ -1676,6 +1694,7 @@ pub fn materialize_physical_construction_reservations(
         site.construction_treasury_stone = 0.0;
         site.construction_treasury_ironwork = 0.0;
         site.construction_treasury_roof_tiles = 0.0;
+        site.construction_treasury_dressed_stone = 0.0;
         ctx.db.building().id().update(site);
     }
 }
@@ -2001,6 +2020,11 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             _ => None,
         },
         CommodityKind::RoofTiles => match kind {
+            "potter_kiln" => Some(0),
+            "founders_camp" => Some(1),
+            _ => None,
+        },
+        CommodityKind::DressedStone => match kind {
             "potter_kiln" => Some(0),
             "founders_camp" => Some(1),
             _ => None,

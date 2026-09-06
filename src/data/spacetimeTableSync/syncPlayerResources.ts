@@ -115,9 +115,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       // stocks), not fields on the legacy aggregate player-resources row.
       manure: 0,
       remedies: 0,
-      roofTiles: wholeResourceUnits(
-        (row as typeof row & Partial<{ roofTiles: number }>).roofTiles,
-      ),
+      roofTiles: wholeResourceUnits(row.roofTiles),
+      dressedStone: wholeResourceUnits(row.dressedStone),
       ryeBread: wholeResourceUnits(row.ryeBread),
       maslinBread: wholeResourceUnits(row.maslinBread),
       meat: wholeResourceUnits(row.meat),
@@ -191,6 +190,7 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       scriptoriumStoneSavedTotal: wholeResourceUnits(row.monasteryScriptoriumStoneSavedTotal),
       scriptoriumIronworkSavedTotal: wholeResourceUnits(row.monasteryScriptoriumIronworkSavedTotal),
       scriptoriumRoofTilesSavedTotal: wholeResourceUnits(row.monasteryScriptoriumRoofTilesSavedTotal),
+      scriptoriumDressedStoneSavedTotal: wholeResourceUnits(row.monasteryScriptoriumDressedStoneSavedTotal),
     };
     break;
   }

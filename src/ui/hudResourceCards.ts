@@ -5,6 +5,8 @@ export const HUD_CONSTRUCTION_RESOURCE_KINDS = [
   'stone',
   'ironwork',
   'roofTiles',
+
+  'dressedStone',
 ] as const satisfies readonly HudResourceKind[];
 
 export type HudConstructionResourceKind =
@@ -15,6 +17,8 @@ export const HUD_RESOURCE_CARD_KINDS = [
   'stone',
   'ironwork',
   'roofTiles',
+
+  'dressedStone',
   'gold',
 ] as const satisfies readonly HudResourceKind[];
 
@@ -41,6 +45,9 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
   },
   roofTiles: {
     label: 'Roof tiles',
+  },
+  dressedStone: {
+    label: 'Dressed stone',
   },
   gold: {
     label: 'Treasury',

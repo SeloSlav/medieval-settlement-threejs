@@ -49,25 +49,28 @@ export function constructionLaborReady(
     | 'constructionRequiredStone'
     | 'constructionRequiredIronwork'
     | 'constructionRequiredRoofTiles'
+    | 'constructionRequiredDressedStone' | 'constructionRequiredDressedStone'
     | 'constructionDeliveredTimber'
     | 'constructionDeliveredStone'
     | 'constructionDeliveredIronwork'
     | 'constructionDeliveredRoofTiles'
+    | 'constructionDeliveredDressedStone' | 'constructionDeliveredDressedStone'
     | 'constructionProgress'
     | 'constructionTreasuryTimber'
     | 'constructionTreasuryStone'
     | 'constructionTreasuryIronwork'
     | 'constructionTreasuryRoofTiles'
+    | 'constructionTreasuryDressedStone'
   >,
 ): boolean {
   const requiredTotal = nonnegative(building.constructionRequiredTimber)
     + nonnegative(building.constructionRequiredStone)
     + nonnegative(building.constructionRequiredIronwork)
-    + nonnegative(building.constructionRequiredRoofTiles);
+    + nonnegative(building.constructionRequiredRoofTiles) + nonnegative(building.constructionRequiredDressedStone);
   const deliveredTotal = nonnegative(building.constructionDeliveredTimber)
     + nonnegative(building.constructionDeliveredStone)
     + nonnegative(building.constructionDeliveredIronwork)
-    + nonnegative(building.constructionDeliveredRoofTiles);
+    + nonnegative(building.constructionDeliveredRoofTiles) + nonnegative(building.constructionDeliveredDressedStone);
   const materialReadiness = requiredTotal <= EPSILON
     ? 1
     : Math.min(1, deliveredTotal / requiredTotal);
@@ -76,7 +79,7 @@ export function constructionLaborReady(
     || nonnegative(building.constructionTreasuryTimber)
       + nonnegative(building.constructionTreasuryStone)
       + nonnegative(building.constructionTreasuryIronwork)
-      + nonnegative(building.constructionTreasuryRoofTiles) > EPSILON;
+      + nonnegative(building.constructionTreasuryRoofTiles) + nonnegative(building.constructionTreasuryDressedStone) > EPSILON;
 }
 
 export function computeSettlementConstructionLaborPlan(

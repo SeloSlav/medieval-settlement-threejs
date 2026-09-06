@@ -33,6 +33,7 @@ pub enum CommodityKind {
     Manure,
     Remedies,
     RoofTiles,
+    DressedStone,
     Meat,
     Fish,
     Berries,
@@ -86,7 +87,7 @@ pub enum CommodityKind {
 /// Canonical exhaustive commodity iteration order. Systems that must prove a
 /// physical holder is empty (temporary camps, reclamation piles, diagnostics)
 /// use this list so adding a commodity cannot silently strand stock.
-pub const ALL_COMMODITIES: &[CommodityKind; 71] = &[
+pub const ALL_COMMODITIES: &[CommodityKind; 72] = &[
     CommodityKind::Firewood,
     CommodityKind::Water,
     CommodityKind::Timber,
@@ -110,6 +111,7 @@ pub const ALL_COMMODITIES: &[CommodityKind; 71] = &[
     CommodityKind::Manure,
     CommodityKind::Remedies,
     CommodityKind::RoofTiles,
+    CommodityKind::DressedStone,
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Berries,
@@ -359,6 +361,7 @@ impl CommodityKind {
             Self::Manure => 24,
             Self::Remedies => 25,
             Self::RoofTiles => 26,
+            Self::DressedStone => 76,
             Self::Meat => 28,
             Self::Fish => 29,
             Self::Berries => 30,
@@ -435,6 +438,7 @@ impl CommodityKind {
             24 => Some(Self::Manure),
             25 => Some(Self::Remedies),
             26 => Some(Self::RoofTiles),
+            76 => Some(Self::DressedStone),
             28 => Some(Self::Meat),
             29 => Some(Self::Fish),
             30 => Some(Self::Berries),
@@ -626,6 +630,7 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Manure => building.manure,
         CommodityKind::Remedies => building.remedies,
         CommodityKind::RoofTiles => building.roof_tiles,
+        CommodityKind::DressedStone => building.dressed_stone,
         CommodityKind::Meat => building.meat,
         CommodityKind::Fish => building.fish,
         CommodityKind::Berries => building.berries,
@@ -738,6 +743,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Manure => def.storage_manure,
         CommodityKind::Remedies => def.storage_remedies,
         CommodityKind::RoofTiles => def.storage_roof_tiles,
+        CommodityKind::DressedStone => def.storage_dressed_stone,
         CommodityKind::RyeBread
         | CommodityKind::MaslinBread
         | CommodityKind::Meat
@@ -947,6 +953,7 @@ pub fn withdraw_building_commodity(
         CommodityKind::Manure => building.manure -= withdrawn,
         CommodityKind::Remedies => building.remedies -= withdrawn,
         CommodityKind::RoofTiles => building.roof_tiles -= withdrawn,
+        CommodityKind::DressedStone => building.dressed_stone -= withdrawn,
         CommodityKind::Meat => building.meat -= withdrawn,
         CommodityKind::Fish => building.fish -= withdrawn,
         CommodityKind::Berries => building.berries -= withdrawn,
@@ -1029,6 +1036,7 @@ pub fn deposit_building_commodity(
         CommodityKind::Manure => building.manure += deposited,
         CommodityKind::Remedies => building.remedies += deposited,
         CommodityKind::RoofTiles => building.roof_tiles += deposited,
+        CommodityKind::DressedStone => building.dressed_stone += deposited,
         CommodityKind::Meat => building.meat += deposited,
         CommodityKind::Fish => building.fish += deposited,
         CommodityKind::Berries => building.berries += deposited,
@@ -1125,6 +1133,7 @@ pub fn credit_treasury_commodity(
         // Prepared remedies are produced and consumed only at physical sites.
         CommodityKind::Remedies => return,
         CommodityKind::RoofTiles => treasury.roof_tiles += amount,
+        CommodityKind::DressedStone => treasury.dressed_stone += amount,
         CommodityKind::Meat => treasury.meat += amount,
         CommodityKind::Fish => treasury.fish += amount,
         CommodityKind::Berries => treasury.berries += amount,

@@ -17,6 +17,7 @@ export const BUILDING_CARD_ART = {
   smithy: '/assets/ui/build-menu/cards/smithy-bloomery.webp',
   weaponsmith_armorer: '/assets/ui/build-menu/cards/weaponsmith-armorer.webp',
   bowyer_fletcher: '/assets/ui/build-menu/cards/bowyer-fletcher.webp',
+  stone_mason: '/assets/ui/build-menu/cards/stone-mason.webp',
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp',
   stable: '/assets/ui/build-menu/cards/stable.webp',

@@ -1,3 +1,4 @@
+import { MASON_STONE_PER_CYCLE } from '../generated/gameBalance.ts';
 import {
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
@@ -60,6 +61,8 @@ export type DirectProcessorInputCommodity =
   | 'ironwork'
   | 'iron'
   | 'clay'
+  | 'stone'
+  | 'dressedStone'
   | 'salt'
   | 'charcoal'
   | 'pottery'
@@ -102,6 +105,8 @@ type ProcessorInputDestinationLike = Pick<
   | 'ironwork'
   | 'iron'
   | 'clay'
+  | 'stone'
+  | 'dressedStone'
   | 'salt'
   | 'charcoal'
   | 'pottery'
@@ -151,6 +156,8 @@ const TARGET_KINDS: Record<
   ],
   iron: ['smithy', 'trading_post'],
   clay: ['potter_kiln'],
+  stone: ['stone_mason'],
+  dressedStone: ['village_storehouse', 'trading_post'],
   salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
   charcoal: ['smithy'],
   pottery: ['village_storehouse', 'trading_post'],
@@ -202,6 +209,8 @@ export function directlyDispatchedProcessorInputPerCycle(
         : 0;
     case 'iron':
       return targetKind === 'smithy' ? SMITHY_IRON_PER_CYCLE : 0;
+    case 'stone': return targetKind === 'stone_mason' ? MASON_STONE_PER_CYCLE : 0;
+    case 'dressedStone': return 0;
     case 'clay':
       return POTTER_CLAY_PER_CYCLE;
     case 'salt':
@@ -395,6 +404,7 @@ export type RoutedMarketplaceMaterialAssignment<
 };
 
 export const LOCAL_MATERIAL_SOURCE_KINDS = [
+  'stone_mason', 'large_quarry', 'trading_post',
   'stone_quarry',
   'mine',
   'charcoal_burner',
@@ -409,6 +419,8 @@ export type LocalMaterialInputCommodity =
   | 'iron'
   | 'salt'
   | 'clay'
+  | 'stone'
+  | 'dressedStone'
   | 'charcoal'
   | 'ironwork'
   | 'pottery'
@@ -432,6 +444,8 @@ type LocalMaterialSourceLike = Pick<
   | 'iron'
   | 'salt'
   | 'clay'
+  | 'stone'
+  | 'dressedStone'
   | 'charcoal'
   | 'ironwork'
   | 'pottery'
@@ -450,11 +464,13 @@ export function localMaterialInputCommodities(
   source?: Partial<LocalMaterialSourceLike>,
 ): readonly LocalMaterialInputCommodity[] {
   switch (kind) {
+    case 'large_quarry': return ['stone'];
+    case 'stone_mason': return ['dressedStone'];
     case 'stone_quarry':
-      return (['iron', 'salt', 'clay'] as const)
+      return (['stone', 'iron', 'salt', 'clay'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'mine':
-      return (['iron', 'salt', 'clay'] as const)
+      return (['stone', 'iron', 'salt', 'clay'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'charcoal_burner': return ['charcoal'];
     case 'smithy': return ['ironwork'];
@@ -464,8 +480,12 @@ export function localMaterialInputCommodities(
     case 'spinning_retting_house':
       return (['yarn', 'linen'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
+    case 'trading_post':
+    case 'trading_post':
     case 'village_storehouse':
       return [
+        ...((source?.stone ?? 0) > 1e-6 ? ['stone'] as const : []),
+        ...((source?.stone ?? 0) > 1e-6 ? ['stone'] as const : []),
         ...((source?.charcoal ?? 0) > 1e-6 ? ['charcoal'] as const : []),
         ...((source?.wax ?? 0) > 1e-6 ? ['wax'] as const : []),
         ...((['wool', 'yarn', 'linen'] as const)
@@ -758,6 +778,8 @@ function directMaterialCommodityRank(
     case 'iron': return 0;
     case 'salt': return 1;
     case 'pottery': return 2;
+    case 'stone': return 3;
+    case 'dressedStone': return 4;
     case 'clay': return 3;
     case 'charcoal': return 4;
     case 'ironwork': return 5;

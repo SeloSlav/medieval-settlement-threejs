@@ -26,8 +26,8 @@ use crate::economy::{
     available_workplace_labor, building_commodity_cap, building_commodity_stock, building_cost,
     building_salvage_refund, construction_treasury_reservation, credit_treasury_commodity,
     initial_construction_labor, preempt_flexible_labor_for_workplace_callup,
-    spend_aggregate_ironwork, spend_aggregate_roof_tiles, spend_aggregate_stone,
-    spend_aggregate_timber, spend_treasury_gold, total_ironwork, total_roof_tiles, total_stone,
+    spend_aggregate_ironwork, spend_aggregate_roof_tiles, spend_aggregate_dressed_stone, spend_aggregate_stone,
+    spend_aggregate_timber, spend_treasury_gold, total_ironwork, total_roof_tiles, total_dressed_stone, total_stone,
     total_timber, CommodityKind,
 };
 use crate::extraction_policy::{
@@ -329,8 +329,9 @@ fn has_nonzero_construction_requirements(
     stone: f64,
     ironwork: f64,
     roof_tiles: f64,
+    dressed_stone: f64,
 ) -> bool {
-    [timber, stone, ironwork, roof_tiles]
+    [timber, stone, ironwork, roof_tiles, dressed_stone]
         .into_iter()
         .any(|amount| amount > CONSTRUCTION_REQUIREMENT_EPSILON)
 }
@@ -345,6 +346,8 @@ pub(crate) fn is_bootstrap_founders_camp(building: &Building) -> bool {
             building.construction_required_stone,
             building.construction_required_ironwork,
             building.construction_required_roof_tiles,
+
+            building.construction_required_dressed_stone,
         )
 }
 
@@ -769,6 +772,8 @@ pub(crate) fn place_building_internal(
             cost.stone,
             cost.ironwork,
             cost.roof_tiles,
+
+            cost.dressed_stone,
         )
     {
         return Err(
@@ -799,7 +804,13 @@ pub(crate) fn place_building_internal(
             cost.roof_tiles.round() as i64
         ));
     }
-    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles) =
+    if total_dressed_stone(ctx, owner) + 1e-6 < cost.dressed_stone {
+        return Err(format!(
+            "Not enough dressed stone (need {} dressed stone).",
+            cost.dressed_stone.round() as i64
+        ));
+    }
+    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles, treasury_dressed_stone) =
         construction_treasury_reservation(
             ctx,
             owner,
@@ -807,6 +818,8 @@ pub(crate) fn place_building_internal(
             cost.stone,
             cost.ironwork,
             cost.roof_tiles,
+
+            cost.dressed_stone,
         );
     let assigned_builders = initial_construction_labor(available_building_labor(ctx, owner));
 
@@ -904,9 +917,13 @@ pub(crate) fn place_building_internal(
         construction_treasury_stone: treasury_stone,
         construction_treasury_ironwork: treasury_ironwork,
         construction_required_roof_tiles: cost.roof_tiles,
+        construction_required_dressed_stone: cost.dressed_stone,
         construction_delivered_roof_tiles: 0.0,
+        construction_delivered_dressed_stone: 0.0,
         construction_reserved_roof_tiles: cost.roof_tiles,
+        construction_reserved_dressed_stone: cost.dressed_stone,
         construction_treasury_roof_tiles: treasury_roof_tiles,
+        construction_treasury_dressed_stone: treasury_dressed_stone,
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
@@ -965,6 +982,7 @@ pub(crate) fn place_building_internal(
         charcoal: 0.0,
         pottery: 0.0,
         roof_tiles: 0.0,
+        dressed_stone: 0.0,
         manure: 0.0,
         remedies: 0.0,
         marketplace_iron_target: 0,
@@ -1105,11 +1123,18 @@ pub fn upgrade_chapel(ctx: &ReducerContext, building_id: u64) -> Result<(), Stri
             cost.roof_tiles.round() as i64
         ));
     }
+    if total_dressed_stone(ctx, owner) + 1e-6 < cost.dressed_stone {
+        return Err(format!(
+            "Not enough dressed stone for this church upgrade (need {} dressed stone).",
+            cost.dressed_stone.round() as i64
+        ));
+    }
 
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;
     spend_aggregate_ironwork(ctx, owner, cost.ironwork)?;
     spend_aggregate_roof_tiles(ctx, owner, cost.roof_tiles)?;
+    spend_aggregate_dressed_stone(ctx, owner, cost.dressed_stone)?;
     chapel.chapel_tier = cost.target_tier;
     ctx.db.building().id().update(chapel);
     Ok(())
@@ -1217,9 +1242,8 @@ fn rotate_construction_labor_for_scope(
                 building.construction_treasury_timber,
                 building.construction_treasury_stone,
                 building.construction_treasury_ironwork,
-                building.construction_required_roof_tiles,
-                building.construction_delivered_roof_tiles,
-                building.construction_treasury_roof_tiles,
+                building.construction_required_roof_tiles, building.construction_delivered_roof_tiles, building.construction_treasury_roof_tiles,
+ building.construction_required_dressed_stone, building.construction_delivered_dressed_stone, building.construction_treasury_dressed_stone,
             ),
             inbound_supply: building_has_inbound_supply_trip(ctx, building.id),
         })
@@ -1303,6 +1327,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
         ProcessorOutputKind::Cloth => Some(CommodityKind::Cloth),
         ProcessorOutputKind::Charcoal => Some(CommodityKind::Charcoal),
         ProcessorOutputKind::Ironwork => Some(CommodityKind::Ironwork),
+        ProcessorOutputKind::DressedStone => Some(CommodityKind::DressedStone),
         ProcessorOutputKind::Pottery => Some(CommodityKind::Pottery),
         ProcessorOutputKind::Leather => Some(CommodityKind::Leather),
         ProcessorOutputKind::Shoes => Some(CommodityKind::Shoes),
@@ -1387,6 +1412,7 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Linen => CommodityKind::Linen,
         ProcessorInputKind::Iron => CommodityKind::Iron,
         ProcessorInputKind::Charcoal => CommodityKind::Charcoal,
+        ProcessorInputKind::Stone => CommodityKind::Stone,
         ProcessorInputKind::Clay => CommodityKind::Clay,
         ProcessorInputKind::Apples => CommodityKind::Apples,
         ProcessorInputKind::Honey => CommodityKind::Honey,
@@ -3181,6 +3207,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             stone: 0.0,
             ironwork: 0.0,
             roof_tiles: 0.0,
+            dressed_stone: 0.0,
         }
     } else if building.construction_complete {
         building_salvage_refund(&building.kind)?
@@ -3201,6 +3228,10 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             roof_tiles: whole_units(
                 building.construction_delivered_roof_tiles
                     * crate::balance_generated::RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
+            ),
+            dressed_stone: whole_units(
+                building.construction_delivered_dressed_stone
+                    * crate::balance_generated::STONE_SALVAGE_FRACTION,
             ),
         }
     };
@@ -3352,6 +3383,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             stone: refund.stone,
             ironwork: refund.ironwork,
             roof_tiles: refund.roof_tiles,
+            dressed_stone: refund.dressed_stone,
             gold: gold_refund,
             ..ReclamationStock::default()
         });
@@ -3378,9 +3410,13 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             construction_treasury_stone: 0.0,
             construction_treasury_ironwork: 0.0,
             construction_required_roof_tiles: 0.0,
+            construction_required_dressed_stone: 0.0,
             construction_delivered_roof_tiles: 0.0,
+            construction_delivered_dressed_stone: 0.0,
             construction_reserved_roof_tiles: 0.0,
+            construction_reserved_dressed_stone: 0.0,
             construction_treasury_roof_tiles: 0.0,
+            construction_treasury_dressed_stone: 0.0,
             construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
@@ -3411,6 +3447,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         stone: refund.stone,
         ironwork: refund.ironwork,
         roof_tiles: refund.roof_tiles,
+        dressed_stone: refund.dressed_stone,
         gold: gold_refund,
         ..ReclamationStock::default()
     });

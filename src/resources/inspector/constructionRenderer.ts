@@ -21,7 +21,7 @@ import {
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 
-type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles';
+type ConstructionMaterial = 'timber' | 'stone' | 'ironwork' | 'roofTiles' | 'dressedStone';
 type ConstructionMaterialProgress = {
   kind: ConstructionMaterial;
   required: number;
@@ -76,10 +76,15 @@ export function renderConstructionInspector(
     (building.constructionReservedRoofTiles ?? 0)
       - (building.constructionTreasuryRoofTiles ?? 0),
   );
+  const dressedStonePending = Math.max(
+    0,
+    (building.constructionReservedDressedStone ?? 0)
+      - (building.constructionTreasuryDressedStone ?? 0),
+  );
   const hasUndelivered = building.constructionReservedTimber > 1e-6
     || building.constructionReservedStone > 1e-6
     || ironworkPending > 1e-6
-    || roofTilesPending > 1e-6;
+    || roofTilesPending > 1e-6 || dressedStonePending > 1e-6;
   const pendingMaterial: ConstructionMaterial | null = stonePending > 1e-6
     ? 'stone'
     : timberPending > 1e-6
@@ -88,14 +93,14 @@ export function renderConstructionInspector(
         ? 'ironwork'
         : roofTilesPending > 1e-6
           ? 'roofTiles'
-        : null;
+        : dressedStonePending > 1e-6 ? 'dressedStone' : null;
   const pendingAmount = pendingMaterial === 'stone'
     ? stonePending
     : pendingMaterial === 'timber'
       ? timberPending
       : pendingMaterial === 'ironwork'
         ? ironworkPending
-        : roofTilesPending;
+        : pendingMaterial === 'dressedStone' ? dressedStonePending : roofTilesPending;
   const supply = pendingMaterial && !held
     ? resolveConstructionSupply(context, building, pendingMaterial)
     : null;
@@ -269,6 +274,11 @@ function renderConstructionMaterialStrip(building: BuildingState): string {
       kind: 'ironwork',
       required: finiteConstructionAmount(building.constructionRequiredIronwork),
       delivered: finiteConstructionAmount(building.constructionDeliveredIronwork),
+    },
+    {
+      kind: 'dressedStone',
+      required: finiteConstructionAmount(building.constructionRequiredDressedStone),
+      delivered: finiteConstructionAmount(building.constructionDeliveredDressedStone),
     },
     {
       kind: 'roofTiles',

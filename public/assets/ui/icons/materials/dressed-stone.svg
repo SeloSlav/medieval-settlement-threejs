@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Dressed stone">
+ <defs><linearGradient id="p" x2="0" y2="1"><stop stop-color="#d8c49a"/><stop offset="1" stop-color="#ad8b5d"/></linearGradient></defs>
+ <rect x="4" y="4" width="120" height="120" rx="13" fill="url(#p)" stroke="#241b16" stroke-width="7"/>
+ <g stroke="#322920" stroke-width="4" stroke-linejoin="round">
+  <path d="M17 75l49-21 45 18-48 23z" fill="#e6d8b8"/><path d="M17 75v25l46 19V95z" fill="#b49e77"/><path d="M63 95l48-23v25l-48 22z" fill="#8f805f"/>
+  <path d="M22 40l47-20 38 15-47 22z" fill="#ece2c9"/><path d="M22 40v26l38 16V57z" fill="#c6b38c"/><path d="M60 57l47-22v27L60 82z" fill="#a18e69"/>
+ </g>
+ <g fill="none" stroke="#77674e" stroke-width="2" stroke-linecap="round"><path d="M30 50l20 8m-20 2l15 6m24-2l26-12M26 88l27 11m19 1l29-14M43 39l24-10m-15 15l24-10"/></g>
+</svg>

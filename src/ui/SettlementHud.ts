@@ -473,6 +473,10 @@ const SETTLEMENT_HUD_HTML = `
               <span class="settlement-hud__label">Roof tiles</span>
               <strong class="settlement-hud__value" data-stockpile="roofTiles" data-resource-card-amount="roofTiles">0</strong>
             </div>
+            <div class="settlement-hud__stat settlement-hud__construction-material settlement-hud__resource-row" data-resource="dressedStone">
+              <span class="settlement-hud__label">Dressed stone</span>
+              <strong class="settlement-hud__value" data-stockpile="dressedStone" data-resource-card-amount="dressedStone">0</strong>
+            </div>
           </section>
         </section>
       </div>
