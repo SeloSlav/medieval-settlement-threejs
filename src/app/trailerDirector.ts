@@ -4,10 +4,19 @@ import { getConnection, getConnectionToken, getSpacetimeConfig } from '../networ
 import { trailerClock } from './trailerClock.ts';
 import { enterWorld } from '../data/spacetimeReducers.ts';
 import { installLightingReview } from './lightingReview.ts';
+import { gameClock } from '../world/gameCalendar.ts';
+import { computeDayNightState } from '../world/dayNightPresentation.ts';
 
 type Pose = [number, number, number, number, number];
 type Shot = { from: Pose; to: Pose; seconds: number };
 const shots: Record<string, Shot> = {
+  battle30_spear: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:4},
+  battle30_ottoman_bow: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:4},
+  battle30_croatian_bow: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:4},
+  battle30_sword: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:4},
+  battle30_janissary: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:3},
+  battle30_clash: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:3},
+  battle30_pullback: {from:[250,25,-0.6,0.16,18],to:[250,25,-0.6,0.16,18],seconds:5},
   founding: {from:[-55,28,-0.65,0.35,34],to:[-54,28,-0.45,0.32,31],seconds:4},
   hamlet: {from:[-100,-70,-0.7,0.6,125],to:[-80,-65,-0.55,0.55,112],seconds:8},
   city_wide: {from:[0,-10,-0.78,0.7,410],to:[0,-10,-0.60,0.65,380],seconds:8},
@@ -106,6 +115,8 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     forest?.removeAuthoritativeTreeLayouts(forest.getTreeLayouts().filter(t=>Math.abs(t.x-250)<95&&Math.abs(t.z-30)<85).map(t=>t.layoutIndex));
   };
   const combatants=()=>[...getConnection()!.db.combat_agent.iter()];
+  const shortSubject=(name:string,a:ReturnType<typeof combatants>[number])=>name==='battle30_ottoman_bow'?a.faction===1&&[1,2].includes(a.sourceSlot%8):name==='battle30_croatian_bow'?a.faction===10:name==='battle30_sword'?a.faction===5:name==='battle30_janissary'?a.faction===1&&[3,4].includes(a.sourceSlot%8):a.faction===4;
+  const activeShortSubjects=(name:string)=>combatants().filter(a=>a.health>40&&a.state===1&&shortSubject(name,a)&&a.sourceSlot>0);
   const fightingPair=()=>{
     const agents=combatants().filter(a=>a.health>0);
     const enemies=agents.filter(a=>a.faction===1&&a.sourceSlot%8<5);
@@ -136,11 +147,46 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   const recordShot=async(name:string)=>{
     await readyConnection();
     const base=shots[name];const shot:Shot={from:[...base.from],to:[...base.to],seconds:base.seconds};select.value=name;
-    const military=name.startsWith('battle_')||name.startsWith('muster_');
+    const short=name.startsWith('battle30_');
+    const military=short||name.startsWith('battle_')||name.startsWith('muster_');
     trailerClock.speed=military?1:8;
     const projection={fov:scene.camera.fov,near:scene.camera.near,far:scene.camera.far};
     let pair=fightingPair();
     let focusX=pair?(pair.a.x+pair.b.x)/2:250,focusZ=pair?(pair.a.z+pair.b.z)/2:5;
+    const alive=combatants().filter(a=>a.health>0&&a.state!==3);
+    const candidates=short?activeShortSubjects(name):[];
+    const targetFor=(a:typeof alive[number])=>alive.find(b=>b.id===a.engagementTargetId)||alive.find(b=>b.id===a.targetId&&a.targetKind===7)||alive.filter(b=>(b.faction===1)!==(a.faction===1)).sort((b,c)=>Math.hypot(a.x-b.x,a.z-b.z)-Math.hypot(a.x-c.x,a.z-c.z))[0];
+    // Choose a clear shoulder of an active fighter instead of placing the lens
+    // inside a formation. Evaluate both sides against the live troop capsules.
+    const compositions=candidates.flatMap(subject=>{
+      const enemy=targetFor(subject),length=enemy?Math.hypot(enemy.x-subject.x,enemy.z-subject.z):1;
+      const fx=enemy&&length>.01?(enemy.x-subject.x)/length:0,fz=enemy&&length>.01?(enemy.z-subject.z)/length:1;
+      return [-1,1].map(side=>{
+        const distance=(name.includes('_bow')?2.1:2.35)*1.8;
+        const forward=(name.includes('_bow')?1.05:.45)*1.8;
+        const ex=subject.x-fz*side*distance+fx*forward,ez=subject.z+fx*side*distance+fz*forward;
+        const vx=subject.x-ex,vz=subject.z-ez,ll=vx*vx+vz*vz;
+        let score=0;
+        for(const other of alive){
+          if(other.id===subject.id)continue;
+          const u=((other.x-ex)*vx+(other.z-ez)*vz)/ll;
+          const gap=Math.hypot(other.x-(ex+u*vx),other.z-(ez+u*vz));
+          if(u>-.2&&u<.9)score+=gap<1.05?100:gap<1.8?8:0;
+          if(Math.hypot(other.x-ex,other.z-ez)<1.4)score+=200;
+        }
+        return {subject,side,score};
+      });
+    }).sort((a,b)=>a.score-b.score||b.subject.health-a.subject.health);
+    const hero=compositions[0]?.subject;
+    const cameraSide=compositions[0]?.side??1;
+    if(short&&!hero)throw new Error(`No living subject for ${name}`);
+    let facingX=0,facingZ=1;
+    if(short&&hero){
+      const enemy=targetFor(hero);const length=enemy?Math.hypot(enemy.x-hero.x,enemy.z-hero.z):1;
+      if(enemy&&length>.01){facingX=(enemy.x-hero.x)/length;facingZ=(enemy.z-hero.z)/length;}
+      focusX=hero.x;focusZ=hero.z;
+    }
+    const trace:unknown[]=[];
     if(name==='muster_close'){
       const cavalryCompany=[...getConnection()!.db.military_company.iter()].find(c=>c.kind===8);
       const riders=combatants().filter(a=>a.raidId===cavalryCompany?.id&&a.faction>=3&&a.health>0);
@@ -148,8 +194,27 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     }
     const framePose=(t:number)=>{
       // Keep the delivered composition stable if the surrounding app panel resizes.
-      if(scene.renderer.domElement.width!==1280||scene.renderer.domElement.height!==720)scene.resize({width:1280,height:720});
+      const width=short?1920:1280,height=short?1080:720;
+      if(scene.renderer.domElement.width!==width||scene.renderer.domElement.height!==height)scene.resize({width,height});
       if(!military){pose(shot.from.map((v,i)=>v+(shot.to[i]-v)*t) as Pose);return;}
+      if(short&&hero){
+        const subject=combatants().find(a=>a.id===hero.id)??hero;
+        const blend=1-Math.exp(-5/30);focusX+=(subject.x-focusX)*blend;focusZ+=(subject.z-focusZ)*blend;
+        // A fixed subject-relative camera side preserves screen direction across
+        // each take. Offsets are multiples of a standing warrior's 1.8 m height.
+        const h=1.8,sideX=-facingZ*cameraSide,sideZ=facingX*cameraSide;
+        const bow=name.includes('_bow');
+        const twoShot=name==='battle30_clash';
+        if(name==='battle30_pullback'){
+          const u=t*t*(3-2*t),distance=6+u*86;
+          directView(focusX,focusZ,sideX*distance-facingX*distance*.48,sideZ*distance-facingZ*distance*.48,2+u*64,1,48);
+        }else{
+          const side=(bow?2.1:twoShot?3.0:2.35)*h-t*.28;
+          const forward=(bow?1.05:twoShot?.2:.45)*h;
+          directView(focusX+facingX*(twoShot?.8:.25),focusZ+facingZ*(twoShot?.8:.25),sideX*side+facingX*forward,sideZ*side+facingZ*forward,h*.88,h*.66,bow?42:46);
+        }
+        return;
+      }
       if(name.startsWith('battle_')){
         const agents=combatants();
         let a=agents.find(a=>a.id===pair?.a.id&&a.health>0),b=agents.find(a=>a.id===pair?.b.id&&a.health>0);
@@ -194,6 +259,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
           resolve(new VideoFrame(pixels.data,{format:'RGBA',codedWidth:canvas.width,codedHeight:canvas.height,timestamp:Math.round(index*1e6/30),duration:Math.round(1e6/30)}));
         };trailerClock.pending=true;});
         encoder.encode(frame,{keyFrame:index%60===0});frame.close();
+        if(short&&index%3===0){const subject=combatants().find(a=>a.id===hero?.id);trace.push({frame:index,subject,camera:scene.camera.position.toArray(),quaternion:scene.camera.quaternion.toArray(),fov:scene.camera.fov});}
         if(index%15===0)status.textContent=`Recording ${name} · ${index+1}/${target} frames`;
         if(encoder.encodeQueueSize>5)await encoder.flush();
       }
@@ -202,6 +268,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
       status.textContent='Saving '+name;
       const response=await fetch(`http://127.0.0.1:5180/ivf/${name}-${Date.now()}`,{method:'POST',headers:{'Content-Type':'video/x-ivf'},body:new Blob([header,...chunks])});
       if(!response.ok)throw new Error('Capture save failed');
+      if(short)await fetch(`http://127.0.0.1:5180/json/${name}-camera`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,frames:target,width:canvas.width,height:canvas.height,hero,trace},(_k,v)=>typeof v==='bigint'?v.toString():v)});
       await saveAudit('capture-'+name);
       status.textContent=`Saved ${name} · ${target} frames · 30 fps`;
     }catch(e){status.textContent=String(e);console.error(e);throw e;}finally{trailerClock.pending=false;trailerClock.onFrame=null;Object.assign(scene.camera,projection);scene.resize();camera.setInputEnabled(true);}
@@ -211,16 +278,29 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   const recordBattle=async(names=['battle_street','battle_wide','battle_mid'])=>{
     await readyConnection();trailerClock.speed=1;
     await saveAudit('battle-start-100-vs-100');
-    const c=getConnection()!;const companies=[...c.db.military_company.iter()].sort((a,b)=>Number(a.id-b.id));
-    const enemies=combatants().filter(a=>a.faction===1&&a.health>0);
-    for(let i=0;i<companies.length;i++){const company=companies[i];const members=combatants().filter(a=>a.faction>=3&&a.raidId===company.id&&a.health>0);const ids=members.map(a=>Number(a.id));if(!ids.length)continue;const target=enemies.reduce((best,a)=>Math.hypot(a.x-members[0].x,a.z-members[0].z)<Math.hypot(best.x-members[0].x,best.z-members[0].z)?a:best);await call('set_military_tactics',[Number(company.id),true,[3,7,10].includes(company.kind)]);await call('command_militia',[ids,target.x,target.z,0,Number(target.id)]);}
+    const issueOrders=async()=>{
+      const companies=[...getConnection()!.db.military_company.iter()].sort((a,b)=>Number(a.id-b.id));
+      const enemies=combatants().filter(a=>a.faction===1&&a.health>0&&a.state!==5);
+      if(!enemies.length)throw new Error('No live opposing force');
+      for(const company of companies){
+        const members=combatants().filter(a=>a.faction>=3&&a.raidId===company.id&&a.health>0);
+        if(!members.length||company.state!==1)continue;
+        const target=enemies.reduce((best,a)=>Math.hypot(a.x-members[0].x,a.z-members[0].z)<Math.hypot(best.x-members[0].x,best.z-members[0].z)?a:best);
+        await call('set_military_tactics',[Number(company.id),true,[3,7,10].includes(company.kind)]);
+        await call('command_militia',[members.map(a=>Number(a.id)),target.x,target.z,0,Number(target.id)]);
+      }
+    };
+    await issueOrders();
     await call('set_game_speed',[0]);
-    for(let step=0;step<80;step++){
+    for(let step=0;step<160;step++){
       status.textContent=`Armies closing · simulation step ${step+1}`;
       await stepSimulation();
       // Let the subscription deliver the committed positions before selecting the duel.
       await new Promise(r=>setTimeout(r,70));
-      if((fightingPair()?.distance??100)<2.5)break;
+      if(names[0].startsWith('battle30_')){
+        if(activeShortSubjects(names[0]).length>1)break;
+        if(step%12===11)await issueOrders();
+      }else if((fightingPair()?.distance??100)<2.5)break;
     }
     for(const name of names)await recordShot(name);
     await saveAudit('battle-end');status.textContent='All footage saved. World paused.';
@@ -233,6 +313,35 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     await recordShot('muster_close');await recordShot('muster_wide');
     await call('trailer_battle',[1,250,34]);await new Promise(r=>setTimeout(r,1500));
     await recordBattle();
+  };
+  const shortBattle=async()=>{
+    await readyConnection();
+    if(!Number(getConnection()!.db.building.count()))await author(0);
+    if(![...getConnection()!.db.building.iter()].some(b=>b.kind==='town_hall')){
+      await call('trailer_author',[JSON.stringify({x:-55,z:28,buildings:[
+        {kind:'town_hall',x:185,z:-45,labor:0},
+        {kind:'guardhouse',x:205,z:-12,labor:0},
+        {kind:'cavalry_yard',x:213,z:-45,labor:0},
+      ]})]);
+    }
+    scene.setLightingReviewEnvironment('summer');
+    scene.setLightingReviewTuning(1.18,100,1,1);
+    const clock=gameClock(0);
+    // Pin the continuous clock too: changing only the displayed hour leaves
+    // lighting on the live simulation time and makes later takes turn red.
+    Object.assign(clock,{month:6,monthDay:15,hour:14,minute:0,preciseHour:14,preciseCalendarDay:164+14/24});
+    scene.setLightingReviewState(computeDayNightState(clock,false));
+    const requestedShot=new URLSearchParams(location.search).get('shot');
+    const names=Object.keys(shots).filter(name=>name.startsWith('battle30_')&&(!requestedShot||requestedShot.split(',').includes(name)));
+    if(!names.length)throw new Error('Unknown short battle shot');
+    for(const name of names){
+      status.textContent='Staging '+name;
+      await call('trailer_calm',[]);await call('trailer_battle',[0,250,0]);
+      await new Promise(r=>setTimeout(r,650));
+      await call('trailer_battle',[1,250,24]);await new Promise(r=>setTimeout(r,650));
+      clearArena();await recordBattle([name]);
+    }
+    status.textContent='30-second battle footage complete. World paused.';
   };
   const produce=async(resume=false,skipBuild=false)=>{
     const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -253,6 +362,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   button('Record built village',()=>produce(true,true));
   button('Record battle only',recordBattle);
   button('Replace military footage',reviseMilitary);
+  button('Record 30s battle',shortBattle);
   button('Finish wide battle',async()=>{
     await call('trailer_calm',[]);await call('trailer_battle',[0,250,0]);
     await new Promise(r=>setTimeout(r,1800));
@@ -261,7 +371,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   });
   if(new URLSearchParams(location.search).has('produce')){
     const requested=new URLSearchParams(location.search).get('produce')??'battle';
-    const ready=setInterval(()=>{const c=getConnection();const loaded=c&&Number(c.db.world_config.count())>0&&(requested!=='battle'||(Number(c.db.military_company.count())>=14&&Number(c.db.combat_agent.count())>=200));if(getConnectionToken()&&loaded&&!busy){clearInterval(ready);history.replaceState(null,'',location.pathname+'?trailer=1');busy=true;void (requested==='revision'?reviseMilitary():requested==='battle'?recordBattle():produce(!['1','v3'].includes(requested),requested==='capture')).catch(e=>{status.textContent=String(e);console.error(e);}).finally(()=>{busy=false;});}},1500);
+    const ready=setInterval(()=>{const c=getConnection();const loaded=c&&Number(c.db.world_config.count())>0&&(requested!=='battle'||(Number(c.db.military_company.count())>=14&&Number(c.db.combat_agent.count())>=200));if(getConnectionToken()&&loaded&&!busy){clearInterval(ready);busy=true;void (requested==='battle30'?shortBattle():requested==='revision'?reviseMilitary():requested==='battle'?recordBattle():produce(!['1','v3'].includes(requested),requested==='capture')).catch(e=>{status.textContent=String(e);console.error(e);}).finally(()=>{busy=false;});}},1500);
   }
 }
 

@@ -1,5 +1,37 @@
 # Selo Empire gameplay trailer
 
+## 30-second Croatian frontier battle
+
+`artifacts/trailer/battle-30s/Selo-Empire-Croatian-Frontier-Battle-30s-X.mp4`
+is the short combat export: 27 seconds of new native 1080p gameplay, then three
+seconds of the existing Selo Empire logo. The director follows male Croatian
+spearmen, bowmen and men-at-arms, Ottoman foot archers and janissaries, then
+cranes out above the field. Each take stages fresh troops and waits for the
+featured weapon role to be actively fighting. Combat runs at 1× simulation
+speed with the fixed 30 fps presentation clock.
+
+Use a local server with the `trailer` Cargo feature and an isolated database
+whose name starts with `selo-trailer`. The short was recorded with
+`selo-trailer-battle-30s`, a dedicated SpacetimeDB at `http://127.0.0.1:3100`,
+and Vite at `http://localhost:5176`. Configure a medium Delnice world through
+normal startup once; the short director creates its own small military outpost.
+Start the capture receiver as described below, then run:
+
+```powershell
+node scripts/trailer/generateScore.mjs --battle30
+node scripts/trailer/captureBattle30.mjs
+python scripts/trailer/editBattle30.py
+```
+
+`captureBattle30.mjs --shot=battle30_ottoman_bow` records one replacement take.
+The studio also has a **Record 30s battle** button and automatic
+`?trailer=1&produce=battle30` route. Capture writes current warrior state and
+camera transforms every three frames alongside each shot. The editor uses
+those recorded attack-cooldown resets for sparse weapon sound accents. Its
+ElevenLabs music request, generation provenance, source hashes, shot timings,
+final hash, and contact sheet remain beside the MP4. Existing music is reused
+without another API request. The 60-second trailer remains a separate edit.
+
 The production assets are written to `artifacts/trailer`. The final edit is
 `Selo-Empire-Gameplay-Trailer-60s.mp4`, with the original ElevenLabs score and
 its generation provenance beside it.
