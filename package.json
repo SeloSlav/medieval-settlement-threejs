@@ -7,6 +7,10 @@
   "scripts": {
     "test:authored-rig-world-matrices": "node --experimental-strip-types scripts/testAuthoredRigWorldMatrices.mts",
     "test:authored-animation-clock": "node --experimental-strip-types scripts/testAuthoredAnimationClock.mts",
+    "optimize:authored-model-indices": "node scripts/optimizeAuthoredModelIndices.mjs",
+    "test:authored-model-indices": "node scripts/optimizeAuthoredModelIndices.mjs --check",
+    "test:authored-instance-world-transforms": "node --experimental-strip-types scripts/testAuthoredInstanceWorldTransforms.mts",
+    "test:static-transform-boundary": "node --experimental-strip-types scripts/testStaticTransformBoundary.mts",
     "test:authored-gpu-animation-browser": "node scripts/testAuthoredGpuAnimationBrowser.mjs",
     "test:building-stock-instances": "node --experimental-strip-types scripts/testBuildingStockInstances.mts",
     "test:instance-draw-compaction-browser": "node scripts/testInstanceDrawCompactionBrowser.mjs",
@@ -356,6 +360,7 @@
     "@playwright/test": "^1.55.0",
     "@types/three": "^0.185.1",
     "concurrently": "^9.2.1",
+    "meshoptimizer": "1.1.1",
     "tsx": "^4.20.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.4"

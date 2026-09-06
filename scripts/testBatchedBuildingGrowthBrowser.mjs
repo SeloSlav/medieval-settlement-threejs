@@ -44,10 +44,13 @@ try {
     }
     const target = new THREE.Vector3(0, 0, 0);
     const renderTarget = new THREE.RenderTarget(640,480);
+    let lastStats;
     const pixels = async s => {
       await new Promise(requestAnimationFrame);
       renderer.setRenderTarget(renderTarget);
+      renderer.info.reset();
       renderer.render(s, camera);
+      lastStats = { draws:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles };
       return renderer.readRenderTargetPixelsAsync(renderTarget,0,0,640,480);
     };
     const errors = [], images = [];
@@ -69,9 +72,10 @@ try {
           sun.target.position.set(view * 2, 0, -view);
           sun.target.updateMatrixWorld(true);
         }
-        const actual = await pixels(scene); const expected = await pixels(reference);
+        const actual = await pixels(scene); const actualStats=lastStats; const expected = await pixels(reference);
         let changed=0, settledChanged=0;
         const settled = await pixels(scene);
+        if(JSON.stringify(actualStats)!==JSON.stringify(lastStats))throw new Error(`Cached commands changed frame statistics at ${count}/${view}: ${JSON.stringify({actualStats,settledStats:lastStats})}`);
         for(let i=0;i<actual.length;i+=4) if(Math.abs(actual[i]-expected[i])+Math.abs(actual[i+1]-expected[i+1])+Math.abs(actual[i+2]-expected[i+2])>12) changed++;
         for(let i=0;i<actual.length;i+=4) if(Math.abs(settled[i]-expected[i])+Math.abs(settled[i+1]-expected[i+1])+Math.abs(settled[i+2]-expected[i+2])>12) settledChanged++;
         errors.push({count:count+1,view,changed,settledChanged});

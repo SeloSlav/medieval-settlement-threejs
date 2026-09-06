@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AuthoredRigWorldMatrices } from './AuthoredRigWorldMatrices.ts';
+import { AuthoredInstanceWorldTransforms } from './AuthoredInstanceWorldTransforms.ts';
 import { AuthoredGpuAnimation } from './AuthoredGpuAnimation.ts';
 import { advanceAuthoredAnimationClock } from './AuthoredAnimationClock.ts';
 import {
@@ -206,6 +207,7 @@ export class AuthoredSkinnedInstanceBatch {
   private readonly batchWorldSnapshot = new THREE.Matrix4();
   private readonly validatedSkeletons = new WeakSet<THREE.Skeleton>();
   private readonly posedCloneBindings = new WeakMap<THREE.Object3D, PosedCloneBinding>();
+  private readonly instanceWorldTransforms = new AuthoredInstanceWorldTransforms();
   private submittedLayers: SubmittedLayer[] = [];
   private readonly storageRenderers = new Set<{ _attributes: { delete(attribute: THREE.BufferAttribute): void } }>();
   private posePalette!: StorageBufferAttribute;
@@ -379,7 +381,7 @@ export class AuthoredSkinnedInstanceBatch {
     const gpuAction = this.gpuActions.get(posedRoot);
     if (this.gpuAnimation && gpuAction) {
       this.prepareCloneBinding(posedRoot);
-      posedRoot.updateWorldMatrix(true, false);
+      this.instanceWorldTransforms.update(posedRoot);
       this.instanceMatrixScratch.multiplyMatrices(this.inverseBatchWorld, posedRoot.matrixWorld)
         .multiply(this.sourceLayers[0]!.rootRelativeMatrix);
       this.setMatrixAt(slot, this.instanceMatrixScratch);
@@ -479,6 +481,7 @@ export class AuthoredSkinnedInstanceBatch {
     // The parent may move between authored-crowd syncs. A batch transform is
     // therefore prepared once per commit interval, never once per actor.
     this.batchTransformPrepared = false;
+    this.instanceWorldTransforms.reset();
   }
 
   diagnostics(): AuthoredSkinnedInstanceBatchDiagnostic {
