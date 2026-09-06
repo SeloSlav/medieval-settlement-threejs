@@ -8,10 +8,12 @@ const IndirectAttribute = (WebGPU as unknown as { IndirectStorageBufferAttribute
 type NativeRenderer = {
   backend: { device: GPUDevice; get(attribute: THREE.BufferAttribute): { buffer: GPUBuffer } };
   _attributes: { update(attribute: THREE.BufferAttribute, type: number): void; delete(attribute: THREE.BufferAttribute): void };
+  info: { update(object: THREE.Object3D, vertices: number, instances: number): void };
 };
 type Input = { attribute: THREE.InstancedBufferAttribute; offset: number; version: number };
 type Runtime = { source: GPUBuffer; selection: GPUBuffer; uniforms: GPUBuffer[]; bindings: GPUBindGroup[]; revision: number };
 const pipelines = new WeakMap<GPUDevice, GPUComputePipeline>();
+const measuredRenderers = new WeakSet<NativeRenderer>();
 const COPY_SHADER = `
 @group(0) @binding(0) var<storage, read> source: array<u32>;
 @group(0) @binding(1) var<storage, read> selected: array<u32>;
@@ -44,14 +46,14 @@ export class GpuInstanceDrawCompaction {
   private readonly matrix = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
   private readonly runtimes = new Map<NativeRenderer, Runtime>();
-  private readonly motionPadding: number;
+  private readonly motionPadding: number | (() => number);
   private readonly sourceBytes: number;
   private matrixVersion = -1;
   private selectedCount = -1;
   private revision = 0;
   private disposed = false;
 
-  constructor(mesh: THREE.InstancedMesh, motionPadding: number) {
+  constructor(mesh: THREE.InstancedMesh, motionPadding: number | (() => number)) {
     if (mesh.geometry.getIndirect() || Array.isArray(mesh.material) || mesh.material.transparent) {
       throw new Error('GPU draw compaction requires one opaque draw');
     }
@@ -100,14 +102,15 @@ export class GpuInstanceDrawCompaction {
         this.sphere.copy(base).applyMatrix4(this.matrix);
         const offset = i * 4, center = this.sphere.center;
         this.bounds[offset] = center.x; this.bounds[offset + 1] = center.y; this.bounds[offset + 2] = center.z;
-        this.bounds[offset + 3] = this.sphere.radius + this.motionPadding;
+        this.bounds[offset + 3] = this.sphere.radius;
       }
     }
     this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(mesh.matrixWorld);
     this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
+    const padding = typeof this.motionPadding === 'function' ? this.motionPadding() : this.motionPadding;
     let count = 0;
     for (let i = 0; i < mesh.count; i++) {
-      const offset = i * 4, x = this.bounds[offset]!, y = this.bounds[offset + 1]!, z = this.bounds[offset + 2]!, radius = this.bounds[offset + 3]!;
+      const offset = i * 4, x = this.bounds[offset]!, y = this.bounds[offset + 1]!, z = this.bounds[offset + 2]!, radius = this.bounds[offset + 3]! + padding;
       let visible = true;
       for (const plane of this.frustum.planes) {
         const n = plane.normal;
@@ -118,10 +121,18 @@ export class GpuInstanceDrawCompaction {
       count++;
     }
     if (count !== this.selectedCount) { this.selectedCount = count; changed = true; }
+    mesh.userData.gpuCompactedInstanceCount = count;
     if (changed) this.revision++;
     const device = renderer.backend.device;
     let runtime = this.runtimes.get(renderer);
     if (!runtime) {
+      if (!measuredRenderers.has(renderer)) {
+        const update = renderer.info.update;
+        renderer.info.update = function(object, vertices, instances) {
+          update.call(this, object, vertices, object.userData.gpuCompactedInstanceCount ?? instances);
+        };
+        measuredRenderers.add(renderer);
+      }
       let pipeline = pipelines.get(device);
       if (!pipeline) {
         pipeline = device.createComputePipeline({ label: 'Exact instance selection copy', layout: 'auto', compute: { module: device.createShaderModule({ code: COPY_SHADER }), entryPoint: 'main' } });
@@ -181,6 +192,7 @@ export class GpuInstanceDrawCompaction {
     this.mesh.instanceMatrix = this.originalMatrix; this.originalMatrix.needsUpdate = true;
     for (const input of this.inputs) input.attribute.needsUpdate = true;
     this.mesh.onBeforeRender = this.beforeRender;
+    delete this.mesh.userData.gpuCompactedInstanceCount;
     const material = this.mesh.material as THREE.Material; material.needsUpdate = true;
   }
 }
