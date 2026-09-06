@@ -339,23 +339,6 @@
 .settlement-hud__stat[data-resource='housing']::before { background-position: 50% 100%; }
 .settlement-hud__stat[data-resource='labor']::before { background-position: 100% 100%; }
 
-.settlement-hud__supply-line::before {
-  display: block;
-  width: 14px;
-  height: 14px;
-  content: '';
-  background-image: url('/assets/ui/icons/hud-resources-core.png');
-  background-repeat: no-repeat;
-  background-size: 300% 300%;
-  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
-}
-
-.settlement-hud__supply-line[data-supply-icon='firewood']::before { background-position: 100% 0; }
-.settlement-hud__supply-line[data-supply-icon='food']::before { background-position: 50% 50%; }
-.settlement-hud__supply-line[data-supply-icon='population']::before { background-position: 0 100%; }
-.settlement-hud__supply-line[data-supply-icon='housing']::before { background-position: 50% 100%; }
-.settlement-hud__supply-line[data-supply-icon='labor']::before { background-position: 100% 100%; }
-
 .settlement-hud__stat[data-resource='grain']::before,
 .settlement-hud__stat[data-resource='barley']::before,
 .settlement-hud__stat[data-resource='malt']::before,
@@ -1083,15 +1066,8 @@
   background-image: url('/assets/ui/icons/provisions/jam.png');
 }
 
-.settlement-hud__food-card[data-food-resource]:hover::before {
-  filter:
-    drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78))
-    brightness(1.08)
-    saturate(1.06);
-}
-
-.settlement-hud__stat[data-resource]:hover::before,
-.settlement-hud__stat[data-resource]:focus-visible::before {
+.settlement-hud__stat[data-resource]:not(.settlement-hud__resource-row):hover::before,
+.settlement-hud__stat[data-resource]:not(.settlement-hud__resource-row):focus-visible::before {
   filter:
     drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78))
     brightness(1.08)

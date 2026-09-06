@@ -8,6 +8,8 @@ import {
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import { SecondaryClickGesture } from '../input/SecondaryClickGesture.ts';
+import { effectiveTreeWorkArea, supportsTreeWorkArea } from './treeWorkArea.ts';
+import type { BuildingState, TreeWorkArea } from './types.ts';
 
 export const FORESTRY_WORK_AREA_MIN_RADIUS = 20;
 export const FORESTRY_WORK_AREA_INITIAL_RADIUS = 70;
@@ -28,6 +30,12 @@ export type ForestryWorkAreaCommit = {
 
 type ForestryWorkAreaToolOptions = {
   domElement: HTMLElement;
+  uiRoot: HTMLElement;
+  getCamera: () => THREE.Camera;
+  getTimberInArea: (area: TreeWorkArea) => number | null;
+  getBuilding: (id: string) => BuildingState | undefined;
+  getPlacementArea: () => TreeWorkArea | null;
+  isSelectionBlocked: () => boolean;
   terrainProjector: TerrainProjector;
   getHeightAt: (x: number, z: number) => number;
   onCommit: (commit: ForestryWorkAreaCommit) => void | Promise<void>;
@@ -47,6 +55,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export class ForestryWorkAreaTool {
   private readonly options: ForestryWorkAreaToolOptions;
   private readonly overlay: ForestryWorkAreaOverlay;
+  private readonly label: HTMLDivElement;
+  private readonly labelText: Text;
+  private readonly labelPoint = new THREE.Vector3();
+  private selectedBuildingId: string | null = null;
+  private lastTimberArea = '';
+  private nextTimberRefresh = 0;
   private enabled = false;
   private buildingId: string | null = null;
   private center: Point2 = { x: 0, z: 0 };
@@ -62,6 +76,16 @@ export class ForestryWorkAreaTool {
   constructor(options: ForestryWorkAreaToolOptions) {
     this.options = options;
     this.overlay = new ForestryWorkAreaOverlay(options.getHeightAt);
+    this.label = document.createElement('div');
+    this.label.className = 'forestry-work-area-label resource-cost__item';
+    this.label.dataset.resourceCost = 'timber';
+    this.label.hidden = true;
+    const icon = document.createElement('span');
+    icon.className = 'resource-cost__icon';
+    icon.setAttribute('aria-hidden', 'true');
+    this.labelText = document.createTextNode('');
+    this.label.append(icon, this.labelText);
+    options.uiRoot.append(this.label);
     this.secondaryClickGesture = new SecondaryClickGesture({
       onClick: this.onSecondaryClick,
     });
@@ -86,7 +110,7 @@ export class ForestryWorkAreaTool {
     this.wheelDelta = 0;
     this.enabled = true;
     this.pointerDirty = true;
-    this.overlay.show(this.center, this.radius);
+    this.showArea({ ...this.center, radius: this.radius });
     this.options.onModeChanged();
   }
 
@@ -96,6 +120,12 @@ export class ForestryWorkAreaTool {
 
   getBuildingId(): string | null {
     return this.buildingId;
+  }
+
+  selectBuilding(buildingId: string | null): void {
+    this.selectedBuildingId = buildingId;
+    this.nextTimberRefresh = 0;
+    this.update();
   }
 
   getRadius(): number {
@@ -125,17 +155,58 @@ export class ForestryWorkAreaTool {
     this.wheelDelta = 0;
     this.commitPending = false;
     this.overlay.hide();
+    this.label.hidden = true;
     this.options.onModeChanged();
   }
 
   update(): void {
-    if (!this.enabled || this.commitPending || this.options.isBlocked() || !this.pointerDirty) return;
-    this.pointerDirty = false;
-    if (!this.pointerInside) return;
-    const picked = this.options.terrainProjector.pick(this.pointerClientX, this.pointerClientY);
-    if (!picked) return;
-    this.center = { x: picked.x, z: picked.z };
-    this.overlay.show(this.center, this.radius);
+    if (!this.enabled) {
+      const placementArea = this.options.getPlacementArea();
+      if (placementArea) {
+        this.showArea(placementArea, false);
+        return;
+      }
+      const selected = this.selectedBuildingId
+        ? this.options.getBuilding(this.selectedBuildingId) : undefined;
+      if (selected && supportsTreeWorkArea(selected) && !this.options.isSelectionBlocked()) {
+        this.showArea(effectiveTreeWorkArea(selected));
+        return;
+      }
+    } else if (!this.options.isBlocked()) {
+      if (this.pointerDirty && this.pointerInside && !this.commitPending) {
+        this.pointerDirty = false;
+        const picked = this.options.terrainProjector.pick(this.pointerClientX, this.pointerClientY);
+        if (picked) this.center = { x: picked.x, z: picked.z };
+      }
+      this.showArea({ ...this.center, radius: this.radius });
+      return;
+    }
+    this.overlay.hide();
+    this.label.hidden = true;
+  }
+
+  private showArea(area: TreeWorkArea, showOverlay = true): void {
+    if (showOverlay) this.overlay.show(area, area.radius);
+    else this.overlay.hide();
+    const now = performance.now();
+    const areaKey = `${area.x}:${area.z}:${area.radius}`;
+    if (areaKey !== this.lastTimberArea || now >= this.nextTimberRefresh) {
+      const timber = this.options.getTimberInArea(area);
+      const text = timber === null ? 'Timber …' : `Timber ×${timber.toLocaleString()}`;
+      if (this.labelText.data !== text) this.labelText.data = text;
+      this.lastTimberArea = areaKey;
+      this.nextTimberRefresh = now + 250;
+    }
+    const camera = this.options.getCamera();
+    camera.updateMatrixWorld();
+    this.labelPoint.set(area.x, this.options.getHeightAt(area.x, area.z) + 0.3, area.z).project(camera);
+    const point = this.labelPoint;
+    const rect = this.options.domElement.getBoundingClientRect();
+    this.label.hidden = point.z < -1 || point.z > 1 || Math.abs(point.x) > 1
+      || Math.abs(point.y) > 1 || rect.width <= 0 || rect.height <= 0;
+    if (this.label.hidden) return;
+    this.label.style.left = `${rect.left + (point.x * 0.5 + 0.5) * rect.width}px`;
+    this.label.style.top = `${rect.top + (-point.y * 0.5 + 0.5) * rect.height}px`;
   }
 
   dispose(): void {
@@ -148,6 +219,7 @@ export class ForestryWorkAreaTool {
     domElement.removeEventListener('wheel', this.onWheel, true);
     window.removeEventListener('keydown', this.onKeyDown, true);
     this.overlay.dispose();
+    this.label.remove();
   }
 
   private readonly onPointerEnter = (): void => {
@@ -175,7 +247,7 @@ export class ForestryWorkAreaTool {
     event.preventDefault();
     event.stopImmediatePropagation();
     this.center = { x: picked.x, z: picked.z };
-    this.overlay.show(this.center, this.radius);
+    this.showArea({ ...this.center, radius: this.radius });
     const commit: ForestryWorkAreaCommit = {
       buildingId: this.buildingId,
       x: this.center.x,
@@ -217,7 +289,7 @@ export class ForestryWorkAreaTool {
     const next = resizeForestryWorkAreaRadius(this.radius, accumulatedDelta);
     if (next === this.radius) return;
     this.radius = next;
-    this.overlay.show(this.center, this.radius);
+    this.showArea({ ...this.center, radius: this.radius });
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -261,6 +333,7 @@ class ForestryWorkAreaOverlay {
   private readonly fill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private readonly grid: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private readonly outline: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  private lastArea = '';
 
   constructor(getHeightAt: (x: number, z: number) => number) {
     this.getHeightAt = getHeightAt;
@@ -276,6 +349,10 @@ class ForestryWorkAreaOverlay {
   }
 
   show(center: Point2, radius: number): void {
+    this.group.visible = true;
+    const areaKey = `${center.x}:${center.z}:${radius}`;
+    if (areaKey === this.lastArea) return;
+    this.lastArea = areaKey;
     updateTerrainCircleFillGeometry(
       this.fill.geometry,
       center,

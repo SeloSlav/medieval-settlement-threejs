@@ -5,11 +5,10 @@ import {
   type GrainSheafKind,
 } from '../economy/cropGoods.ts';
 import {
-  FOOD_CATEGORY_LABELS, FOOD_MEAL_VALUES, foodCategory,
+  FOOD_CATEGORY_LABELS, foodCategory,
   FRESH_FOOD_KINDS, PRESERVED_FOOD_KINDS, type FoodInventoryKind,
 } from '../economy/foodInventory.ts';
 import { resourceCostLabel } from './resourceCost.ts';
-import { RESOURCE_DESCRIPTIONS, foodResourceTooltip } from './resourceDescriptions.ts';
 
 export type HudFoodResourceKind = FoodInventoryKind | GrainSheafKind | FlourKind
   | 'ryeGrain' | 'maslinGrain' | 'barley' | 'malt';
@@ -48,10 +47,4 @@ export const HUD_FOOD_RESOURCE_KINDS = HUD_FOOD_GROUPS.flatMap(group => group.ki
 export function hudFoodResourceLabel(kind: HudFoodResourceKind): string {
   const label = resourceCostLabel(kind);
   return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-export function hudFoodResourceTooltip(kind: HudFoodResourceKind): string {
-  return Object.hasOwn(FOOD_MEAL_VALUES, kind)
-    ? foodResourceTooltip(kind as FoodInventoryKind)
-    : RESOURCE_DESCRIPTIONS[kind];
 }

@@ -6,16 +6,21 @@ import { createInterface } from 'node:readline';
 const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`;
 const large = process.argv.includes('--large');
 mkdirSync(output, { recursive: true });
-const server = await createServer({ server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
+const server = await createServer({ cacheDir: 'artifacts/city-performance/vite-cache', server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
 await server.listen();
 const browser = await chromium.launchPersistentContext('artifacts/city-performance/world-browser-cache', { channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'], viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+// This dedicated profile retains shader caches between probes. Edge can also
+// restore old game tabs from it; those must not compete with the measured page.
+console.log('probe context pages',JSON.stringify(browser.pages().map(p=>p.url())));
+for (const other of browser.pages()) if (other !== page) await other.close();
 const cdp = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
 await page.exposeFunction('__cityProfileStart', async () => { if(cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');} });
 await page.exposeFunction('__cityProfileEnd', async () => { if(cdp){const {profile}=await cdp.send('Profiler.stop');writeFileSync(`${output}/cpu-profile.json`,JSON.stringify(profile));} });
+await page.exposeFunction('__cityProbeProgress', progress => console.log('city probe', JSON.stringify(progress)));
 const errors = [];
 page.on('pageerror', e => { errors.push(e.message); console.log('pageerror', e.message); });
-page.on('console', e => { if (e.type() === 'error') errors.push(e.text()); });
+page.on('console', e => { if (e.type() === 'error') { errors.push(e.text()); console.log('browser error',e.text()); } });
 await page.route('**/src/main.ts*', async route => {
   const response = await route.fetch();
   const body = (await response.text()).replace('const app = new App(root);', 'const app = new App(root); window.__cityApp = app;');
@@ -29,13 +34,14 @@ try {
       if(await button.isVisible())await button.click();
     }
     const state = await page.evaluate(() => ({ ready: !!window.__visualPerf, loading: document.querySelector('[data-loading-label]')?.textContent }));
+    if (/failed/i.test(state.loading ?? '')) throw new Error(`City probe startup failed: ${errors.at(-1) ?? state.loading}`);
     if (state.ready) break;
     if (i % 5 === 0) console.log('loading', JSON.stringify(state), await page.locator('body').innerText().then(x=>x.slice(0,160)));
     await page.waitForTimeout(2000);
   }
   const skipTutorials = page.locator('[data-tutorial-skip]');
   if(await skipTutorials.isVisible()) {
-    await skipTutorials.check();
+    await skipTutorials.check({ force: true });
     await page.locator('[data-tutorial-confirm]').click();
   }
   // The introductory overlay blurs the entire live canvas and can take over
@@ -87,6 +93,7 @@ try {
     manager.render=function(dt,...args){const begin=performance.now();dogs.sync(dogPoses,undefined,dt);phases.dogs=performance.now()-begin;return baseRender.call(this,dt,...args);};
     const reports=[];
     for(const arm of ['terrain-and-camp','buildings','populated',...(large?['populated-stationary','populated-camera-sweep','populated-cleared-stationary','populated-cleared-camera-sweep']:[])]) {
+      await window.__cityProbeProgress({arm,phase:'prepare'});
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
@@ -105,6 +112,7 @@ try {
         app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
       }
       for(let i=0;i<(arm.startsWith('populated-')?240:120);i++)await new Promise(requestAnimationFrame);
+      await window.__cityProbeProgress({arm,phase:'measure',stats:manager.getPerformanceStats()});
       if(arm==='populated')await window.__cityProfileStart();
       const samples=[]; let last;
       for(let i=0;i<(arm.startsWith('populated-')?360:180);i++) {
@@ -116,6 +124,7 @@ try {
       }
       if(arm==='populated')await window.__cityProfileEnd();
       reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),visualReport:window.__visualPerf?.getReport()});
+      await window.__cityProbeProgress({arm,phase:'complete',meanFrameMs:samples.reduce((sum,sample)=>sum+sample.intervalMs,0)/samples.length});
     }
     return reports;
   }, large);

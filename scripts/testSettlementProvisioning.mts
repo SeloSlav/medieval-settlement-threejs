@@ -197,53 +197,27 @@ const fuelBreakdownMarkup = settlementHud.slice(
   settlementHud.indexOf('data-fuel-breakdown'),
   settlementHud.indexOf('</details>', settlementHud.indexOf('data-fuel-breakdown')),
 );
-assert.match(fuelBreakdownMarkup, /settlement-hud__supply-resource-name">Firewood</);
-assert.match(fuelBreakdownMarkup, /settlement-hud__supply-resource-name">Charcoal</);
+assert.match(fuelBreakdownMarkup, /settlement-hud__label">Firewood</);
+assert.match(fuelBreakdownMarkup, /settlement-hud__label">Charcoal</);
+const resourceMenusMarkup = settlementHud.slice(
+  settlementHud.indexOf('data-settlement-resource-strip'),
+  settlementHud.indexOf('export class SettlementHud'),
+);
 assert.doesNotMatch(
-  fuelBreakdownMarkup,
+  resourceMenusMarkup,
   /data-tooltip(?:-title)?=/,
-  'the labeled firewood and charcoal rows must not mount redundant tooltips',
+  'resource menus must not mount hover tooltips',
 );
-assert.match(
+assert.doesNotMatch(
   resourceInspector,
-  /\.settlement-hud__stat--fuel, \[data-fuel-resource\]/,
-  'resource total updates must keep fuel-row tooltips disabled',
-);
-assert.match(
-  settlementHud,
-  /data-tooltip="\$\{hudFoodResourceLabel\(kind\)\}"/,
-  'food and produce rows must mount name-only tooltips',
-);
-assert.match(
-  settlementHud,
-  /data-tooltip="\$\{hudProvisionResourceLabel\(kind\)\}"/,
-  'goods and provisions rows must mount name-only tooltips',
-);
-assert.match(
-  settlementHud,
-  /data-resource="polearms" data-tooltip="Polearms"[\s\S]{0,600}data-resource="sidearms" data-tooltip="Sidearms"/,
-  'military-store rows must mount name-only tooltips',
+  /(?:stat|elements.row)\.dataset\.tooltip =/,
+  'stock updates must not reintroduce resource hover tooltips',
 );
 assert.doesNotMatch(
   settlementHud,
   /meals \/ day|fuel \/ day|Less than 0\.1 month|amount\.toFixed\(1\)/,
-  'food and fuel hover cards must not expose redundant fractional rates or amounts',
+  'food and fuel menus must not expose redundant fractional rates or amounts',
 );
-assert.match(
-  settlementHud,
-  /foodSupplyUse\.textContent = foodHasDemand[\s\S]{0,120}\? formatFoodDemandSource\(provisioning\)/,
-);
-assert.match(
-  settlementHud,
-  /fuelSupplyUse\.textContent = fuelHasDemand[\s\S]{0,120}\? formatResidenceResidents\(provisioning\.heatedResidents\)/,
-);
-assert.match(
-  settlementHud,
-  /settlement-wide usable meals after storage and spoilage/,
-);
-assert.match(settlementHud, /firewood \+.*charcoal\. Charcoal counts double/);
-assert.match(settlementHud, /occupied residences/);
-assert.match(settlementHud, /Workplaces can also draw from shared fuel stores/);
 assert.doesNotMatch(settlementHud, /burgage/i);
 assert.match(
   householdDistribution,

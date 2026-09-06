@@ -664,15 +664,11 @@ select:focus-visible {
   border-top: 0;
 }
 
-.settlement-hud__stat:hover,
-.settlement-hud__stat:focus-visible {
+.settlement-hud__stat:not(.settlement-hud__resource-row):hover,
+.settlement-hud__stat:not(.settlement-hud__resource-row):focus-visible {
   border-radius: 2px;
   background: rgba(224, 198, 135, 0.06);
   box-shadow: inset 0 -2px rgba(210, 171, 81, 0.45);
-}
-
-.settlement-hud .settlement-hud__stat.is-resource-locator::after {
-  display: none;
 }
 
 .settlement-hud__stat::before {
@@ -805,7 +801,7 @@ select:focus-visible {
   opacity: 0.48;
 }
 
-.settlement-hud__stat.is-empty:hover {
+.settlement-hud__stat.is-empty:not(.settlement-hud__resource-row):hover {
   opacity: 0.85;
 }
 
@@ -1010,72 +1006,73 @@ select:focus-visible {
 }
 
 .settlement-hud__construction-panel {
-  gap: 8px;
-  width: min(360px, calc(100vw - 28px));
-  padding: 11px;
+  gap: 6px;
+  width: min(372px, calc(100vw - 28px));
+  padding: 10px;
 }
 
 .settlement-hud__construction-section {
   display: grid;
-  gap: 4px;
-}
-
-.settlement-hud__construction-section + .settlement-hud__construction-section {
-  padding-top: 4px;
-  border-top: 1px solid rgba(220, 191, 127, 0.13);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
 }
 
 .settlement-hud__construction-section h3 {
-  margin: 0;
-  padding: 0 3px;
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  padding: 0 0 3px;
+  border-bottom: 1px solid rgba(220, 191, 127, 0.2);
   color: #bda875;
-  font-family: var(--ui-display);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
+  font: 650 12px/1.25 var(--ui-display);
 }
 
-.settlement-hud__construction-panel .settlement-hud__construction-material {
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+/* Read-only resource lists share one icon, name, quantity row. */
+.settlement-hud .settlement-hud__resource-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   grid-template-rows: auto;
-  gap: 3px 8px;
-  min-height: 0;
-  padding: 7px 8px;
-  border: 1px solid rgba(218, 190, 127, 0.1);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.018);
-  cursor: pointer;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 22px;
+  padding: 1px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+  transition: none;
 }
 
-.settlement-hud__construction-panel .settlement-hud__construction-material::before {
+.settlement-hud .settlement-hud__resource-row::before {
   grid-column: 1;
   grid-row: 1;
   align-self: center;
-  font-size: 18px;
+  content: '';
 }
 
-.settlement-hud__construction-material-name,
-.settlement-hud__supply-resource-name {
+.settlement-hud .settlement-hud__resource-row > .settlement-hud__label {
+  display: block;
   grid-column: 2;
   grid-row: 1;
+  min-width: 0;
   color: #dfd4bd;
-  font-family: var(--ui-display);
-  font-size: 13px;
-  font-weight: 650;
+  font: 500 13px/1.2 var(--ui-display);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.settlement-hud__construction-panel .settlement-hud__construction-material > .settlement-hud__value {
+.settlement-hud .settlement-hud__resource-row > .settlement-hud__value {
   grid-column: 3;
   grid-row: 1;
   color: #e4c98c;
-  font-size: 17px;
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
 }
 
-.settlement-hud__construction-material > .settlement-hud__resource-transit {
-  grid-column: 2 / -1;
-  grid-row: 2;
-  margin-top: 3px;
+.settlement-hud .settlement-hud__resource-row.is-empty {
+  opacity: 0.65;
 }
 
 .settlement-hud__resource-reading {
@@ -1598,15 +1595,15 @@ select:focus-visible {
   bottom: auto;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(5, minmax(78px, 1fr));
-  gap: 1px;
-  padding: 7px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+  padding: 10px;
   border: 1px solid var(--ui-edge);
   border-radius: 3px;
   background: rgba(16, 19, 15, 0.96);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
-  width: min(430px, calc(100vw - 28px));
+  width: min(372px, calc(100vw - 28px));
 }
 
 /* The panel floats below its trigger. Keep the visual breathing room inside
@@ -1621,28 +1618,11 @@ select:focus-visible {
   content: '';
 }
 
-.settlement-hud__stores-grid .settlement-hud__stat {
-  min-height: 44px;
-  border: 1px solid rgba(226, 202, 147, 0.08);
-  background: rgba(255, 255, 255, 0.018);
-}
-
-.settlement-hud__stores-grid .settlement-hud__stat::before {
-  content: '\25C7';
-  font-size: 16px;
-}
-
-.settlement-hud__food-grid {
-  --stores-columns: 4;
-  grid-template-columns: repeat(4, minmax(76px, 1fr));
-  width: min(356px, calc(100vw - 28px));
-}
-
 .settlement-hud__stores-scroll {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(var(--stores-columns, 5), minmax(0, 1fr));
-  gap: 1px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
   max-height: calc(100dvh - 110px);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1654,37 +1634,20 @@ select:focus-visible {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
-  gap: 1px;
+  gap: 0 14px;
   min-width: 0;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
-.settlement-hud__fuel-grid {
-  grid-template-columns: repeat(2, minmax(126px, 1fr));
-  width: min(310px, calc(100vw - 28px));
+.settlement-hud__stores-grid-header {
+  padding: 0 0 2px;
+  line-height: 1.2;
 }
 
-.settlement-hud__fuel-grid .settlement-hud__supply-resource {
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  grid-template-rows: auto;
-  gap: 3px 8px;
-  min-height: 0;
-  padding: 7px 8px;
-  cursor: pointer;
-}
-
-.settlement-hud__fuel-grid .settlement-hud__supply-resource::before {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: center;
-  font-size: 18px;
-}
-
-.settlement-hud__fuel-grid .settlement-hud__supply-resource > .settlement-hud__value {
-  grid-column: 3;
-  grid-row: 1;
-  color: #e4c98c;
-  font-size: 17px;
+.settlement-hud__stores-grid-header:not(.settlement-hud__supply-header) strong {
+  color: #bda875;
+  font-size: 12px;
+  letter-spacing: 0;
 }
 
 .settlement-hud__supply-header {
@@ -1704,83 +1667,17 @@ select:focus-visible {
 
 .settlement-hud__supply-summary {
   grid-column: 1 / -1;
-  display: grid;
-  gap: 6px;
-  padding: 7px 8px;
-  border: 1px solid rgba(207, 181, 120, 0.14);
-  border-radius: 3px;
-  background: rgba(217, 190, 129, 0.045);
+  padding: 4px 0;
 }
 
 .settlement-hud__supply-summary strong {
-  color: #e8d5aa;
-  font: 700 13px/1.1 var(--ui-display);
-}
-
-.settlement-hud__supply-summary span {
-  max-width: 264px;
-  color: #a9a18f;
-  font-size: 8px;
-  line-height: 1.35;
-}
-
-.settlement-hud__food-grid .settlement-hud__supply-summary span,
-.settlement-hud__fuel-grid .settlement-hud__supply-summary span {
-  max-width: none;
-}
-
-.settlement-hud__supply-summary .settlement-hud__supply-line {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: 6px;
-  align-items: start;
-  max-width: none;
-}
-
-.settlement-hud__supply-summary .settlement-hud__supply-line--note {
-  padding-top: 6px;
-  border-top: 1px solid rgba(207, 181, 120, 0.12);
-  color: #968e7e;
+  color: #cabb9a;
+  font: 500 12px/1.2 var(--ui-display);
 }
 
 .settlement-hud__food-stores[data-supply-level='low'] .settlement-hud__supply-summary strong,
 .settlement-hud__food-stores[data-supply-level='critical'] .settlement-hud__supply-summary strong {
   color: #f07f69;
-}
-
-.settlement-hud__food-grid .settlement-hud__food-card {
-  cursor: help;
-}
-
-/* Keep each cereal chain in one vertical lane: crop, processed input, food. */
-.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='ryeFlour'] {
-  grid-column: 1;
-  grid-row: 4;
-}
-
-.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='malt'] {
-  grid-column: 3;
-  grid-row: 4;
-}
-
-.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='maslinFlour'] {
-  grid-column: 4;
-  grid-row: 4;
-}
-
-.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='ryeBread'] {
-  grid-column: 1;
-  grid-row: 5;
-}
-
-.settlement-hud__stores-section[data-food-category='cereals'] > [data-food-resource='maslinBread'] {
-  grid-column: 4;
-  grid-row: 5;
-}
-
-.settlement-hud__stores-grid .settlement-hud__value {
-  color: #d4bc83;
-  font-size: 14px;
 }
 
 .settlement-hud__fire-alert,
@@ -4573,6 +4470,14 @@ select:focus-visible {
     width: auto;
     max-height: calc(100vh - 84px);
     overflow: auto;
+  }
+
+  .settlement-hud__construction-card .settlement-hud__construction-panel {
+    position: absolute;
+    top: calc(100% + 9px);
+    right: 0;
+    left: auto;
+    width: min(372px, calc(100vw - 28px));
   }
 
   .settlement-hud__clock-detail {

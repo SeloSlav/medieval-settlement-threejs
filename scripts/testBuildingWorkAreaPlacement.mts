@@ -6,6 +6,10 @@ import {
 } from '../src/buildings/BuildingPlacementValidation.ts';
 import { BUILDING_DEFINITIONS, BUILDING_KINDS } from '../src/generated/gameBalance.ts';
 import type { BuildingKind, BuildingState, ForagingNodeState } from '../src/resources/types.ts';
+import { timberInTreeWorkArea } from '../src/resources/treeWorkAreaTimber.ts';
+import { TreeRegistry } from '../src/resources/TreeRegistry.ts';
+import type { ForestManager } from '../src/props/ForestManager.ts';
+import type { TreeEntityState } from '../src/resources/types.ts';
 
 function building(kind: BuildingKind, x = 0, z = 0): BuildingState {
   return {
@@ -145,4 +149,37 @@ for (const path of [
   );
 }
 
-console.log(`Work/service area placement checks passed for all ${radiusKinds.length} radius-bearing building kinds.`);
+const treeRegistry = TreeRegistry.fromForestManager({
+  getTreeLayouts: () => [0, 20, 40, 80, 100].map((x, layoutIndex) => ({
+    x, z: 0, layoutIndex, form: 'broad', species: 'beech', scale: 1,
+  })),
+} as unknown as ForestManager);
+const trees = new Map<string, TreeEntityState>([
+  ['tree-0', { treeId: 'tree-0', layoutIndex: 0, phase: 'mature', growthProgress: 1 }],
+  ['tree-1', { treeId: 'tree-1', layoutIndex: 1, phase: 'logs', growthProgress: 0,
+    logs: [{ x: 20, z: 0, health: 25, maxHealth: 60, firewood: 4 }] }],
+  ['tree-2', { treeId: 'tree-2', layoutIndex: 2, phase: 'growing', growthProgress: 0.5 }],
+  ['tree-3', { treeId: 'tree-3', layoutIndex: 3, phase: 'stump', growthProgress: 0 }],
+  ['tree-4', { treeId: 'tree-4', layoutIndex: 4, phase: 'mature', growthProgress: 1 }],
+]);
+const workArea = { x: 0, z: 0, radius: 80 };
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, workArea), 8,
+  'count standing yield and whole timber in logs, excluding regrowth, stumps, split firewood and outside trees');
+for (const phase of ['falling', 'fallen'] as const) {
+  trees.get('tree-0')!.phase = phase;
+  assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, workArea), 8,
+    `${phase} trees retain their timber until processed`);
+}
+trees.get('tree-0')!.phase = 'logs';
+trees.get('tree-0')!.logs = [0, 1, 2].map(() => ({ x: 0, z: 0, health: 20, maxHealth: 20, firewood: 0 }));
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, workArea), 8, 'bucking conserves the displayed timber');
+trees.get('tree-0')!.logs = [];
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, workArea), 2, 'hauling removes timber from woodland stock');
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, { x: 100, z: 0, radius: 20 }), 6,
+  'moving the circle counts its new woodland');
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, { x: 0, z: 0, radius: 10 }), 0,
+  'empty circles show zero');
+assert.equal(timberInTreeWorkArea({ trees }, treeRegistry, { ...workArea, radius: 100 }), 8,
+  'resizing includes trees on the circle boundary');
+
+console.log(`Work/service area placement checks passed for all ${radiusKinds.length} radius-bearing building kinds; forestry timber totals passed.`);

@@ -1220,7 +1220,7 @@ function testPlacementPreviewLimitsRadiusOverlaysToWildlifeWarnings(): void {
       `${kind} must not expose a fire-planning radius`,
     );
     const loggingWorkExtent = preview.getObjectByName('Tree harvesting work extent warning');
-    if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') {
+    if (kind === 'lumber_mill' || kind === 'woodcutters_lodge' || kind === 'reforester') {
       assert(loggingWorkExtent instanceof THREE.Mesh);
       assert.equal(loggingWorkExtent.userData.extentRadius, BUILDING_DEFINITIONS[kind].workRadius);
     } else {

@@ -8,6 +8,7 @@ import {
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { BuildingKind } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
+import { supportsTreeWorkArea } from '../resources/treeWorkArea.ts';
 import {
   BUILDING_ROAD_CONNECTION_MARKER_INNER_RADIUS,
   BUILDING_ROAD_CONNECTION_MARKER_OUTER_RADIUS,
@@ -153,7 +154,7 @@ export function createBuildingPreviewMesh(
   wildlifeWarnings.renderOrder = PREVIEW_RENDER_ORDER + 4;
   group.add(wildlifeWarnings);
 
-  if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') {
+  if (supportsTreeWorkArea({ kind })) {
     const loggingWorkExtent = createTerrainWarningRing(
       'Tree harvesting work extent warning',
       'logging-work-extent',

@@ -32,11 +32,6 @@ import type { AuthoritativeWorldGeneration } from '../world/worldConfigAuthority
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { describeWorldDifficulty } from '../world/worldDifficulty.ts';
 import {
-  HUD_RESOURCE_KINDS,
-  isHudResourceKind,
-  type HudResourceKind,
-} from '../resources/resourceTotals.ts';
-import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   SIM_REALTIME_RATE,
@@ -56,7 +51,6 @@ import {
 import { HUD_RESOURCE_CARD_PRESENTATION } from './hudResourceCards.ts';
 import {
   HUD_FOOD_GROUPS,
-  HUD_FOOD_RESOURCE_KINDS,
   hudFoodResourceLabel,
 } from './hudFoodCards.ts';
 import { HUD_PROVISION_GROUPS, hudProvisionResourceLabel } from './hudProvisionCards.ts';
@@ -437,7 +431,6 @@ const SETTLEMENT_HUD_HTML = `
       aria-label="Realm resources"
     >
       <span data-stockpile="water" hidden>0</span>
-      <span data-stockpile-transit="water" hidden></span>
       <div class="settlement-hud__body settlement-hud__body--resources">
       <div class="settlement-hud__people-card settlement-hud__resource-card settlement-hud__resource-card--right settlement-hud__construction-card" data-hud-card data-resource-card="construction">
         <div
@@ -461,28 +454,24 @@ const SETTLEMENT_HUD_HTML = `
           </header>
           <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-structural-materials">
             <h3 id="settlement-construction-structural-materials">Structural materials</h3>
-            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="timber">
-              <span class="settlement-hud__construction-material-name">Timber</span>
+            <div class="settlement-hud__stat settlement-hud__construction-material settlement-hud__resource-row" data-resource="timber">
+              <span class="settlement-hud__label">Timber</span>
               <strong class="settlement-hud__value" data-stockpile="timber" data-resource-card-amount="timber">0</strong>
-              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="timber" hidden><span>Movement</span><strong data-stockpile-transit="timber"></strong></div>
             </div>
-            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="stone">
-              <span class="settlement-hud__construction-material-name">Stone</span>
+            <div class="settlement-hud__stat settlement-hud__construction-material settlement-hud__resource-row" data-resource="stone">
+              <span class="settlement-hud__label">Stone</span>
               <strong class="settlement-hud__value" data-stockpile="stone" data-resource-card-amount="stone">0</strong>
-              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="stone" hidden><span>Movement</span><strong data-stockpile-transit="stone"></strong></div>
             </div>
           </section>
           <section class="settlement-hud__construction-section" aria-labelledby="settlement-construction-finished-materials">
             <h3 id="settlement-construction-finished-materials">Finished materials</h3>
-            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="ironwork">
-              <span class="settlement-hud__construction-material-name">Ironwork</span>
+            <div class="settlement-hud__stat settlement-hud__construction-material settlement-hud__resource-row" data-resource="ironwork">
+              <span class="settlement-hud__label">Ironwork</span>
               <strong class="settlement-hud__value" data-stockpile="ironwork" data-resource-card-amount="ironwork">0</strong>
-              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="ironwork" hidden><span>Movement</span><strong data-stockpile-transit="ironwork"></strong></div>
             </div>
-            <div class="settlement-hud__stat settlement-hud__construction-material" tabindex="0" data-resource="roofTiles">
-              <span class="settlement-hud__construction-material-name">Roof tiles</span>
+            <div class="settlement-hud__stat settlement-hud__construction-material settlement-hud__resource-row" data-resource="roofTiles">
+              <span class="settlement-hud__label">Roof tiles</span>
               <strong class="settlement-hud__value" data-stockpile="roofTiles" data-resource-card-amount="roofTiles">0</strong>
-              <div class="settlement-hud__resource-transit" data-resource-card-transit-row="roofTiles" hidden><span>Movement</span><strong data-stockpile-transit="roofTiles"></strong></div>
             </div>
           </section>
         </section>
@@ -492,7 +481,6 @@ const SETTLEMENT_HUD_HTML = `
           <span class="settlement-hud__label">Fuel</span>
           <strong class="settlement-hud__value settlement-hud__supply-value" data-fuel-runway>--</strong>
           <span data-stockpile="firewood" hidden>0</span>
-          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
         </summary>
         <div
           id="settlement-fuel-breakdown"
@@ -506,18 +494,14 @@ const SETTLEMENT_HUD_HTML = `
           </div>
           <div class="settlement-hud__supply-summary" data-supply-kind="fuel" data-fuel-supply-summary>
             <strong data-fuel-supply-months>--</strong>
-            <span class="settlement-hud__supply-line" data-supply-icon="housing" data-fuel-supply-use>No occupied residences are using fuel yet.</span>
-            <span class="settlement-hud__supply-line" data-supply-icon="firewood" data-fuel-supply-total>Firewood and charcoal available to residences set this estimate.</span>
-            <span class="settlement-hud__supply-line settlement-hud__supply-line--note" data-supply-icon="labor">Workplaces can also draw from shared fuel stores, so fuel may run out sooner.</span>
           </div>
-          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__supply-resource" data-resource="firewood" data-fuel-resource="firewood">
-            <span class="settlement-hud__supply-resource-name">Firewood</span>
+          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row settlement-hud__supply-resource" data-resource="firewood" data-fuel-resource="firewood">
+            <span class="settlement-hud__label">Firewood</span>
             <strong class="settlement-hud__value" data-fuel-firewood-amount>0</strong>
           </div>
-          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__supply-resource" tabindex="0" data-resource="charcoal" data-fuel-resource="charcoal">
-            <span class="settlement-hud__supply-resource-name">Charcoal</span>
+          <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row settlement-hud__supply-resource" data-resource="charcoal" data-fuel-resource="charcoal">
+            <span class="settlement-hud__label">Charcoal</span>
             <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
-            <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
           </div>
         </div>
       </details>
@@ -526,7 +510,6 @@ const SETTLEMENT_HUD_HTML = `
           <span class="settlement-hud__label">Food</span>
           <strong class="settlement-hud__value settlement-hud__supply-value" data-food-runway>--</strong>
           <span data-stockpile="food" hidden>0</span>
-          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
         </summary>
         <div
           id="settlement-food-breakdown"
@@ -541,35 +524,22 @@ const SETTLEMENT_HUD_HTML = `
             </div>
             <div class="settlement-hud__supply-summary" data-supply-kind="food" data-food-supply-summary>
               <strong data-food-supply-months>--</strong>
-              <span class="settlement-hud__supply-line" data-supply-icon="population" data-food-supply-use>No occupied residences are using food yet.</span>
-              <span class="settlement-hud__supply-line" data-supply-icon="food" data-food-supply-total>All usable food across stores and residence pantries sets this estimate.</span>
             </div>
             ${HUD_FOOD_GROUPS.map(({ id: category, label, kinds }) => `
               <section class="settlement-hud__stores-section" data-food-category="${category}" aria-labelledby="settlement-food-category-${category}">
                 <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-food-category-${category}"><strong>${label}</strong></div>
                 ${kinds.map((kind) => `
                   <div
-                    class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
-                    tabindex="0"
+                    class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row settlement-hud__food-card"
                     data-food-breakdown-row="${kind}"
                     data-food-resource="${kind}"
-                    aria-label="${hudFoodResourceLabel(kind)}"
-                    data-tooltip="${hudFoodResourceLabel(kind)}"
                   >
                     <span class="settlement-hud__label">${hudFoodResourceLabel(kind)}</span>
                     <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
-                    <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="${kind}" hidden></span>
-                    <span data-food-breakdown-homes="${kind}" hidden>0</span>
-                    <span data-food-breakdown-surplus="${kind}" hidden>0</span>
                   </div>
                 `).join('')}
               </section>
             `).join('')}
-            <span data-food-breakdown-empty hidden></span>
-            <span data-food-breakdown-total-stored hidden>0</span>
-            <span data-food-breakdown-total-transit hidden>0</span>
-            <span data-food-breakdown-total-homes hidden>0</span>
-            <span data-food-breakdown-total-surplus hidden>0</span>
           </div>
         </div>
       </details>
@@ -592,10 +562,9 @@ const SETTLEMENT_HUD_HTML = `
             <section class="settlement-hud__stores-section" data-provision-category="${category}" aria-labelledby="settlement-provision-category-${category}">
               <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3" id="settlement-provision-category-${category}"><strong>${label}</strong></div>
               ${kinds.map((kind) => `
-                <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="${kind}" data-tooltip="${hudProvisionResourceLabel(kind)}">
+                <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="${kind}">
                   <span class="settlement-hud__label">${hudProvisionResourceLabel(kind)}</span>
                   <strong class="settlement-hud__value" data-stockpile="${kind}">0</strong>
-                  <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="${kind}" hidden></span>
                 </div>
               `).join('')}
             </section>
@@ -614,16 +583,16 @@ const SETTLEMENT_HUD_HTML = `
           <span data-military-stores-mode-label>Available surplus</span>
         </div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Arms</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms"><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="sidearms" data-tooltip="Sidearms"><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="sidearms" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="bows" data-tooltip="Bows"><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="bows" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="crossbows" data-tooltip="Crossbows"><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="crossbows" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="polearms"><span class="settlement-hud__label">Polearms</span><strong class="settlement-hud__value" data-stockpile="polearms">0</strong></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="sidearms"><span class="settlement-hud__label">Sidearms</span><strong class="settlement-hud__value" data-stockpile="sidearms">0</strong></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="bows"><span class="settlement-hud__label">Bows</span><strong class="settlement-hud__value" data-stockpile="bows">0</strong></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="crossbows"><span class="settlement-hud__label">Crossbows</span><strong class="settlement-hud__value" data-stockpile="crossbows">0</strong></div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Protection</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="shields" data-tooltip="Shields"><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="shields" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="paddedArmor" data-tooltip="Padded"><span class="settlement-hud__label">Padded</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="paddedArmor" hidden></span></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mailArmor" data-tooltip="Mail"><span class="settlement-hud__label">Mail</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mailArmor" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="shields"><span class="settlement-hud__label">Shields</span><strong class="settlement-hud__value" data-stockpile="shields">0</strong></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="paddedArmor"><span class="settlement-hud__label">Padded armor</span><strong class="settlement-hud__value" data-stockpile="paddedArmor">0</strong></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="mailArmor"><span class="settlement-hud__label">Mail armor</span><strong class="settlement-hud__value" data-stockpile="mailArmor">0</strong></div>
         <div class="settlement-hud__stores-grid-header" role="heading" aria-level="3"><strong>Ammunition</strong></div>
-        <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ammunition" data-tooltip="Ammunition"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong><span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ammunition" hidden></span></div>
+        <div class="settlement-hud__stat settlement-hud__stat--store settlement-hud__resource-row" data-resource="ammunition"><span class="settlement-hud__label">Ammunition</span><strong class="settlement-hud__value" data-stockpile="ammunition">0</strong></div>
       </div>
     </details>
     <button
@@ -631,8 +600,6 @@ const SETTLEMENT_HUD_HTML = `
       class="settlement-hud__totals-mode"
       data-resource-totals-mode
       data-mode="surplus"
-      data-tooltip-title="Realm surplus (default)"
-      data-tooltip="Available goods after construction and home-project commitments. Activate to show every holding."
       aria-label="Showing realm-wide surplus goods. Show total realm holdings."
       aria-pressed="false"
     >
@@ -704,14 +671,10 @@ export class SettlementHud {
   private readonly foodStores: HTMLDetailsElement;
   private readonly foodRunwayValue: HTMLElement;
   private readonly foodSupplyMonths: HTMLElement;
-  private readonly foodSupplyUse: HTMLElement;
-  private readonly foodSupplyTotal: HTMLElement;
   private readonly fuelStat: HTMLElement;
   private readonly fuelStores: HTMLDetailsElement;
   private readonly fuelRunwayValue: HTMLElement;
   private readonly fuelSupplyMonths: HTMLElement;
-  private readonly fuelSupplyUse: HTMLElement;
-  private readonly fuelSupplyTotal: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly goldCardContext: HTMLElement;
   private readonly animals: HTMLDetailsElement;
@@ -741,7 +704,6 @@ export class SettlementHud {
   private readonly nobleEye: HTMLButtonElement;
   private readonly lordReportLedger: LordReportLedger;
   private onToggleFirstPerson: (() => void) | null = null;
-  private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
   private onInspectAnimalBuilding: ((buildingId: string) => void) | null = null;
   private onInspectSecurityAttention: ((
     target: ProjectedRaidTarget,
@@ -867,14 +829,10 @@ export class SettlementHud {
     this.foodStores = this.mustDetails('[data-food-stores]');
     this.foodRunwayValue = this.mustElement('[data-food-runway]');
     this.foodSupplyMonths = this.mustElement('[data-food-supply-months]');
-    this.foodSupplyUse = this.mustElement('[data-food-supply-use]');
-    this.foodSupplyTotal = this.mustElement('[data-food-supply-total]');
     this.fuelStat = this.mustElement('[data-resource="firewood"]');
     this.fuelStores = this.mustDetails('[data-fuel-stores]');
     this.fuelRunwayValue = this.mustElement('[data-fuel-runway]');
     this.fuelSupplyMonths = this.mustElement('[data-fuel-supply-months]');
-    this.fuelSupplyUse = this.mustElement('[data-fuel-supply-use]');
-    this.fuelSupplyTotal = this.mustElement('[data-fuel-supply-total]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.goldCardContext = this.mustElement('[data-resource-card-context="gold"]');
     this.animals = this.mustDetails('[data-animals]');
@@ -914,30 +872,6 @@ export class SettlementHud {
     this.fpsValue = this.mustElement('[data-stat="fps"]');
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
-    for (const resource of HUD_RESOURCE_KINDS) {
-      if (
-        resource === 'water'
-        || (HUD_FOOD_RESOURCE_KINDS as readonly string[]).includes(resource)
-      ) continue;
-      const row = this.mustElement(`[data-resource="${resource}"]`);
-      const label = row.querySelector<HTMLElement>(
-        '.settlement-hud__label, .settlement-hud__supply-resource-name',
-      )
-        ?.textContent
-        ?.trim() || resource;
-      if (row.closest('[data-hud-card]') || row.matches('[data-fuel-resource]')) {
-        delete row.dataset.tooltipTitle;
-        delete row.dataset.tooltip;
-      } else {
-        delete row.dataset.tooltipTitle;
-        delete row.dataset.tooltipAmount;
-        delete row.dataset.tooltipAmountLabel;
-        row.dataset.tooltip = label;
-      }
-      row.classList.add('is-resource-locator');
-      row.setAttribute('role', 'button');
-      row.setAttribute('aria-label', `${label}: locate physical holdings`);
-    }
     for (const summaryCard of [this.laborStat, this.housingStat]) {
       delete summaryCard.dataset.tooltipTitle;
       delete summaryCard.dataset.tooltip;
@@ -946,7 +880,7 @@ export class SettlementHud {
     this.foodStat.setAttribute('aria-expanded', 'false');
     this.foodStat.setAttribute(
       'aria-label',
-      'Food supply: hover or focus for the current-use forecast and commodity breakdown',
+      'Food supply: hover or focus for the resource quantities',
     );
     delete this.foodStat.dataset.tooltipTitle;
     delete this.foodStat.dataset.tooltip;
@@ -954,15 +888,11 @@ export class SettlementHud {
     this.fuelStat.setAttribute('aria-expanded', 'false');
     this.fuelStat.setAttribute(
       'aria-label',
-      'Fuel supply: hover or focus for the current residence-use forecast and fuel breakdown',
+      'Fuel supply: hover or focus for the fuel quantities',
     );
     delete this.fuelStat.dataset.tooltipTitle;
     delete this.fuelStat.dataset.tooltip;
-    this.panel.addEventListener('click', this.onResourceRowClick);
-    this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
     this.panel.addEventListener('pointerover', this.onHudCardPointerOver);
-    this.nobleHud.addEventListener('click', this.onResourceRowClick);
-    this.nobleHud.addEventListener('keydown', this.onResourceRowKeyDown);
     this.nobleHud.addEventListener('pointerover', this.onHudCardPointerOver);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalOpen);
@@ -1052,10 +982,6 @@ export class SettlementHud {
   private readonly onNobleEyeClick = (): void => {
     this.onToggleFirstPerson?.();
   };
-
-  setResourceLocator(handler: ((resource: HudResourceKind) => void) | null): void {
-    this.onLocateResource = handler;
-  }
 
   setAnimalBuildingHandler(handler: ((buildingId: string) => void) | null): void {
     this.onInspectAnimalBuilding = handler;
@@ -1530,22 +1456,9 @@ export class SettlementHud {
       provisioning.foodRunwayDays,
       foodHasDemand,
     );
-    this.foodSupplyUse.textContent = foodHasDemand
-      ? formatFoodDemandSource(provisioning)
-      : 'No current food demand.';
-    const foodReadyHouseholds = Math.max(
-      0,
-      provisioning.householdBufferHouseholds - provisioning.householdBufferFoodShortHomes,
-    );
-    const householdFoodCoverage = provisioning.householdBufferHouseholds > 0
-      ? ` · ${foodReadyHouseholds}/${provisioning.householdBufferHouseholds} household pantries can cover their next food bill.`
-      : '';
-    this.foodSupplyTotal.textContent = foodHasDemand
-      ? `${formatSupplyAmount(provisioning.usableFoodStock)} settlement-wide usable meals after storage and spoilage${householdFoodCoverage}`
-      : `${formatSupplyAmount(provisioning.usableFoodStock)} usable meals stored.`;
     this.foodStat.setAttribute(
       'aria-label',
-      `Food supply: ${formatSupplyMonthsRemaining(provisioning.foodRunwayDays, foodHasDemand)}. Hover or focus for the current-use forecast and commodity breakdown.`,
+      `Food supply: ${formatSupplyMonthsRemaining(provisioning.foodRunwayDays, foodHasDemand)}. Hover or focus for the resource quantities.`,
     );
 
     const fuelHasDemand = provisioning.heatedResidents > 0;
@@ -1556,15 +1469,9 @@ export class SettlementHud {
       provisioning.currentFirewoodRunwayDays,
       fuelHasDemand,
     );
-    this.fuelSupplyUse.textContent = fuelHasDemand
-      ? formatResidenceResidents(provisioning.heatedResidents)
-      : 'No current household fuel demand.';
-    this.fuelSupplyTotal.textContent = fuelHasDemand
-      ? `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable · ${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal. Charcoal counts double.`
-      : `${formatSupplyAmount(provisioning.usableFirewoodStock)} usable household fuel stored.`;
     this.fuelStat.setAttribute(
       'aria-label',
-      `Fuel supply: ${formatSupplyMonthsRemaining(provisioning.currentFirewoodRunwayDays, fuelHasDemand)}. Hover or focus for the current residence-use forecast and fuel breakdown.`,
+      `Fuel supply: ${formatSupplyMonthsRemaining(provisioning.currentFirewoodRunwayDays, fuelHasDemand)}. Hover or focus for the fuel quantities.`,
     );
     delete this.goldStat.dataset.tooltipTitle;
     delete this.goldStat.dataset.tooltip;
@@ -1779,10 +1686,6 @@ export class SettlementHud {
     this.displayedZoom = displayZoom;
   }
 
-  private readonly onResourceRowClick = (event: MouseEvent): void => {
-    this.activateResourceRow(event.target);
-  };
-
   private readonly onHudCardPointerOver = (event: PointerEvent): void => {
     const card = event.target instanceof HTMLElement
       ? event.target.closest<HTMLElement>('[data-hud-card]')
@@ -1979,14 +1882,6 @@ export class SettlementHud {
   private readonly onMilitaryStoresSummaryClick = (event: MouseEvent): void => {
     event.preventDefault();
     this.openHudDisclosure(this.militaryStores);
-  };
-
-  private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const resource = this.resourceFromTarget(event.target);
-    if (!resource || resource === 'food' || resource === 'firewood') return;
-    event.preventDefault();
-    this.activateResourceRow(event.target);
   };
 
   private readonly onSecurityAlertClick = (event: MouseEvent): void => {
@@ -2190,22 +2085,6 @@ export class SettlementHud {
     );
   }
 
-  private activateResourceRow(target: EventTarget | null): void {
-    const resource = this.resourceFromTarget(target);
-    if (resource && resource !== 'food' && resource !== 'firewood') {
-      this.onLocateResource?.(resource);
-    }
-  }
-
-  private resourceFromTarget(target: EventTarget | null): HudResourceKind | null {
-    const element = target instanceof HTMLElement
-      ? target.closest<HTMLElement>('[data-resource]')
-      : null;
-    if (!element || !this.panel.contains(element)) return null;
-    const resource = element.dataset.resource;
-    return resource && isHudResourceKind(resource) ? resource : null;
-  }
-
   private mustElement(selector: string): HTMLElement {
     const element = this.panel.querySelector<HTMLElement>(selector);
     if (!element) throw new Error(`Missing settlement HUD element ${selector}`);
@@ -2235,11 +2114,7 @@ export class SettlementHud {
     this.cancelAnimalsClose();
     this.cancelSpecialtyStoresClose();
     this.cancelMilitaryStoresClose();
-    this.panel.removeEventListener('click', this.onResourceRowClick);
-    this.panel.removeEventListener('keydown', this.onResourceRowKeyDown);
     this.panel.removeEventListener('pointerover', this.onHudCardPointerOver);
-    this.nobleHud.removeEventListener('click', this.onResourceRowClick);
-    this.nobleHud.removeEventListener('keydown', this.onResourceRowKeyDown);
     this.nobleHud.removeEventListener('pointerover', this.onHudCardPointerOver);
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.lordReportLedger.dispose();
@@ -2331,18 +2206,6 @@ function formatSupplyMonthsRemaining(days: number, hasDemand: boolean): string {
   return `About ${value} ${value === '1' ? 'month' : 'months'} remaining`;
 }
 
-function formatResidenceResidents(residents: number): string {
-  return residents === 1
-    ? '1 resident in an occupied residence'
-    : `${residents} residents in occupied residences`;
-}
-
-function formatFoodDemandSource(provisioning: SettlementProvisioning): string {
-  return provisioning.foodConsumers > 0
-    ? formatResidenceResidents(provisioning.foodConsumers)
-    : '';
-}
-
 function supplyRunwayLevel(
   days: number,
   hasDemand: boolean,
@@ -2351,9 +2214,4 @@ function supplyRunwayLevel(
   if (days < CALENDAR_DAYS_PER_MONTH / 2) return 'critical';
   if (days < CALENDAR_DAYS_PER_MONTH) return 'low';
   return 'ready';
-}
-
-function formatSupplyAmount(amount: number): string {
-  if (!Number.isFinite(amount)) return '0';
-  return Math.round(amount).toString();
 }

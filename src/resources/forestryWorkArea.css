@@ -1,0 +1,27 @@
+.forestry-work-area-label.resource-cost__item {
+  position: fixed;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(20, 23, 19, 0.84);
+  color: #f5eedb;
+  font: 600 13px/1.2 Georgia, serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px #10130f;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.forestry-work-area-label[hidden] {
+  display: none;
+}
+
+.forestry-work-area-label .resource-cost__icon {
+  width: 22px;
+  height: 22px;
+}

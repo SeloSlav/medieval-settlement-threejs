@@ -48,9 +48,3 @@ export const HUD_RESOURCE_CARD_PRESENTATION: Record<
     totalDetail: 'All civic gold secured in founding lockboxes, reclamation chests, or Town Hall treasuries, including coin committed to active home projects. Market receipts, company pay chests, private household savings, and moving lockboxes remain separate.',
   },
 };
-
-export function isHudResourceCardKind(
-  resource: HudResourceKind,
-): resource is HudResourceCardKind {
-  return (HUD_RESOURCE_CARD_KINDS as readonly HudResourceKind[]).includes(resource);
-}

@@ -3,7 +3,7 @@ import { BREAD_GRAIN_KINDS, BREAD_KINDS, FLOUR_KINDS, GRAIN_SHEAF_KINDS } from '
 import { FRESH_FOOD_KINDS, PRESERVED_FOOD_KINDS } from '../src/economy/foodInventory.ts';
 import { TRADE_RESOURCE_KINDS } from '../src/generated/gameBalance.ts';
 import { HUD_RESOURCE_KINDS } from '../src/resources/resourceTotals.ts';
-import { HUD_FOOD_GROUPS, HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel, hudFoodResourceTooltip } from '../src/ui/hudFoodCards.ts';
+import { HUD_FOOD_GROUPS, HUD_FOOD_RESOURCE_KINDS, hudFoodResourceLabel } from '../src/ui/hudFoodCards.ts';
 import { HUD_PROVISION_GROUPS, HUD_PROVISION_RESOURCE_KINDS } from '../src/ui/hudProvisionCards.ts';
 import { HUD_CONSTRUCTION_RESOURCE_KINDS } from '../src/ui/hudResourceCards.ts';
 import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
@@ -71,8 +71,5 @@ for (const kind of new Set([...TRADE_RESOURCE_KINDS, ...RESOURCE_COST_KINDS])) {
 }
 for (const kind of HUD_FOOD_RESOURCE_KINDS) {
   assert.ok(hudFoodResourceLabel(kind).length > 0, `Missing label for ${kind}`);
-  assert.doesNotMatch(hudFoodResourceTooltip(kind), /undefined|NaN/, `Invalid tooltip for ${kind}`);
 }
-assert.doesNotMatch(hudFoodResourceTooltip('ryeSheaves'), /spoilage/i, 'Unprocessed crops must not inherit meal spoilage');
-assert.match(hudFoodResourceTooltip('ryeBread'), /spoilage/i, 'Bread must retain its food tooltip');
 console.log(`HUD resource coverage passed: ${foods.size} food and crop entries; ${visibleResources.size} resources across all menus.`);

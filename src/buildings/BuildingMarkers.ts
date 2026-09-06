@@ -25,7 +25,10 @@ import type {
   BuildingState,
   GameState,
   LivestockHerdState,
+  TreeWorkArea,
 } from '../resources/types.ts';
+import { supportsTreeWorkArea } from '../resources/treeWorkArea.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -148,6 +151,7 @@ export class BuildingMarkers {
   private readonly wellServiceCoverage: WellServiceCoverage;
   private wellServiceCoverageBuildingId: string | null = null;
   private previewBuilding: THREE.Group | null = null;
+  private forestryPlacementArea: TreeWorkArea | null = null;
   private previewKind: BuildingKind | null = null;
   private lastPreviewSignature = '';
   private pendingPlacement: THREE.Group | null = null;
@@ -176,6 +180,10 @@ export class BuildingMarkers {
     });
     this.wellServiceCoverage = new WellServiceCoverage(this.group, this.terrain);
     options.parent.add(this.group);
+  }
+
+  getForestryPlacementArea(): TreeWorkArea | null {
+    return this.previewBuilding?.visible ? this.forestryPlacementArea : null;
   }
 
   setBuildingSelectionOverlays(
@@ -727,6 +735,8 @@ export class BuildingMarkers {
       this.terrain.getHeightAt.bind(this.terrain),
       wildlifePreview,
     );
+    this.forestryPlacementArea = supportsTreeWorkArea({ kind })
+      ? { x, z, radius: getBuildingDefinition(kind).workRadius } : null;
     this.previewBuilding.visible = true;
   }
 

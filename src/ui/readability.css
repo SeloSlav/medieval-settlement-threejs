@@ -167,8 +167,7 @@
 
 .settlement-hud__approval-kicker,
 .settlement-hud__approval-standing [data-approval-trend],
-.settlement-hud__speed-name,
-.settlement-hud .settlement-hud__stat.is-resource-locator::after {
+.settlement-hud__speed-name {
   font-size: var(--ui-readable-caption);
 }
 
