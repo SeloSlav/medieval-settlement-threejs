@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { installSceneTransformCache } from './SceneTransformCache.ts';
 import { FireLighting } from '../fires/FireLighting.ts';
 import { beginCloseGroundGpuPrewarm, type CloseGroundGpuPrewarm } from './CloseGroundGpuPrewarm.ts';
 import { SceneAtmosphere } from './SceneAtmosphere.ts';
@@ -384,7 +383,6 @@ export class SceneManager {
     );
     this.materials = materials;
     this.scene = new THREE.Scene();
-    installSceneTransformCache(this.scene);
     // World transforms are committed once after simulation/visual updates.
     // Nested shadow and color passes consume that same completed snapshot.
     this.scene.matrixWorldAutoUpdate = false;

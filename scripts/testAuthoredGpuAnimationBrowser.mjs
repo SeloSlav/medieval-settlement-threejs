@@ -62,7 +62,11 @@ try {
           ga.time = ca.time = clip.duration * fraction;
           gpu.updateAnimation(actual, gm, 0, samples%7!==0); cm.update(0);
           // Grow after first use to exercise output buffer rebinding.
-          if (samples === 1) { gpu.reserve(16); cpu.reserve(16); }
+          if (samples === 1) {
+            const retired = [gpu.posePalette, gpu.instanceMatrices, gpu.instanceColors];
+            gpu.reserve(16); cpu.reserve(16);
+            if (retired.some(attribute => renderer._attributes.has(attribute))) throw new Error('Capacity growth retained an owned GPU storage buffer');
+          }
           gpu.setCount(1); cpu.setCount(1);
           gpu.setFromCloneAt(0, actual); cpu.setFromCloneAt(0, expected);
           for(let i=0;i<16;i++)maxAttachmentError=Math.max(maxAttachmentError,Math.abs(toolActual.matrixWorld.elements[i]-toolExpected.matrixWorld.elements[i]));
@@ -90,7 +94,9 @@ try {
         }
       }
       reports.push({ path, samples, maxPaletteError, maxWorldVertexError, maxAttachmentError, diagnostics: gpu.diagnostics() });
+      const retired = [gpu.posePalette, gpu.instanceMatrices, gpu.instanceColors];
       gpu.dispose(); cpu.dispose(); root.removeFromParent();
+      if (retired.some(attribute => renderer._attributes.has(attribute))) throw new Error('Disposal retained an owned GPU storage buffer');
     }
     renderer.dispose();
     return { adapter: backend.adapterEvidence, reports };

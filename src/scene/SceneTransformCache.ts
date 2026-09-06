@@ -8,6 +8,7 @@ export function installSceneTransformCache(scene: THREE.Scene): void {
   const ordinaryUpdate = THREE.Object3D.prototype.updateMatrixWorld;
   const ordinaryLocal = THREE.Object3D.prototype.updateMatrix;
   const visit = (node: THREE.Object3D, force: boolean, root = false): void => {
+    let propagate = force;
     // Skinning bind modes and explicit rig/visibility boundaries keep their
     // original update semantics. They own their complete descendant evaluation.
     if ((!root && node.updateMatrixWorld !== ordinaryUpdate) || node.updateMatrix !== ordinaryLocal) {
@@ -56,9 +57,14 @@ export function installSceneTransformCache(scene: THREE.Scene): void {
         else node.matrixWorld.copy(node.matrix);
       }
     }
-    if (force) state.world.set(node.matrixWorld.elements);
+    for (let i = 0; i < 16; i++) {
+      const value = node.matrixWorld.elements[i]!;
+      if (state.world[i] !== value) { propagate = true; state.world[i] = value; }
+    }
     node.matrixWorldNeedsUpdate = false;
-    for (const child of node.children) visit(child, force);
+    // updateWorldMatrix(true, ...) calls on actors mark unchanged ancestors
+    // dirty. Only a changed parent matrix should invalidate every descendant.
+    for (const child of node.children) visit(child, propagate);
   };
   scene.updateMatrixWorld = (force = false) => visit(scene, force, true);
 }

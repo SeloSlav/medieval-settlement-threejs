@@ -6,9 +6,11 @@ export const CHAPEL_TOWER_CLOCK_NAME = 'ChapelTowerClock';
 export const CHAPEL_TOWER_CLOCK_ANCHOR_NAME = 'TC_Clock_Anchor';
 export const CHAPEL_TOWER_CLOCK_HOUR_HAND_NAME = 'ChapelTowerClockHourHand';
 export const CHAPEL_TOWER_CLOCK_MINUTE_HAND_NAME = 'ChapelTowerClockMinuteHand';
+const clockHands = new WeakMap<THREE.Object3D, { hour?: THREE.Object3D; minute?: THREE.Object3D }>();
 
 /** Adds only the runtime-owned face and hands; the authored GLB exports an empty anchor. */
 export function addTierOneChurchRuntimeClock(church: THREE.Group): void {
+  clockHands.delete(church);
   const anchor = church.getObjectByName(CHAPEL_TOWER_CLOCK_ANCHOR_NAME);
   if (!anchor || anchor.getObjectByName(CHAPEL_TOWER_CLOCK_NAME)) return;
 
@@ -77,8 +79,13 @@ export function setTierOneChurchClockTime(
   clock: Pick<GameClock, 'hour' | 'minute' | 'preciseHour'>,
 ): void {
   const angles = churchClockHandAngles(clock);
-  const hourHand = root.getObjectByName(CHAPEL_TOWER_CLOCK_HOUR_HAND_NAME);
-  const minuteHand = root.getObjectByName(CHAPEL_TOWER_CLOCK_MINUTE_HAND_NAME);
+  let hands = clockHands.get(root);
+  if (!hands) {
+    hands = { hour: root.getObjectByName(CHAPEL_TOWER_CLOCK_HOUR_HAND_NAME), minute: root.getObjectByName(CHAPEL_TOWER_CLOCK_MINUTE_HAND_NAME) };
+    clockHands.set(root, hands);
+  }
+  const hourHand = hands.hour;
+  const minuteHand = hands.minute;
   if (hourHand) hourHand.rotation.z = angles.hour;
   if (minuteHand) minuteHand.rotation.z = angles.minute;
 }

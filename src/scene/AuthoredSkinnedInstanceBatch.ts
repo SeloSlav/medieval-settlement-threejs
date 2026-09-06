@@ -207,6 +207,7 @@ export class AuthoredSkinnedInstanceBatch {
   private readonly validatedSkeletons = new WeakSet<THREE.Skeleton>();
   private readonly posedCloneBindings = new WeakMap<THREE.Object3D, PosedCloneBinding>();
   private submittedLayers: SubmittedLayer[] = [];
+  private readonly storageRenderers = new Set<{ _attributes: { delete(attribute: THREE.BufferAttribute): void } }>();
   private posePalette!: StorageBufferAttribute;
   private instanceMatrices!: StorageInstancedBufferAttribute;
   private instanceColors!: StorageInstancedBufferAttribute;
@@ -625,8 +626,9 @@ export class AuthoredSkinnedInstanceBatch {
       mesh.frustumCulled = false;
       mesh.userData.authoredSkinnedInstances = true;
       mesh.userData.sourceGeometryUuid = source.geometry.uuid;
-      if (this.gpuAnimation) mesh.onBeforeRender = renderer => {
-        this.gpuAnimation!.render(renderer, this.posePalette, this.countValue, this.poseEpoch, this.lastGpuInstances);
+      mesh.onBeforeRender = renderer => {
+        this.storageRenderers.add(renderer as unknown as { _attributes: { delete(attribute: THREE.BufferAttribute): void } });
+        this.gpuAnimation?.render(renderer, this.posePalette, this.countValue, this.poseEpoch, this.lastGpuInstances);
       };
       this.group.add(mesh);
       return { mesh, materials, source };
@@ -649,6 +651,14 @@ export class AuthoredSkinnedInstanceBatch {
       // Source geometry and textures are borrowed, never disposed here.
     }
     this.submittedLayers = [];
+    // These storage buffers are referenced by material nodes, not by borrowed
+    // source geometry. Three releases the bindings but does not own their data.
+    for (const renderer of this.storageRenderers) {
+      for (const attribute of [this.posePalette, this.instanceMatrices, this.instanceColors]) {
+        if (attribute) renderer._attributes.delete(attribute);
+      }
+    }
+    this.storageRenderers.clear();
   }
 
   private prepareBatchTransform(): void {

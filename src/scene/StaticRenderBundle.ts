@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as WebGPU from 'three/webgpu';
 import type { WebGPURenderer } from 'three/webgpu';
+import { installShadowOverrideCache } from './ShadowOverrideCache.ts';
 
 // BundleGroup exists in Three r185; the bundled ambient declarations omit it.
 const BundleGroup = (WebGPU as unknown as {
@@ -61,6 +62,7 @@ export class StaticRenderBundle extends BundleGroup {
 
 /** Three r185 has no public pre-projection callback for BundleGroup. */
 export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): void {
+  installShadowOverrideCache(renderer);
   type ProjectionRenderer = {
     _projectObject(object: THREE.Object3D, camera: THREE.Camera, ...args: unknown[]): void;
     _renderBundle(bundle: { bundleGroup: StaticRenderBundle; camera: THREE.Camera }, ...args: unknown[]): void;
@@ -72,10 +74,8 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
     if (bundle.bundleGroup.isCityStaticRenderBundle) bundle.bundleGroup.selectView(bundle.camera);
     renderBundle.call(this, bundle, ...args);
   };
-  const shadowCameras = new WeakSet<THREE.Camera>();
   projectionRenderer._projectObject = function(object, camera, ...args) {
-    if ((object as THREE.Scene).isScene && ((object as THREE.Scene).overrideMaterial as THREE.Material & { isShadowPassMaterial?: boolean })?.isShadowPassMaterial) shadowCameras.add(camera);
-    if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, shadowCameras.has(camera));
+    if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, false);
     original.call(this, object, camera, ...args);
   };
 }

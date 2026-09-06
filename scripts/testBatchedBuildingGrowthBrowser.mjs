@@ -63,6 +63,12 @@ try {
       for (let view = 0; view < 5; view++) {
         const angle = view * Math.PI * .4;
         camera.position.set(Math.sin(angle)*60, 32, Math.cos(angle)*60); camera.lookAt(target); camera.updateMatrixWorld(true);
+        if (shadows) for (const s of [scene, reference]) {
+          const sun = s.children.find(o => o.isDirectionalLight);
+          sun.position.set(40 + view * 6, 80, 30 - view * 4);
+          sun.target.position.set(view * 2, 0, -view);
+          sun.target.updateMatrixWorld(true);
+        }
         const actual = await pixels(scene); const expected = await pixels(reference);
         let changed=0, settledChanged=0;
         const settled = await pixels(scene);

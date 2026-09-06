@@ -33,6 +33,14 @@ try {
     if (i % 5 === 0) console.log('loading', JSON.stringify(state), await page.locator('body').innerText().then(x=>x.slice(0,160)));
     await page.waitForTimeout(2000);
   }
+  const skipTutorials = page.locator('[data-tutorial-skip]');
+  if(await skipTutorials.isVisible()) {
+    await skipTutorials.check();
+    await page.locator('[data-tutorial-confirm]').click();
+  }
+  // The introductory overlay blurs the entire live canvas and can take over
+  // the camera. Measure ordinary gameplay after it has been dismissed.
+  await page.locator('[data-tutorial-confirm]').waitFor({state:'hidden'});
   const state = await page.evaluate(() => {
     const app = window.__cityApp;
     return {
@@ -49,6 +57,7 @@ try {
   });
   writeFileSync(`${output}/initial-runtime.json`, JSON.stringify({ ...state, errors }, null, 2));
   await page.screenshot({ path: `${output}/initial-runtime.png` });
+  await page.evaluate(() => window.__visualPerf?.stopFrameCollection());
   console.log('ready', JSON.stringify({ stats: state.stats, buildings: state.buildings.length, residences: state.residences.length, errors }));
   const measured = await page.evaluate(async large => {
     const app = window.__cityApp;
@@ -96,7 +105,7 @@ try {
         last=time;
       }
       if(arm==='populated')await window.__cityProfileEnd();
-      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),visualReport:window.__visualPerf.getReport()});
+      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),visualReport:window.__visualPerf?.getReport()});
     }
     return reports;
   }, large);
