@@ -276,10 +276,9 @@ export class FirstPersonController {
     // walk-mode FOV is always the final projection written during activation.
     this.config.onModeChange?.(true);
     this.config.camera.fov = fpLocomotionConstants.cameraFovDeg;
-    this.config.camera.near = Math.max(
-      this.savedNear,
-      FIRST_PERSON_CAMERA_NEAR_METERS,
-    );
+    // The overview lens can have a distant near plane for terrain precision.
+    // Walking owns its close lens; restore the saved orbit plane on exit only.
+    this.config.camera.near = FIRST_PERSON_CAMERA_NEAR_METERS;
     this.config.camera.updateProjectionMatrix();
     this.requestPointerLock();
     this.applyCameraTransform(this.lastEyeLine);

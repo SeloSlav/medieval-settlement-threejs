@@ -24,6 +24,7 @@ export class InstanceDrawCompaction {
   private previousPadding = NaN;
   private previousCoordinateSystem = -1;
   private previousReversedDepth = false;
+  private previousCamera: THREE.Camera | null | undefined;
   private disposed = false;
 
   constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean } = {}) {
@@ -45,6 +46,8 @@ export class InstanceDrawCompaction {
       geometry.setAttribute(name, output); this.pairs.push({ source: attribute, output, version: -1 });
     }
     this.draw = new THREE.InstancedMesh(geometry, source.material, source.instanceMatrix.count);
+    // Never submit the constructor's identity matrices before the first commit.
+    this.draw.count = 0;
     this.draw.name = `${source.name} visible instances`;
     this.draw.layers.mask = this.layers; this.draw.castShadow = source.castShadow; this.draw.receiveShadow = source.receiveShadow;
     this.draw.renderOrder = source.renderOrder; this.draw.frustumCulled = false;
@@ -62,7 +65,6 @@ export class InstanceDrawCompaction {
     source.geometry.computeBoundingSphere();
     source.layers.mask = 0; source.userData.instanceCompactionSource = true;
     source.add(this.draw);
-    this.draw.onBeforeRender = (_renderer, _scene, camera) => this.prepare(camera);
   }
 
   get submittedInstances(): number { return Math.max(0, this.selectedCount); }
@@ -74,14 +76,23 @@ export class InstanceDrawCompaction {
     this.draw.material = this.source.material;
   }
 
-  private prepare(camera: THREE.Camera): void {
+  /**
+   * Commit before renderer.render(), not from a draw callback. WebGPU may have
+   * already uploaded instance attributes or built shadow render objects there.
+   * Pass null for an independently selected shadow-caster set: color and shadow
+   * passes must not repack the same GPU buffer for different cameras.
+   */
+  prepare(camera: THREE.Camera | null): void {
     const source = this.source;
     let changed = false;
     for (const pair of this.pairs) {
       if (pair.version !== pair.source.version) { pair.version = pair.source.version; changed = true; }
     }
     if (source.instanceMatrix.version !== this.matrixVersion) {
-      const ranges = this.matrixVersion < 0 ? [] : source.instanceMatrix.updateRanges;
+      // A skipped version can contain a sparse edit whose upload range has
+      // already been consumed. Rebuild the bounds rather than retaining it.
+      const ranges = source.instanceMatrix.version === this.matrixVersion + 1
+        && this.matrixVersion >= 0 ? source.instanceMatrix.updateRanges : [];
       this.matrixVersion = source.instanceMatrix.version;
       for (let i = 0; i < source.instanceMatrix.count; i++) {
         if (ranges.length && !ranges.some(range => range.start < (i + 1) * 16 && range.start + range.count > i * 16)) continue;
@@ -90,15 +101,25 @@ export class InstanceDrawCompaction {
         this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
       }
     }
-    this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(source.matrixWorld);
+    if (camera) {
+      camera.updateWorldMatrix(true, false);
+      source.updateWorldMatrix(true, false);
+      this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(source.matrixWorld);
+    }
     const padding = typeof this.padding === 'function' ? this.padding() : this.padding;
     if (!changed && this.previousCount === source.count && this.previousPadding === padding
-      && this.previousCoordinateSystem === camera.coordinateSystem && this.previousReversedDepth === camera.reversedDepth
-      && this.previousProjection.equals(this.projection)) return;
+      && this.previousCamera === camera
+      && (!camera || (this.previousCoordinateSystem === camera.coordinateSystem
+        && this.previousReversedDepth === camera.reversedDepth
+        && this.previousProjection.equals(this.projection)))) return;
+    this.previousCamera = camera;
     this.previousProjection.copy(this.projection); this.previousCount = source.count; this.previousPadding = padding;
-    this.previousCoordinateSystem = camera.coordinateSystem; this.previousReversedDepth = camera.reversedDepth;
-    this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
+    if (camera) {
+      this.previousCoordinateSystem = camera.coordinateSystem; this.previousReversedDepth = camera.reversedDepth;
+      this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
+    }
     let count = 0;
+    const planes = camera ? this.frustum.planes : [];
     this.copyRanges.length = 0;
     for (let i = 0; i < source.count; i++) {
       const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
@@ -106,7 +127,7 @@ export class InstanceDrawCompaction {
       // source vertex and its wind vector, producing no rasterized triangles.
       if (this.skipCollapsed && this.bounds[at + 3] === 0) continue;
       let visible = true;
-      for (const plane of this.frustum.planes) {
+      for (const plane of planes) {
         const normal = plane.normal;
         if (normal.x * x + normal.y * y + normal.z * z + plane.constant < -radius) { visible = false; break; }
       }

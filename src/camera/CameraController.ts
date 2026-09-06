@@ -23,6 +23,7 @@ import {
   computeMaxOrbitDistance,
   evalCloseBlendFromDistance,
   evalCloseCurveProgress,
+  orbitNearPlaneForHeight,
 } from './CameraCurves.ts';
 
 const MIN_PITCH = THREE.MathUtils.degToRad(5);
@@ -1235,8 +1236,12 @@ export class CameraController {
     camera.lookAt(this.lookAtPoint);
 
     const fov = THREE.MathUtils.lerp(this.config.orbitFov ?? DEFAULT_FOV, CLOSE_FOV, closeBlend);
-    if (Math.abs(camera.fov - fov) > 0.01) {
+    const near = orbitNearPlaneForHeight(
+      camera.position.y - this.config.getHeightAt(camera.position.x, camera.position.z),
+    );
+    if (Math.abs(camera.fov - fov) > 0.01 || Math.abs(camera.near - near) > 0.001) {
       camera.fov = fov;
+      camera.near = near;
       camera.updateProjectionMatrix();
     }
   }

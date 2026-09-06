@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+
+/** Keep close inspection intact while giving distant terrain useful depth precision. */
+export function orbitNearPlaneForHeight(heightAboveTerrain: number): number {
+  return THREE.MathUtils.clamp((heightAboveTerrain - 5) * 0.025, 0.1, 10);
+}
 import { ILLUSTRATED_MAP_DESK_MARGIN_RATIO } from '../map/illustratedMapDeskSurface.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 

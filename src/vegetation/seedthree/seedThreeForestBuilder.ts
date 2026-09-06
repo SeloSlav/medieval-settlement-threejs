@@ -78,6 +78,7 @@ import {
   type SeedThreeTreeSlot as TreeSlot,
 } from './seedThreeForestCompaction.ts';
 import {
+  applySeedThreeAutumnColor,
   applySeedThreeBarkSnow,
   applySeedThreeForestBarkMotion,
   applySeedThreeForestCardMotion,
@@ -390,6 +391,7 @@ function createInstancedLodSet(
               toneVariation: options.toneVariation,
             })) as THREE.Material,
         );
+        applySeedThreeAutumnColor(cachedForestMaterial, options.autumnColor ?? [0.94, 0.48, 0.08]);
         const isolatedForestMaterial = options.overviewCards === true
           ? cloneSeedThreeForestMaterial(cachedForestMaterial)
           : cachedForestMaterial;
@@ -1751,7 +1753,12 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         casterBounds,
         cameraInteractionActive,
       );
-      for (const compaction of forest.compactedDraws ?? []) compaction.syncRenderState();
+      for (const compaction of forest.compactedDraws ?? []) {
+        compaction.syncRenderState();
+        // The exact shadow set already includes off-screen casters selected
+        // against the light's receiver bounds. Only color uses the view frustum.
+        compaction.prepare(compaction.draw.userData.seedThreeShadowOnly ? null : camera);
+      }
       return {
         presentationChanged: fadeChanged
           || cameraUpdate.selectionChanged

@@ -56,6 +56,8 @@ type TslNode = {
   add(value: unknown): TslNode;
   mul(value: unknown): TslNode;
   sub(value: unknown): TslNode;
+  div(value: unknown): TslNode;
+  max(value: unknown): TslNode;
 };
 
 type FieldSoilNodeMaterial = MeshStandardNodeMaterial & THREE.MeshStandardMaterial;
@@ -63,6 +65,10 @@ type FieldSoilNodeMaterial = MeshStandardNodeMaterial & THREE.MeshStandardMateri
 const tsl = TSL as unknown as {
   attribute(name: string, type: string): TslNode;
   float(value: unknown): TslNode;
+  floor(value: unknown): TslNode;
+  fract(value: unknown): TslNode;
+  fwidth(value: unknown): TslNode;
+  min(left: unknown, right: unknown): TslNode;
   normalMap(value: unknown, scale?: unknown): TslNode;
   positionWorld: TslNode;
   sin(value: unknown): TslNode;
@@ -208,6 +214,7 @@ function configureInspectionBreadcrumbs(
 function createNodeMaterial(
   identity: FieldSoilIdentity,
   debugMode: FieldSoilDebugMode,
+  furrowStrength: number,
 ): THREE.Material {
   const spec = FIELD_SOIL_IDENTITIES[identity];
   const textures = texturesFor(identity);
@@ -223,7 +230,15 @@ function createNodeMaterial(
   const roughnessSample = textures.roughness
     ? tsl.texture(textures.roughness, organicUv)
     : tsl.vec4(0.96);
-  const vertexTint = tsl.vertexColor().rgb;
+  const rows = tsl.attribute('fieldRows', 'vec2');
+  // Integrate a periodic 12%-wide furrow over its pixel footprint. Distant
+  // rows converge to their area coverage instead of crawling as 1px lines.
+  const footprint = tsl.fwidth(rows.x).max(0.0001);
+  const integral = (x: TslNode) => tsl.floor(x).mul(0.12).add(tsl.min(tsl.fract(x), tsl.float(0.12)));
+  const phase = rows.x.add(0.06);
+  const coverage = integral(phase.add(footprint.mul(0.5)))
+    .sub(integral(phase.sub(footprint.mul(0.5)))).div(footprint);
+  const vertexTint = tsl.vertexColor().rgb.mul(tsl.float(1).sub(coverage.mul(rows.y).mul(furrowStrength)));
 
   if (debugMode === 'edge-blend') {
     material.colorNode = tsl.vec4(tsl.vec3(edgeBlend), tsl.float(1)) as never;
@@ -258,6 +273,9 @@ function createNodeMaterial(
   material.transparent = debugMode === 'final';
   material.depthWrite = debugMode !== 'final';
   material.alphaTest = 0;
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = -1;
+  material.polygonOffsetUnits = -2;
   configureInspectionBreadcrumbs(material, identity, debugMode);
   return material;
 }
@@ -277,6 +295,7 @@ vec2 fieldOrganicWarp(vec2 worldXZ) {
 function createWebGlMaterial(
   identity: FieldSoilIdentity,
   debugMode: FieldSoilDebugMode,
+  furrowStrength: number,
 ): THREE.Material {
   const spec = FIELD_SOIL_IDENTITIES[identity];
   const textures = texturesFor(identity);
@@ -294,21 +313,24 @@ function createWebGlMaterial(
     transparent: debugMode === 'final',
     depthWrite: debugMode !== 'final',
     polygonOffset: true,
-    polygonOffsetFactor: -2,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -2,
   });
   chainMaterialShaderPatch(
     material,
-    `field-soil-v1-${identity}-${debugMode}`,
+    `field-soil-v2-${identity}-${debugMode}-${furrowStrength}`,
     (shader) => {
       shader.vertexShader = shader.vertexShader.replace(
         '#include <common>',
         `#include <common>
 attribute float fieldEdgeBlend;
 varying float vFieldEdgeBlend;
+attribute vec2 fieldRows;
+varying vec2 vFieldRows;
 ${fieldOrganicWarpGlsl(spec.warpPhase)}`,
       ).replace(
         'void main() {',
-        'void main() {\n  vFieldEdgeBlend = fieldEdgeBlend;',
+        'void main() {\n  vFieldEdgeBlend = fieldEdgeBlend;\n  vFieldRows = fieldRows;',
       );
       shader.vertexShader = shader.vertexShader.replace(
         '#include <uv_vertex>',
@@ -331,10 +353,20 @@ ${fieldOrganicWarpGlsl(spec.warpPhase)}`,
       );
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <common>',
-        '#include <common>\nvarying float vFieldEdgeBlend;',
+        `#include <common>
+varying float vFieldEdgeBlend;
+varying vec2 vFieldRows;
+float fieldRowIntegral(float x) { return floor(x) * 0.12 + min(fract(x), 0.12); }
+float fieldFurrowCoverage() {
+  float width = max(fwidth(vFieldRows.x), 0.0001);
+  float phase = vFieldRows.x + 0.06;
+  return (fieldRowIntegral(phase + width * 0.5) - fieldRowIntegral(phase - width * 0.5)) / width;
+}`,
       ).replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\n  diffuseColor.a *= vFieldEdgeBlend;',
+        `#include <color_fragment>
+  diffuseColor.a *= vFieldEdgeBlend;
+  ${debugMode === 'final' || debugMode === 'albedo' ? `diffuseColor.rgb *= 1.0 - fieldFurrowCoverage() * vFieldRows.y * ${furrowStrength.toFixed(4)};` : ''}`,
       );
       if (debugMode === 'edge-blend') {
         shader.fragmentShader = shader.fragmentShader.replace(
@@ -362,8 +394,9 @@ export function createFieldSoilMaterial(
   identity: FieldSoilIdentity,
   rendererBackend: RendererBackendKind,
   debugMode: FieldSoilDebugMode = 'final',
+  furrowStrength = 0.32,
 ): THREE.Material {
   return supportsNodeMaterials(rendererBackend)
-    ? createNodeMaterial(identity, debugMode)
-    : createWebGlMaterial(identity, debugMode);
+    ? createNodeMaterial(identity, debugMode, furrowStrength)
+    : createWebGlMaterial(identity, debugMode, furrowStrength);
 }

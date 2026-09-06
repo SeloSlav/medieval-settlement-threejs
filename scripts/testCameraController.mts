@@ -53,7 +53,16 @@ const {
   computeIllustratedMapFarPlane,
   computeIllustratedMapTerminalDistance,
   computeIllustratedMapZoomStops,
+  orbitNearPlaneForHeight,
 } = await import('../src/camera/CameraCurves.ts');
+
+assert.equal(orbitNearPlaneForHeight(2), 0.1, 'ground inspection must preserve the close near plane');
+assert.equal(orbitNearPlaneForHeight(500), 10, 'overview depth range must resolve thin soil overlays');
+for (let height = 10; height <= 500; height += 5) {
+  const near = orbitNearPlaneForHeight(height);
+  assert.ok(near <= height * 0.025, 'the near plane must stay well within terrain clearance');
+  assert.ok(near >= orbitNearPlaneForHeight(height - 5), 'zooming out must improve depth precision monotonically');
+}
 
 assert.equal(
   shouldDismissVillagerSelection(2, false, true),

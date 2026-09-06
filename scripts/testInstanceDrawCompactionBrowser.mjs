@@ -16,6 +16,7 @@ try {
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { InstanceDrawCompaction } = await import('/src/scene/InstanceDrawCompaction.ts');
     const { renderer } = await createPreferredRenderer(); renderer.setSize(480,320);
+    renderer.shadowMap.enabled = true;
     const reports = [];
     for (const indexed of [true, false]) {
     const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
@@ -35,7 +36,24 @@ try {
     actual.instanceMatrix.needsUpdate = expected.instanceMatrix.needsUpdate = true;
     const scenes = [new THREE.Scene(),new THREE.Scene()]; scenes[0].add(actual);scenes[1].add(expected);
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
+    const shadowSource = new THREE.InstancedMesh(actual.geometry, material, n);
+    shadowSource.instanceMatrix = actual.instanceMatrix;
+    shadowSource.castShadow = true; shadowSource.frustumCulled = false;
+    shadowSource.layers.set(1); scenes[0].add(shadowSource);
+    expected.castShadow = true;
+    for (const scene of scenes) {
+      const sun = new THREE.DirectionalLight(0xffffff, 2);
+      sun.position.set(25, 45, 15); sun.castShadow = true;
+      Object.assign(sun.shadow.camera, {left:-65,right:65,top:65,bottom:-65,near:.1,far:160});
+      sun.shadow.camera.layers.enable(1); sun.shadow.mapSize.set(1024,1024);
+      sun.shadow.camera.updateProjectionMatrix(); scene.add(sun);
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(180,180), new THREE.MeshStandardNodeMaterial({color:0x888888}));
+      ground.rotation.x=-Math.PI/2;ground.position.y=-3;ground.receiveShadow=true;scene.add(ground);
+      scene.add(new THREE.AmbientLight(0xffffff,.4));
+    }
     const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true});
+    const shadowCompaction = new InstanceDrawCompaction(shadowSource,2,{skipCollapsed:true});
+    if(compaction.draw.count!==0||shadowCompaction.draw.count!==0)throw new Error('Uninitialized draws must be empty');
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
     const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
     const frames = [];
@@ -50,6 +68,8 @@ try {
       if(frame===9) actual.count=expected.count=n;
       if(frame===12) { actual.geometry.getAttribute('offset').setXYZ(14,1,2,0); expected.geometry.getAttribute('offset').setXYZ(14,1,2,0);actual.geometry.getAttribute('offset').needsUpdate=expected.geometry.getAttribute('offset').needsUpdate=true; }
       if(frame===14||frame===15) { if(frame===14)matrix.makeScale(0,0,0);else matrix.makeTranslation(0,1,0);actual.setMatrixAt(23,matrix);expected.setMatrixAt(23,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
+      shadowSource.count=actual.count;
+      compaction.prepare(camera);shadowCompaction.prepare(null);
       const a=await pixels(scenes[0]), b=await pixels(scenes[1]);let difference=0;
       for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)difference++;
       for(const pair of compaction.pairs) {
@@ -59,11 +79,12 @@ try {
           if(data[row*pair.source.itemSize+k]!==canonical[compaction.selected[row]*pair.source.itemSize+k])throw new Error('Compaction changed an authored attribute bit');
         }
       }
-      frames.push({frame,submitted:compaction.submittedInstances,total:actual.count,difference});
+      frames.push({frame,submitted:compaction.submittedInstances,shadowSubmitted:shadowCompaction.submittedInstances,total:actual.count,difference});
       if(frame===14&&compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Collapsed cleared-tree slot was submitted');
       if(frame===15&&!compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Restored tree did not re-enter the draw');
     }
     compaction.dispose();
+    shadowCompaction.dispose();shadowSource.removeFromParent();actual.castShadow=true;
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
     reports.push({indexed,frames,restoredDifference});

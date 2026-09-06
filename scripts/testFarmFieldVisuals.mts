@@ -122,6 +122,12 @@ assert.ok(standingCereal.count >= field.area, 'a mature field should read as a d
 assert.equal(matureHeads.count, standingCereal.count, 'every mature cereal tuft needs a readable grain head');
 assert.ok(matureSoil.geometry.getAttribute('color'), 'worked earth should carry non-flat surface variation');
 assert.ok(matureSoil.geometry.getAttribute('fieldEdgeBlend'), 'field soil needs a continuous grass-edge blend field');
+assert.ok(matureSoil.geometry.getAttribute('fieldRows'), 'furrows must share the terrain-following soil surface');
+assert.equal(visualRoot.getObjectByName('Terrain-following field furrows'), undefined, 'distant furrows must not be one-pixel line segments');
+for (const material of Array.isArray(matureSoil.material) ? matureSoil.material : [matureSoil.material]) {
+  assert.equal(material.polygonOffset, true, 'soil must keep a depth bias over the underlying terrain');
+  assert.ok(material.polygonOffsetUnits < 0);
+}
 assert.equal(
   (matureSoil.material as THREE.Material).userData.fieldSoilSource,
   'backyard-garden',

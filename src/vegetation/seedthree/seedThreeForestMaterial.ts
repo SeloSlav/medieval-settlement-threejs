@@ -100,6 +100,32 @@ const barkSnowTsl = {
 
 const overviewBillboardFadeOpacity = uniform(0) as { value: number } & TslNode;
 
+/** Recolor shaded baked leaves as well as bright leaves, without touching bark. */
+export function applySeedThreeAutumnColor(
+  material: THREE.Material,
+  palette: readonly [number, number, number],
+): THREE.Material {
+  if (material.userData.seedThreeAutumnColor === true) return material;
+  const autumn = material.userData.forestSeasonalAutumnColor;
+  const target = material as THREE.Material & { map?: THREE.Texture; colorNode?: unknown };
+  if (!autumn || !target.map) return material;
+  // Use the runtime TSL types here: the installed declarations omit several
+  // scalar operators already used by SeedThree's node materials.
+  const nodes = TSL as any;
+  const texel = nodes.texture(target.map);
+  const relativeGreen = texel.g.sub(texel.r.max(texel.b)).div(texel.g.max(0.005));
+  const leafMask = relativeGreen.smoothstep(0, 0.08);
+  const deciduous = nodes.step(1024, nodes.attribute('aTreeOrigin', 'vec3').y);
+  const snow = material.userData.forestSnowCoverage ?? nodes.float(0);
+  const amount = leafMask.mul(deciduous).mul(autumn).mul(nodes.float(1).sub(snow));
+  const autumnLeaf = nodes.vec3(...palette)
+    .mul(nodes.luminance(texel.rgb).pow(0.65).mul(1.65).max(0.1)).clamp(0, 1);
+  target.colorNode = nodes.mix(target.colorNode ?? texel.rgb, autumnLeaf, amount);
+  material.userData.seedThreeAutumnColor = true;
+  material.needsUpdate = true;
+  return material;
+}
+
 /**
  * Adds one shared, upward-facing snow response to real trunks and branches.
  * The world-space breakup is deterministic and consumes no extra instance

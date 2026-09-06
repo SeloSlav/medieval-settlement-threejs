@@ -216,6 +216,8 @@ function createSurface(
   const colors: number[] = [];
   const uvs: number[] = [];
   const edgeBlends: number[] = [];
+  const rowCoordinates: number[] = [];
+  const rowCount = Math.max(4, Math.min(52, Math.floor(depth / 0.72)));
   const identities = soilIdentityOrder(field);
   const indicesByIdentity = new Map(
     identities.map((identity) => [identity, [] as number[]]),
@@ -231,6 +233,11 @@ function createSurface(
       // materials own their state-specific physical scale and organic warp.
       uvs.push(point.x, point.z);
       edgeBlends.push(fieldEdgeBlendAt(point, u, v, width, depth, seed));
+      rowCoordinates.push(v * rowCount, THREE.MathUtils.smoothstep(
+        Math.min(u, 1 - u) * width,
+        FIELD_ROW_EDGE_INSET_METERS * 0.75,
+        FIELD_ROW_EDGE_INSET_METERS,
+      ));
       const color = surfaceColorAt(
         field,
         u,
@@ -264,6 +271,7 @@ function createSurface(
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('uv1', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('fieldEdgeBlend', new THREE.Float32BufferAttribute(edgeBlends, 1));
+  geometry.setAttribute('fieldRows', new THREE.Float32BufferAttribute(rowCoordinates, 2));
   const combinedIndices: number[] = [];
   for (let materialIndex = 0; materialIndex < identities.length; materialIndex += 1) {
     const identity = identities[materialIndex]!;
@@ -279,6 +287,7 @@ function createSurface(
     identity,
     rendererBackend,
     debugMode,
+    field.stage === 'growing' ? 0.32 : 0.52,
   ));
   const mesh = new THREE.Mesh(
     geometry,
@@ -286,6 +295,7 @@ function createSurface(
   );
   mesh.name = 'Worked field soil';
   mesh.receiveShadow = true;
+  mesh.renderOrder = 1;
   mesh.userData.fieldStage = field.stage;
   mesh.userData.fieldCrop = field.crop === 'wheat' ? 'maslin' : field.crop;
   mesh.userData.fieldStateCoverage = field.stage === 'ploughing'
@@ -306,49 +316,6 @@ function createSurface(
   mesh.userData.debugModes = ['final', 'albedo', 'normal', 'roughness', 'edge-blend'];
   mesh.userData.activeDebugMode = debugMode;
   return mesh;
-}
-
-function createFurrows(
-  field: FarmFieldState,
-  corners: FarmFieldCorners,
-  getHeightAt: (x: number, z: number) => number,
-): THREE.LineSegments {
-  const { width, depth } = fieldDimensions(corners);
-  const vertices: number[] = [];
-  const rows = Math.max(4, Math.min(52, Math.floor(depth / 0.72)));
-  const segments = Math.max(6, Math.min(56, Math.ceil(width / 1.25)));
-  const uInset = Math.min(0.22, FIELD_ROW_EDGE_INSET_METERS / Math.max(width, 0.01));
-  const processedLimit = field.stage === 'ploughing'
-    ? Math.max(0, Math.min(1, field.stageProgress))
-    : 1;
-  for (let row = 1; row < rows; row += 1) {
-    const v = row / rows;
-    if (v > processedLimit + 0.012) continue;
-    for (let segment = 0; segment < segments; segment += 1) {
-      for (const segmentT of [segment / segments, (segment + 1) / segments]) {
-        const u = THREE.MathUtils.lerp(uInset, 1 - uInset, segmentT);
-        const point = bilinearPoint(corners, u, v);
-        vertices.push(
-          point.x,
-          getHeightAt(point.x, point.z) + FIELD_LIFT + 0.018,
-          point.z,
-        );
-      }
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  const furrows = new THREE.LineSegments(
-    geometry,
-    new THREE.LineBasicMaterial({
-      color: field.crop === 'fallow' ? 0x33442d : 0x332218,
-      transparent: true,
-      opacity: field.stage === 'growing' ? 0.32 : 0.52,
-      depthWrite: false,
-    }),
-  );
-  furrows.name = 'Terrain-following field furrows';
-  return furrows;
 }
 
 function createSeededDrills(
@@ -1420,7 +1387,6 @@ export class FarmFieldMarkers {
         this.rendererBackend,
         this.soilDebugMode,
       ));
-      group.add(createFurrows(field, corners, this.getHeightAt));
       group.add(createSeededDrills(field, corners, this.getHeightAt));
       group.add(createSoilClods(field, corners, this.getHeightAt));
       group.add(this.cropCatalog
