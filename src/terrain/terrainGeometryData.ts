@@ -6,6 +6,7 @@ import { fbm2, forestDensityAt, type ForestCore } from '../props/forestField.ts'
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
+import { createTerrainGridIndices } from './terrainGridIndices.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
   licPoljeTerrainDebugWeights,
@@ -123,23 +124,7 @@ export async function buildTerrainGeometryData(
     if ((zIndex + 1) % 40 === 0) await yieldControl();
   }
 
-  const quadCount = (resolution - 1) * (resolution - 1);
-  const indices = new Uint32Array(quadCount * 6);
-  let indexOffset = 0;
-  for (let zIndex = 0; zIndex < resolution - 1; zIndex++) {
-    for (let xIndex = 0; xIndex < resolution - 1; xIndex++) {
-      const a = zIndex * resolution + xIndex;
-      const b = a + 1;
-      const c = a + resolution;
-      const d = c + 1;
-      indices[indexOffset++] = a;
-      indices[indexOffset++] = c;
-      indices[indexOffset++] = b;
-      indices[indexOffset++] = b;
-      indices[indexOffset++] = c;
-      indices[indexOffset++] = d;
-    }
-  }
+  const indices = createTerrainGridIndices(resolution);
 
   await yieldControl();
   const normals = createHeightfieldNormals(positions, resolution);

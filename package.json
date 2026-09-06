@@ -9,6 +9,8 @@
     "test:authored-animation-clock": "node --experimental-strip-types scripts/testAuthoredAnimationClock.mts",
     "optimize:authored-model-indices": "node scripts/optimizeAuthoredModelIndices.mjs",
     "test:authored-model-indices": "node scripts/optimizeAuthoredModelIndices.mjs --check",
+    "test:authored-index-pixels-browser": "node scripts/testAuthoredIndexPixelsBrowser.mjs",
+    "test:terrain-grid-indices": "node --experimental-strip-types scripts/testTerrainGridIndices.mts",
     "test:authored-instance-world-transforms": "node --experimental-strip-types scripts/testAuthoredInstanceWorldTransforms.mts",
     "test:static-transform-boundary": "node --experimental-strip-types scripts/testStaticTransformBoundary.mts",
     "test:authored-gpu-animation-browser": "node scripts/testAuthoredGpuAnimationBrowser.mjs",

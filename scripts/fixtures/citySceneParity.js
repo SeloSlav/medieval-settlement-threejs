@@ -13,8 +13,16 @@ export async function checkCitySceneParity() {
   if (!sources.length) throw new Error('Full-scene parity requires the real forest compactions');
   const target = new THREE.RenderTarget(640, 360), savedTarget = renderer.getRenderTarget(), savedMrt = renderer.getMRT();
   const frames = [];
+  const terrainIndex = manager.terrain.mesh.geometry.index, optimizedTerrain = terrainIndex.array.slice();
+  const rowMajorTerrain = new terrainIndex.array.constructor(terrainIndex.count), resolution = manager.terrain.resolution;
+  let indexOffset = 0;
+  for(let z=0;z<resolution-1;z++)for(let x=0;x<resolution-1;x++) {
+    const a=z*resolution+x,b=a+1,c=a+resolution,d=c+1;
+    rowMajorTerrain.set([a,c,b,b,c,d],indexOffset);indexOffset+=6;
+  }
   const render = async compact => {
     for (const {source, draw, layers, visible} of sources) { source.layers.mask = compact ? 0 : layers; draw.visible = compact && visible; }
+    terrainIndex.array.set(compact ? optimizedTerrain : rowMajorTerrain);terrainIndex.needsUpdate=true;
     renderer.setMRT(null); renderer.setRenderTarget(target);
     // Freeze simulation and shader time, but advance the render-frame identity
     // so FRAME update nodes and shadow refreshes execute for each comparison.
@@ -45,6 +53,7 @@ export async function checkCitySceneParity() {
     return frames;
   } finally {
     for (const {source, draw, visible} of sources) { source.layers.mask = 0; draw.visible = visible; }
+    terrainIndex.array.set(optimizedTerrain);terrainIndex.needsUpdate=true;
     camera.position.copy(position); camera.quaternion.copy(quaternion); camera.updateMatrixWorld(true);
     renderer.setRenderTarget(savedTarget); renderer.setMRT(savedMrt); target.dispose();
     await renderer.setAnimationLoop(loop);
