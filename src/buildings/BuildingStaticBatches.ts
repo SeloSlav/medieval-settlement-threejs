@@ -300,7 +300,18 @@ export class BuildingStaticBatches {
     for (const state of this.buildingStates.values()) {
       if (!state.visible) continue;
       for (const entry of state.entries) {
-        if (entry.shared.instanced || entry.shared.geometryId === null) continue;
+        const instanced = entry.shared.instanced;
+        if (instanced) {
+          // Tiny or rarely repeated pieces cost more separate draw/uniform
+          // updates than their exact expanded vertices. Frequent large pieces
+          // retain instancing and its geometry-memory advantage.
+          const expand = instanced.entries.length <= 8
+            || instanced.entries.length * instanced.mesh.geometry.getAttribute('position').count <= 2048;
+          instanced.mesh.visible = !expand;
+          if (expand) parts.push({ source: instanced.mesh, geometry: instanced.mesh.geometry, matrix: state.matrix });
+          continue;
+        }
+        if (entry.shared.geometryId === null) continue;
         let geometry = geometries.get(entry.shared);
         if (!geometry) {
           geometry = extractBatchedGeometry(entry.record.mesh, entry.shared.geometryId);
@@ -333,9 +344,9 @@ export class BuildingStaticBatches {
         for (const shared of geometries) {
           const instanced = shared.instanced;
           if (!instanced) continue;
-          renderObjects += 1;
-          nativeDrawCommands += 1;
-          instancedDraws += 1;
+          renderObjects += instanced.mesh.visible ? 1 : 0;
+          nativeDrawCommands += instanced.mesh.visible ? 1 : 0;
+          instancedDraws += instanced.mesh.visible ? 1 : 0;
           instances += instanced.entries.length;
           geometryBytes += bufferGeometryBytes(instanced.mesh.geometry);
         }
