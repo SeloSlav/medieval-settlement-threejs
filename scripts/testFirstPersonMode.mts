@@ -34,10 +34,15 @@ assert.match(
   /onMenuOpenChange\(open: boolean\)[\s\S]{0,260}exitPointerLock\(\)[\s\S]{0,180}requestPointerLock\(\)/,
   'the settings menu must temporarily release and then restore first-person pointer ownership',
 );
+// Scope the ordering check to activation rather than counting comment bytes.
+const activation = controller.slice(
+  controller.indexOf('  activate('),
+  controller.indexOf('  deactivate('),
+);
 assert.match(
-  controller,
-  /onModeChange\?\.\(true\);[\s\S]{0,180}camera\.fov = fpLocomotionConstants\.cameraFovDeg;[\s\S]{0,220}updateProjectionMatrix\(\)/,
-  'first-person activation must claim its authored lens after the RTS/map hand-off completes',
+  activation,
+  /onModeChange\?\.\(true\);[\s\S]*camera\.fov = fpLocomotionConstants\.cameraFovDeg;[\s\S]*camera\.near = FIRST_PERSON_CAMERA_NEAR_METERS;[\s\S]*updateProjectionMatrix\(\)/,
+  'first-person activation must claim its authored FOV and close near plane after the RTS/map hand-off completes',
 );
 
 assert.match(
@@ -92,8 +97,8 @@ assert.match(
 );
 assert.match(
   settlementHud,
-  /goldCardContext\.hidden = !hasGuardWageContext/,
-  'the treasury context must appear only when it adds guard-wage information',
+  /setProvisioningState\([\s\S]*?goldCardContext\.hidden = true;\s*this\.goldCardContext\.textContent = '';/,
+  'provisioning updates must hide and clear the obsolete guard-wage summary now that company wages are separate military transactions',
 );
 assert.doesNotMatch(
   settlementHud,

@@ -18,10 +18,11 @@ try {
     const { renderer } = await createPreferredRenderer(); renderer.setSize(480,320);
     renderer.shadowMap.enabled = true;
     const reports = [];
-    for (const indexed of [true, false]) {
+    // Exercise both uniform-backed and large interleaved instance matrices.
+    for (const n of [400, 1600]) for (const indexed of [true, false]) {
     const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
     const geometry = indexed ? sourceGeometry : sourceGeometry.toNonIndexed();
-    const n = 400, offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
+    const offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
     for (let i=0;i<n;i++) { offsets.set([Math.sin(i),.5*Math.cos(i),Math.sin(i*.31)],i*3); colors.set([(i%5)/5,.3+(i%7)/10,.2+(i%3)/3],i*3); }
     geometry.setAttribute('offset',new THREE.InstancedBufferAttribute(offsets,3));
     geometry.setAttribute('tint',new THREE.InstancedBufferAttribute(colors,3));
@@ -30,6 +31,12 @@ try {
     material.positionNode = TSL.positionLocal.add(TSL.attribute('offset','vec3').mul(clock));
     material.colorNode = TSL.attribute('tint','vec3');
     const actual = new THREE.InstancedMesh(geometry,material,n), expected = new THREE.InstancedMesh(geometry.clone(),material,n);
+    // The full reference must upload this frame's matrices independently of
+    // Three's deferred interleaved-version synchronization for large forests.
+    actual.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    expected.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    actual.instanceColor = new THREE.InstancedBufferAttribute(colors.slice(),3).setUsage(THREE.DynamicDrawUsage);
+    expected.instanceColor = actual.instanceColor.clone();
     actual.frustumCulled = expected.frustumCulled = false;
     const matrix = new THREE.Matrix4();
     for(let i=0;i<n;i++) { matrix.makeTranslation((i%20-10)*4,Math.sin(i), (Math.floor(i/20)-10)*4);actual.setMatrixAt(i,matrix);expected.setMatrixAt(i,matrix); }
@@ -38,6 +45,7 @@ try {
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
     const shadowSource = new THREE.InstancedMesh(actual.geometry, material, n);
     shadowSource.instanceMatrix = actual.instanceMatrix;
+    shadowSource.instanceColor = actual.instanceColor;
     shadowSource.castShadow = true; shadowSource.frustumCulled = false;
     shadowSource.layers.set(1); scenes[0].add(shadowSource);
     expected.castShadow = true;
@@ -66,10 +74,27 @@ try {
       if(frame===5) { matrix.makeTranslation(1,2,3);actual.setMatrixAt(30,matrix);expected.setMatrixAt(30,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
       if(frame===7) actual.count=expected.count=170;
       if(frame===9) actual.count=expected.count=n;
+      if(frame===10) {
+        // Simulate sparse edits separated by a consumed upload range. Bounds
+        // must include both edits when prepare() observes a version jump.
+        for(const index of [15,16]) {
+          matrix.makeTranslation(index-15,1,0);
+          for(const mesh of [actual,expected]) {
+            mesh.setMatrixAt(index,matrix);mesh.instanceMatrix.clearUpdateRanges();
+            mesh.instanceMatrix.addUpdateRange(index*16,16);mesh.instanceMatrix.needsUpdate=true;
+          }
+        }
+        // The full reference uses complete uploads, independently of selection.
+        expected.instanceMatrix.clearUpdateRanges();
+      }
       if(frame===12) { actual.geometry.getAttribute('offset').setXYZ(14,1,2,0); expected.geometry.getAttribute('offset').setXYZ(14,1,2,0);actual.geometry.getAttribute('offset').needsUpdate=expected.geometry.getAttribute('offset').needsUpdate=true; }
+      if(frame===13) {
+        for(const mesh of [actual,expected]) {mesh.instanceColor.setXYZ(14,1,.1,.9);mesh.instanceColor.needsUpdate=true;}
+      }
       if(frame===14||frame===15) { if(frame===14)matrix.makeScale(0,0,0);else matrix.makeTranslation(0,1,0);actual.setMatrixAt(23,matrix);expected.setMatrixAt(23,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
       shadowSource.count=actual.count;
       compaction.prepare(camera);shadowCompaction.prepare(null);
+      if(frame===10)actual.instanceMatrix.clearUpdateRanges();
       const a=await pixels(scenes[0]), b=await pixels(scenes[1]);let difference=0;
       for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)difference++;
       for(const pair of compaction.pairs) {
@@ -87,7 +112,7 @@ try {
     shadowCompaction.dispose();shadowSource.removeFromParent();actual.castShadow=true;
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
-    reports.push({indexed,frames,restoredDifference});
+    reports.push({n,indexed,frames,restoredDifference});
     target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();
     }
     renderer.dispose();return reports;

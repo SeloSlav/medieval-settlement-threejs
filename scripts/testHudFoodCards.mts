@@ -10,7 +10,7 @@ import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 assert.deepEqual(
   HUD_CONSTRUCTION_RESOURCE_KINDS,
-  ['timber', 'stone', 'ironwork', 'roofTiles'],
+  ['timber', 'stone', 'ironwork', 'roofTiles', 'dressedStone'],
   'The Construction hover card should own every building material',
 );
 

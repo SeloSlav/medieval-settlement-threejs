@@ -53,10 +53,13 @@ export class InstanceDrawCompaction {
     this.draw.renderOrder = source.renderOrder; this.draw.frustumCulled = false;
     this.draw.customDepthMaterial = source.customDepthMaterial; this.draw.customDistanceMaterial = source.customDistanceMaterial;
     this.draw.userData = { ...source.userData, instanceCompactionDraw: true };
-    this.draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    // Large WebGPU instance matrices use an internal interleaved buffer whose
+    // version is synchronized after geometry uploads. Dynamic usage uploads the
+    // current packed prefix immediately, including newly visible instances.
+    this.draw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     if (source.instanceColor) {
       const output = source.instanceColor.clone() as THREE.InstancedBufferAttribute;
-      output.setUsage(THREE.StaticDrawUsage); this.draw.instanceColor = output;
+      output.setUsage(THREE.DynamicDrawUsage); this.draw.instanceColor = output;
       this.pairs.push({ source: source.instanceColor, output, version: -1 });
     }
     this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
@@ -148,7 +151,12 @@ export class InstanceDrawCompaction {
         const start = this.copyRanges[i]! * size;
         output.set(input.subarray(start, start + this.copyRanges[i + 2]! * size), this.copyRanges[i + 1]! * size);
       }
-      pair.output.clearUpdateRanges(); pair.output.addUpdateRange(0, count * size); pair.output.needsUpdate = true;
+      pair.output.clearUpdateRanges();
+      // The internal matrix/color buffer also copies upload ranges one frame
+      // late. A full dynamic upload prevents an older, shorter range exposing
+      // stale or constructor-identity transforms as the visible count grows.
+      if (pair.output.usage !== THREE.DynamicDrawUsage) pair.output.addUpdateRange(0, count * size);
+      pair.output.needsUpdate = true;
     }
   }
 
