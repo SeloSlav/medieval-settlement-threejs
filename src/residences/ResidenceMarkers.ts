@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import { VisibleUpdateGroup } from '../scene/VisibleUpdateGroup.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
@@ -3584,6 +3585,7 @@ export class ResidenceMarkers {
         batchResidenceStaticMeshes(marker);
         this.staticBatches.registerResidence(residence.id, marker);
         this.meshes.set(residence.id, marker);
+        installStaticTransformBoundary(marker);
 
         const chimneyEmitter = marker.getObjectByName('ChimneyEmitter');
         if (chimneyEmitter) {
@@ -3657,6 +3659,7 @@ export class ResidenceMarkers {
       ) || firewoodChanged;
       syncInitialResidenceConstruction(marker, residence);
       syncResidenceUpgradeWorks(marker, residence);
+      invalidateStaticTransformBoundary(marker);
     }
 
     for (const [id, marker] of this.meshes) {

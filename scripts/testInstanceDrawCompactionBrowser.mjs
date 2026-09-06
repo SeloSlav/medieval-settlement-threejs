@@ -16,7 +16,10 @@ try {
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { InstanceDrawCompaction } = await import('/src/scene/InstanceDrawCompaction.ts');
     const { renderer } = await createPreferredRenderer(); renderer.setSize(480,320);
-    const geometry = new THREE.SphereGeometry(.9, 8, 5);
+    const reports = [];
+    for (const [indexed, groupSize] of [[true,1],[true,8],[false,8]]) {
+    const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
+    const geometry = indexed ? sourceGeometry : sourceGeometry.toNonIndexed();
     const n = 400, offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
     for (let i=0;i<n;i++) { offsets.set([Math.sin(i),.5*Math.cos(i),Math.sin(i*.31)],i*3); colors.set([(i%5)/5,.3+(i%7)/10,.2+(i%3)/3],i*3); }
     geometry.setAttribute('offset',new THREE.InstancedBufferAttribute(offsets,3));
@@ -32,13 +35,16 @@ try {
     actual.instanceMatrix.needsUpdate = expected.instanceMatrix.needsUpdate = true;
     const scenes = [new THREE.Scene(),new THREE.Scene()]; scenes[0].add(actual);scenes[1].add(expected);
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
-    const compaction = new InstanceDrawCompaction(actual,2);
+    const compaction = new InstanceDrawCompaction(actual,2,groupSize);
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
     const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
     const frames = [];
-    for(let frame=0;frame<16;frame++) {
+    for(let frame=0;frame<20;frame++) {
       const angle=frame*.43;clock.value=Math.sin(frame);
       camera.position.set(Math.sin(angle)*38,22,Math.cos(angle)*38);camera.lookAt(0,0,0);camera.updateMatrixWorld(true);
+      if(frame===16) { camera.position.set(500,300,500);camera.lookAt(600,300,600);camera.updateMatrixWorld(true); }
+      if(frame===18) actual.count=expected.count=0;
+      if(frame===19) actual.count=expected.count=n;
       if(frame===5) { matrix.makeTranslation(1,2,3);actual.setMatrixAt(30,matrix);expected.setMatrixAt(30,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
       if(frame===7) actual.count=expected.count=170;
       if(frame===9) actual.count=expected.count=n;
@@ -57,9 +63,19 @@ try {
     compaction.dispose();
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
-    renderer.dispose();return {frames,restoredDifference};
+    reports.push({indexed,groupSize,frames,restoredDifference});
+    target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();
+    }
+    renderer.dispose();return reports;
   });
   mkdirSync('artifacts/city-performance',{recursive:true});writeFileSync('artifacts/city-performance/instance-compaction-parity.json',JSON.stringify({result,errors},null,2));
   console.log(JSON.stringify({result,errors}));
-  assert.deepEqual(errors,[]);assert.ok(result.frames.every(f=>f.difference<=10));assert.ok(result.frames.every(f=>f.submitted<f.total));assert.equal(result.restoredDifference,0);
+  assert.deepEqual(errors,[]);
+  for(const report of result) {
+    assert.ok(report.frames.every(f=>f.difference<=10));
+    assert.ok(report.frames.every(f=>f.submitted<=f.total));
+    assert.equal(report.frames[16].submitted,0);assert.equal(report.frames[18].submitted,0);
+    assert.ok(report.frames[17].submitted>0);assert.ok(report.frames[19].submitted>0);
+    assert.equal(report.restoredDifference,0);
+  }
 } finally {await browser?.close();await server.close();}

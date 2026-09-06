@@ -90,6 +90,8 @@ export class ChimneySmokeEmitter {
         material.opacity = 0.48 * (1 - t) * (1 - t);
       }
     }
+    // The house is rigid between state updates. Smoke owns its moving subtree.
+    this.root.updateWorldMatrix(true, true);
   }
 
   dispose(): void {

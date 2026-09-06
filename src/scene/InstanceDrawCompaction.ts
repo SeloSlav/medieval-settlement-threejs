@@ -13,17 +13,26 @@ export class InstanceDrawCompaction {
   private readonly projection = new THREE.Matrix4();
   private readonly matrix = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
+  private readonly box = new THREE.Box3();
+  private readonly point = new THREE.Vector3();
+  private readonly previousProjection = new THREE.Matrix4();
+  private readonly groupSize: number;
   private readonly layers: number;
   private readonly padding: number | (() => number);
   private matrixVersion = -1;
   private selectedCount = -1;
+  private previousCount = -1;
+  private previousPadding = NaN;
+  private previousCoordinateSystem = -1;
+  private previousReversedDepth = false;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number)) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), groupSize = 1) {
+    if (!Number.isInteger(groupSize) || groupSize < 1) throw new Error('Instance group size must be a positive integer');
     if (source.geometry.getIndirect() || Array.isArray(source.material) || source.material.transparent) throw new Error('Instance compaction requires one opaque draw');
     const attributes = Object.entries(source.geometry.attributes);
     if (attributes.some(([, a]) => (a as THREE.InstancedBufferAttribute).isInstancedBufferAttribute && ((a as THREE.InstancedBufferAttribute).meshPerAttribute !== 1 || a.count < source.instanceMatrix.count))) throw new Error('Instance compaction requires complete per-instance attributes');
-    this.source = source; this.padding = padding; this.layers = source.layers.mask;
+    this.source = source; this.padding = padding; this.layers = source.layers.mask; this.groupSize = groupSize;
     const geometry = new THREE.BufferGeometry();
     geometry.name = source.geometry.name;
     geometry.userData = { ...source.geometry.userData, instanceCompactionDraw: true };
@@ -43,9 +52,14 @@ export class InstanceDrawCompaction {
     this.draw.customDepthMaterial = source.customDepthMaterial; this.draw.customDistanceMaterial = source.customDistanceMaterial;
     this.draw.userData = { ...source.userData, instanceCompactionDraw: true };
     this.draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    if (source.instanceColor) {
+      const output = source.instanceColor.clone() as THREE.InstancedBufferAttribute;
+      output.setUsage(THREE.StaticDrawUsage); this.draw.instanceColor = output;
+      this.pairs.push({ source: source.instanceColor, output, version: -1 });
+    }
     this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
     this.selected = new Uint32Array(source.instanceMatrix.count);
-    this.bounds = new Float64Array(source.instanceMatrix.count * 4);
+    this.bounds = new Float64Array(Math.ceil(source.instanceMatrix.count / groupSize) * 4);
     source.geometry.computeBoundingSphere();
     source.layers.mask = 0; source.userData.instanceCompactionSource = true;
     source.add(this.draw);
@@ -58,6 +72,7 @@ export class InstanceDrawCompaction {
     this.draw.castShadow = this.source.castShadow;
     this.draw.receiveShadow = this.source.receiveShadow;
     this.draw.renderOrder = this.source.renderOrder;
+    this.draw.material = this.source.material;
   }
 
   private prepare(camera: THREE.Camera): void {
@@ -67,27 +82,46 @@ export class InstanceDrawCompaction {
       if (pair.version !== pair.source.version) { pair.version = pair.source.version; changed = true; }
     }
     if (source.instanceMatrix.version !== this.matrixVersion) {
+      const ranges = this.matrixVersion < 0 ? [] : source.instanceMatrix.updateRanges;
       this.matrixVersion = source.instanceMatrix.version;
-      for (let i = 0; i < source.instanceMatrix.count; i++) {
-        source.getMatrixAt(i, this.matrix); this.sphere.copy(source.geometry.boundingSphere!).applyMatrix4(this.matrix);
-        const p = this.sphere.center, offset = i * 4;
+      const groups = this.bounds.length / 4;
+      for (let group = 0; group < groups; group++) {
+        const start = group * this.groupSize, end = Math.min(start + this.groupSize, source.instanceMatrix.count);
+        if (ranges.length && !ranges.some(range => range.start < end * 16 && range.start + range.count > start * 16)) continue;
+        this.box.makeEmpty();
+        for (let i = start; i < end; i++) {
+          source.getMatrixAt(i, this.matrix); this.sphere.copy(source.geometry.boundingSphere!).applyMatrix4(this.matrix);
+          if (this.groupSize === 1) break;
+          this.box.expandByPoint(this.point.copy(this.sphere.center).addScalar(this.sphere.radius));
+          this.box.expandByPoint(this.point.copy(this.sphere.center).addScalar(-this.sphere.radius));
+        }
+        if (this.groupSize !== 1) this.box.getBoundingSphere(this.sphere);
+        const p = this.sphere.center, offset = group * 4;
         this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
       }
     }
     this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(source.matrixWorld);
-    this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
     const padding = typeof this.padding === 'function' ? this.padding() : this.padding;
+    if (!changed && this.previousCount === source.count && this.previousPadding === padding
+      && this.previousCoordinateSystem === camera.coordinateSystem && this.previousReversedDepth === camera.reversedDepth
+      && this.previousProjection.equals(this.projection)) return;
+    this.previousProjection.copy(this.projection); this.previousCount = source.count; this.previousPadding = padding;
+    this.previousCoordinateSystem = camera.coordinateSystem; this.previousReversedDepth = camera.reversedDepth;
+    this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
     let count = 0;
-    for (let i = 0; i < source.count; i++) {
-      const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
+    for (let group = 0; group < Math.ceil(source.count / this.groupSize); group++) {
+      const at = group * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
       let visible = true;
       for (const plane of this.frustum.planes) {
         const normal = plane.normal;
         if (normal.x * x + normal.y * y + normal.z * z + plane.constant < -radius) { visible = false; break; }
       }
       if (!visible) continue;
-      if (this.selected[count] !== i) { this.selected[count] = i; changed = true; }
-      count++;
+      const end = Math.min((group + 1) * this.groupSize, source.count);
+      for (let i = group * this.groupSize; i < end; i++) {
+        if (this.selected[count] !== i) { this.selected[count] = i; changed = true; }
+        count++;
+      }
     }
     if (this.selectedCount !== count) { this.selectedCount = count; changed = true; }
     source.userData.compactedInstanceCount = count;
@@ -95,9 +129,9 @@ export class InstanceDrawCompaction {
     if (!changed) return;
     for (const pair of this.pairs) {
       const size = pair.source.itemSize, input = pair.source.array, output = pair.output.array;
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < count; i += this.groupSize) {
         const start = this.selected[i]! * size;
-        output.set(input.subarray(start, start + size), i * size);
+        output.set(input.subarray(start, start + Math.min(this.groupSize, count - i) * size), i * size);
       }
       pair.output.clearUpdateRanges(); pair.output.addUpdateRange(0, count * size); pair.output.needsUpdate = true;
     }

@@ -161,7 +161,7 @@ export type SeedThreeForestInstances = {
   overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
   ownedOverviewFadeMaterials: THREE.Material[];
   updateTelemetry: SeedThreeForestUpdateTelemetry;
-  compactedBranches?: InstanceDrawCompaction[];
+  compactedDraws?: InstanceDrawCompaction[];
 };
 
 export type SeedThreeForestUpdateTelemetry = {
@@ -1408,6 +1408,7 @@ export function getSeedThreeForestStructuralStats(
     const mesh = object as THREE.InstancedMesh;
     if (
       !mesh.isInstancedMesh
+      || mesh.userData.instanceCompactionSource === true
       || mesh.count <= 0
       || mesh.userData.seedThreeShadowOnly === true
       || !seedThreeMeshIsSubmitted(mesh, forest.group)
@@ -1475,8 +1476,8 @@ export function getSeedThreeForestProfileBreakdown(
         ? submittedPasses.crownUnderlay
         : submittedPasses.near;
       if (seedThreeMeshIsSubmitted(mesh, forest.group)) {
-        accumulateSubmission(submittedColor, mesh, mesh.count);
-        accumulateSubmission(pass, mesh, mesh.count);
+        accumulateSubmission(submittedColor, mesh, submittedInstanceCount(mesh));
+        accumulateSubmission(pass, mesh, submittedInstanceCount(mesh));
         accumulateSubmission(
           criticalProjectedColor,
           mesh,
@@ -1521,11 +1522,15 @@ function seedThreeInstancesPerTree(mesh: THREE.InstancedMesh): number {
   return Math.max(1, Number(mesh.userData.k) || 1);
 }
 
+function submittedInstanceCount(mesh: THREE.InstancedMesh): number {
+  return mesh.userData.compactedInstanceCount ?? mesh.count;
+}
+
 function seedThreeMeshIsSubmitted(
   mesh: THREE.InstancedMesh,
   forestGroup: THREE.Group,
 ): boolean {
-  if (mesh.count <= 0) return false;
+  if (submittedInstanceCount(mesh) <= 0) return false;
   for (let object: THREE.Object3D | null = mesh; object; object = object.parent) {
     if (!object.visible) return false;
     if (object === forestGroup) return true;
@@ -1676,7 +1681,7 @@ export function updateSeedThreeForestOverviewBillboardFade(
 }
 
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
-  for (const compaction of forest.compactedBranches ?? []) compaction.dispose();
+  for (const compaction of forest.compactedDraws ?? []) compaction.dispose();
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
     if (!mesh.isInstancedMesh) return;
@@ -1687,22 +1692,36 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
 }
 
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
-  forest.compactedBranches ??= forest.buckets.flatMap(bucket => [bucket.nearSet.branches, bucket.nearShadowSet.branches])
-    .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24)
+  forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
+    bucket.nearSet.branches, bucket.nearShadowSet.branches,
+    ...bucket.nearSet.cards, ...bucket.nearShadowSet.cards,
+  ])
+    .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24
+      && !Array.isArray(mesh.material) && !mesh.material.transparent)
     .map(mesh => {
       const wind = mesh.geometry.getAttribute('aWind');
-      let maximumWeight = 0;
-      for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
+      let maximumWeight = wind ? 0 : 1;
+      if (wind) for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
+      const thickness = mesh.geometry.getAttribute('aThickness');
+      const positions = mesh.geometry.getAttribute('position');
+      let maximumHeight = 0;
+      if (thickness) for (let i = 0; i < positions.count; i++) maximumHeight = Math.max(maximumHeight, positions.getY(i));
       const vectors = mesh.geometry.getAttribute('aWindVec');
-      let version = -1, maximumVector = 0;
+      let version = -1, maximumVector = 0, thicknessVersion = -1, maximumThickness = 0;
       return new InstanceDrawCompaction(mesh, () => {
         if (version !== (vectors as THREE.BufferAttribute).version) {
           version = (vectors as THREE.BufferAttribute).version; maximumVector = 0;
           for (let i = 0; i < vectors.count; i++) maximumVector = Math.max(maximumVector, Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)));
         }
-        // Exact bound for the bark shader: its two sine weights sum to one.
-        return .01 + Math.abs(windStrength.value) * .35 * maximumWeight * maximumVector;
-      });
+        if (thickness && thicknessVersion !== (thickness as THREE.BufferAttribute).version) {
+          thicknessVersion = (thickness as THREE.BufferAttribute).version; maximumThickness = 0;
+          for (let i = 0; i < thickness.count; i++) maximumThickness = Math.max(maximumThickness, Math.abs(thickness.getX(i)));
+        }
+        // Both sine weights sum to one. Leaf-tip flutter has bounded xyz
+        // amplitudes (1, .6, 1); retain whole trees at the frustum boundary.
+        const flutter = .05 * maximumThickness * maximumHeight * Math.sqrt(2.36);
+        return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutter);
+      }, Number(mesh.userData.k ?? 1));
     });
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
@@ -1743,7 +1762,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         casterBounds,
         cameraInteractionActive,
       );
-      for (const compaction of forest.compactedBranches ?? []) compaction.syncRenderState();
+      for (const compaction of forest.compactedDraws ?? []) compaction.syncRenderState();
       return {
         presentationChanged: fadeChanged
           || cameraUpdate.selectionChanged
@@ -1759,10 +1778,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       setSeedThreeForestSnowCoverage(forest, coverage),
     setDistantCanopyCardsEnabled: (enabled) =>
       setSeedThreeDistantCanopyCardsEnabled(forest, enabled),
-    setShadows: (enabled) => {
-      setSeedThreeForestShadows(forest, enabled);
-      for (const compaction of forest.compactedBranches ?? []) compaction.syncRenderState();
-    },
+    setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };
 }
