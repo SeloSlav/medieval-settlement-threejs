@@ -16,6 +16,7 @@
     "test:authored-gpu-animation-browser": "node scripts/testAuthoredGpuAnimationBrowser.mjs",
     "test:building-stock-instances": "node --experimental-strip-types scripts/testBuildingStockInstances.mts",
     "test:instance-draw-compaction-browser": "node scripts/testInstanceDrawCompactionBrowser.mjs",
+    "test:seasonal-surfaces-browser": "node scripts/testSeasonalSurfaceRenderingBrowser.mjs",
     "test:city-building-visuals": "node scripts/testBatchedBuildingGrowthBrowser.mjs city-regression --spatial --shadows",
     "benchmark:city": "node scripts/profileCityRuntime.mjs current-full-world --large",
     "test:batched-building-growth-browser": "node scripts/testBatchedBuildingGrowthBrowser.mjs",
