@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
@@ -903,6 +904,12 @@ export class BuildingMarkers {
         );
       }
       this.registerCampfires(marker);
+      // These state-owned buildings have no CPU-animated child transforms.
+      // Mills, clock hands, market stalls and camp effects keep their live trees.
+      if (!this.campfiresByMarker.has(marker)
+        && !['founders_camp', 'watermill', 'windmill', 'chapel', 'marketplace'].includes(building.kind)) {
+        installStaticTransformBoundary(marker);
+      }
       if (operational) {
         if (!marker.userData.staticBuildingBatchStats) {
           batchCompletedBuildingStaticMeshes(marker);
@@ -939,6 +946,7 @@ export class BuildingMarkers {
     if (operational || building.kind === 'salvage_pile') {
       syncBuildingVisualState(marker, building, livestock, issuedGuardPolearms);
     }
+    invalidateStaticTransformBoundary(marker);
     if (
       adoptedPendingFoundersCamp
       && foundersCampMatchesInitialVisualState(building)
