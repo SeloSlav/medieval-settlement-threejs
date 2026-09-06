@@ -17,6 +17,10 @@ export class InstanceDrawCompaction {
   private readonly point = new THREE.Vector3();
   private readonly previousProjection = new THREE.Matrix4();
   private readonly groupSize: number;
+  private readonly sortFrontToBack: boolean;
+  private readonly visibleGroups: number[] = [];
+  private readonly copyRanges: number[] = [];
+  private readonly viewMatrix = new THREE.Matrix4();
   private readonly layers: number;
   private readonly padding: number | (() => number);
   private matrixVersion = -1;
@@ -27,12 +31,13 @@ export class InstanceDrawCompaction {
   private previousReversedDepth = false;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number), groupSize = 1) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), groupSize = 1, sortFrontToBack = false) {
     if (!Number.isInteger(groupSize) || groupSize < 1) throw new Error('Instance group size must be a positive integer');
     if (source.geometry.getIndirect() || Array.isArray(source.material) || source.material.transparent) throw new Error('Instance compaction requires one opaque draw');
     const attributes = Object.entries(source.geometry.attributes);
     if (attributes.some(([, a]) => (a as THREE.InstancedBufferAttribute).isInstancedBufferAttribute && ((a as THREE.InstancedBufferAttribute).meshPerAttribute !== 1 || a.count < source.instanceMatrix.count))) throw new Error('Instance compaction requires complete per-instance attributes');
     this.source = source; this.padding = padding; this.layers = source.layers.mask; this.groupSize = groupSize;
+    this.sortFrontToBack = sortFrontToBack;
     const geometry = new THREE.BufferGeometry();
     geometry.name = source.geometry.name;
     geometry.userData = { ...source.geometry.userData, instanceCompactionDraw: true };
@@ -109,6 +114,7 @@ export class InstanceDrawCompaction {
     this.previousCoordinateSystem = camera.coordinateSystem; this.previousReversedDepth = camera.reversedDepth;
     this.frustum.setFromProjectionMatrix(this.projection, camera.coordinateSystem, camera.reversedDepth);
     let count = 0;
+    this.visibleGroups.length = 0;
     for (let group = 0; group < Math.ceil(source.count / this.groupSize); group++) {
       const at = group * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
       let visible = true;
@@ -117,8 +123,29 @@ export class InstanceDrawCompaction {
         if (normal.x * x + normal.y * y + normal.z * z + plane.constant < -radius) { visible = false; break; }
       }
       if (!visible) continue;
+      this.visibleGroups.push(group);
+    }
+    if (this.sortFrontToBack) {
+      const e = this.viewMatrix.multiplyMatrices(camera.matrixWorldInverse, source.matrixWorld).elements;
+      const bounds = this.bounds;
+      // Opaque foliage writes depth. Near trees reject covered fragments of
+      // farther trees while every authored leaf remains in its original tree.
+      this.visibleGroups.sort((a, b) => {
+        const dz = (bounds[b * 4]! - bounds[a * 4]!) * e[2]!
+          + (bounds[b * 4 + 1]! - bounds[a * 4 + 1]!) * e[6]!
+          + (bounds[b * 4 + 2]! - bounds[a * 4 + 2]!) * e[10]!;
+        return dz || a - b;
+      });
+    }
+    this.copyRanges.length = 0;
+    for (const group of this.visibleGroups) {
+      const start = group * this.groupSize;
       const end = Math.min((group + 1) * this.groupSize, source.count);
-      for (let i = group * this.groupSize; i < end; i++) {
+      const previous = this.copyRanges.length - 3;
+      if (previous >= 0 && this.copyRanges[previous]! + this.copyRanges[previous + 2]! === start) {
+        this.copyRanges[previous + 2]! += end - start;
+      } else this.copyRanges.push(start, count, end - start);
+      for (let i = start; i < end; i++) {
         if (this.selected[count] !== i) { this.selected[count] = i; changed = true; }
         count++;
       }
@@ -129,9 +156,9 @@ export class InstanceDrawCompaction {
     if (!changed) return;
     for (const pair of this.pairs) {
       const size = pair.source.itemSize, input = pair.source.array, output = pair.output.array;
-      for (let i = 0; i < count; i += this.groupSize) {
-        const start = this.selected[i]! * size;
-        output.set(input.subarray(start, start + Math.min(this.groupSize, count - i) * size), i * size);
+      for (let i = 0; i < this.copyRanges.length; i += 3) {
+        const start = this.copyRanges[i]! * size;
+        output.set(input.subarray(start, start + this.copyRanges[i + 2]! * size), this.copyRanges[i + 1]! * size);
       }
       pair.output.clearUpdateRanges(); pair.output.addUpdateRange(0, count * size); pair.output.needsUpdate = true;
     }

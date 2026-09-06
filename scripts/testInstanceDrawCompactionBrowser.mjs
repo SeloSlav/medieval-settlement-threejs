@@ -17,7 +17,7 @@ try {
     const { InstanceDrawCompaction } = await import('/src/scene/InstanceDrawCompaction.ts');
     const { renderer } = await createPreferredRenderer(); renderer.setSize(480,320);
     const reports = [];
-    for (const [indexed, groupSize] of [[true,1],[true,8],[false,8]]) {
+    for (const [indexed, groupSize, sorted] of [[true,1,false],[true,8,false],[false,8,true]]) {
     const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
     const geometry = indexed ? sourceGeometry : sourceGeometry.toNonIndexed();
     const n = 400, offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
@@ -35,7 +35,7 @@ try {
     actual.instanceMatrix.needsUpdate = expected.instanceMatrix.needsUpdate = true;
     const scenes = [new THREE.Scene(),new THREE.Scene()]; scenes[0].add(actual);scenes[1].add(expected);
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
-    const compaction = new InstanceDrawCompaction(actual,2,groupSize);
+    const compaction = new InstanceDrawCompaction(actual,2,groupSize,sorted);
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
     const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
     const frames = [];
@@ -63,7 +63,7 @@ try {
     compaction.dispose();
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
-    reports.push({indexed,groupSize,frames,restoredDifference});
+    reports.push({indexed,groupSize,sorted,frames,restoredDifference});
     target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();
     }
     renderer.dispose();return reports;

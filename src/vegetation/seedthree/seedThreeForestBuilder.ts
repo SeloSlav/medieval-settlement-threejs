@@ -1721,7 +1721,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         // amplitudes (1, .6, 1); retain whole trees at the frustum boundary.
         const flutter = .05 * maximumThickness * maximumHeight * Math.sqrt(2.36);
         return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutter);
-      }, Number(mesh.userData.k ?? 1));
+      }, Number(mesh.userData.k ?? 1), !!thickness);
     });
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),

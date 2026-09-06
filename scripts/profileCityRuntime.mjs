@@ -86,7 +86,7 @@ try {
     const baseRender=manager.render;
     manager.render=function(dt,...args){const begin=performance.now();dogs.sync(dogPoses,undefined,dt);phases.dogs=performance.now()-begin;return baseRender.call(this,dt,...args);};
     const reports=[];
-    for(const arm of ['terrain-and-camp','buildings','populated']) {
+    for(const arm of ['terrain-and-camp','buildings','populated',...(large?['populated-stationary','populated-camera-sweep']:[])]) {
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
@@ -95,10 +95,11 @@ try {
         app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:large?30:3},(_,i)=>({id:`perf-ox-${i}`,stableId:stableIds[Math.floor(i/3)%stableIds.length],slot:i%3,purchaseCost:10}))});
         if(large)for(let i=0;i<100;i++){const x=center.x+(i%20-10)*2,z=center.z+(Math.floor(i/20)-2)*3;dogPoses.push({id:`perf-dog-${i}`,faction:'dog',x,y:manager.terrain.getHeightAt(x,z),z,yaw:0,moveSpeed:1,status:'advancing'});}
       }
-      for(let i=0;i<120;i++)await new Promise(requestAnimationFrame);
+      for(let i=0;i<(arm.startsWith('populated-')?240:120);i++)await new Promise(requestAnimationFrame);
       if(arm==='populated')await window.__cityProfileStart();
       const samples=[]; let last;
-      for(let i=0;i<180;i++) {
+      for(let i=0;i<(arm.startsWith('populated-')?360:180);i++) {
+        if(arm==='populated-camera-sweep')app.cameraController.applyShowcaseView(center.x,center.z,.7+.4*Math.sin(i*Math.PI/180),.75,320);
         for(const k of Object.keys(phases)) phases[k]=0;
         const time=await new Promise(requestAnimationFrame);
         if(last!==undefined)samples.push({intervalMs:time-last,...phases});
@@ -110,8 +111,20 @@ try {
     return reports;
   }, large);
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
+  const summary=measured.map(({arm,samples,stats})=>{
+    const times=samples.map(s=>s.intervalMs).sort((a,b)=>a-b);
+    const mean=times.reduce((a,b)=>a+b,0)/times.length;
+    return {arm,meanFrameMs:mean,averageFps:1000/mean,medianFrameMs:times[Math.floor(times.length*.5)],p95FrameMs:times[Math.floor(times.length*.95)],meanRenderCpuMs:samples.reduce((a,b)=>a+b.render,0)/samples.length,stats};
+  });
+  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
+  if(process.argv.includes('--parity')) {
+    const parity=await page.evaluate(async()=> (await import('/scripts/fixtures/citySceneParity.js')).checkCitySceneParity());
+    writeFileSync(`${output}/scene-parity.json`,JSON.stringify(parity,null,2));
+    console.log('SCENE_PARITY',JSON.stringify(parity));
+    if(parity.some(frame=>frame.changedPixels>150))throw new Error('Full-world instance culling changed visible geometry or shadows');
+  }
   if (process.argv.includes('--keep')) {
     console.log('CITY_LAB_READY');
     for await (const line of createInterface({ input: process.stdin, terminal: false })) {

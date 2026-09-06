@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { retainDynamicRenderSubtree } from '../scene/StaticTransformBoundary.ts';
 
 const SMOKE_GEOMETRY = new THREE.SphereGeometry(1, 6, 4);
 const SMOKE_COLOR = 0xd4d8df;
@@ -48,6 +49,7 @@ export class ChimneySmokeEmitter {
   constructor(parent: THREE.Object3D, seed: number) {
     this.root = new THREE.Object3D();
     this.root.name = 'ChimneySmoke';
+    retainDynamicRenderSubtree(this.root);
     parent.add(this.root);
     this.timeUntilNextPuff = (seed % 97) / 97 * PUFF_INTERVAL_MAX_SEC;
   }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../src/scene/StaticTransformBoundary.ts';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary, isRetainedRenderSubtree } from '../src/scene/StaticTransformBoundary.ts';
 import { ChimneySmokeEmitter } from '../src/residences/ResidenceChimneySmoke.ts';
 
 const scene = new THREE.Scene(), parent = new THREE.Group(), house = new THREE.Group(), fixture = new THREE.Group();
@@ -33,12 +33,23 @@ const added = new THREE.Object3D(); added.position.set(7, 3, 1);
 house.add(added); expectedHouse.add(added.clone()); invalidateStaticTransformBoundary(house); compare();
 house.remove(added); expectedHouse.remove(expectedHouse.children[1]!); invalidateStaticTransformBoundary(house); compare();
 
+const retained = new THREE.Group(), stock = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+house.add(retained); retained.add(stock); stock.layers.mask = 0;
+invalidateStaticTransformBoundary(house); scene.updateMatrixWorld(true);
+assert.equal(isRetainedRenderSubtree(retained), true, 'A fully batched source keeps gameplay ownership without renderer traversal');
+stock.layers.mask = 1; stock.visible = false;
+invalidateStaticTransformBoundary(house); scene.updateMatrixWorld(true);
+assert.equal(isRetainedRenderSubtree(retained), false, 'Visibility may return between state updates');
+stock.visible = true;
+assert.equal(isRetainedRenderSubtree(stock), false);
+
 const chimney = new THREE.Object3D(); chimney.position.set(1, 6, 2); house.add(chimney);
 const smoke = new ChimneySmokeEmitter(chimney, 0); smoke.setActive(true);
 invalidateStaticTransformBoundary(house); scene.updateMatrixWorld(true);
 for (let i = 0; i < 12; i++) {
   smoke.tick(1 / 60); scene.updateMatrixWorld(true);
   const emitter = chimney.children[0]!;
+  assert.equal(isRetainedRenderSubtree(emitter), false, 'An initially empty smoke owner must remain in renderer traversal');
   assert.ok(emitter.children.length > 0);
   for (const puff of emitter.children) {
     const matrix = new THREE.Matrix4().compose(puff.position, puff.quaternion, puff.scale);

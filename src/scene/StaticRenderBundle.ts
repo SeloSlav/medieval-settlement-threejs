@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as WebGPU from 'three/webgpu';
 import type { WebGPURenderer } from 'three/webgpu';
 import { installShadowOverrideCache } from './ShadowOverrideCache.ts';
+import { isRetainedRenderSubtree } from './StaticTransformBoundary.ts';
 
 // BundleGroup exists in Three r185; the bundled ambient declarations omit it.
 const BundleGroup = (WebGPU as unknown as {
@@ -107,6 +108,7 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
     }
   };
   projectionRenderer._projectObject = function(object, camera, ...args) {
+    if (isRetainedRenderSubtree(object)) return;
     if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, false);
     original.call(this, object, camera, ...args);
   };
