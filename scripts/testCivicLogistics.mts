@@ -135,7 +135,6 @@ const stallTestBuilding = (
   constructionComplete: true,
   food: 0,
   ale: 0,
-  preservedFood: 0,
   honey: 0,
   firewood: 0,
   water: 0,
@@ -162,7 +161,7 @@ const stallTestBuilding = (
 const nearMarket = stallTestBuilding('10', 'marketplace', 10, 0);
 const farMarket = stallTestBuilding('20', 'marketplace', 100, 0);
 const stockedGranary = stallTestBuilding('30', 'granary', 0, 2, {
-  food: 20,
+  ryeBread: 20,
   ale: 12,
 });
 const stockedStorehouse = stallTestBuilding('40', 'village_storehouse', 2, 1, {
@@ -199,7 +198,7 @@ assert.deepEqual(
   marketStallRepresentative(
     stallTestBuilding('33', 'granary', 0, 1),
     { ...nearMarket, cheese: 6 },
-    'preservedFood',
+    'savoryPreserves',
   ),
   { commodityKind: 'cheese', displayKind: 'cheese' },
   'already-staged Marketplace stock should retain its exact counter display',
@@ -283,7 +282,7 @@ const standbyRoster = assignMarketplaceStallRoster(
   [
     nearMarket,
     farMarket,
-    { ...stockedGranary, assignedLabor: 4, food: 0, ale: 0 },
+    { ...stockedGranary, assignedLabor: 4, ryeBread: 0, ale: 0 },
   ],
   (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
 );
@@ -374,7 +373,9 @@ assert.match(admin, /require_owned_building\(ctx, "chapel", false\)/, 'parish po
 assert.match(admin, /require_owned_building\(ctx, "monastery", false\)/, 'monastery policy must live at a monastery');
 
 const hauling = fs.readFileSync('server/src/simulation/village_storehouse.rs', 'utf8');
-assert.match(hauling, /STOREHOUSE_OVERFLOW_THRESHOLD/);
+assert.match(hauling, /let collection_floor = producer_collection_floor\(/);
+const collectionPolicy = fs.readFileSync('server/src/storehouse_policy.rs', 'utf8');
+assert.match(collectionPolicy, /if is_forestry_output \{\s*0\.0\s*\} else \{\s*capacity\.max\(0\.0\) \* STOREHOUSE_OVERFLOW_THRESHOLD/);
 assert.match(hauling, /"lumber_mill"[\s\S]*CommodityKind::Timber/);
 assert.match(hauling, /"stone_quarry"[\s\S]*CommodityKind::Stone/);
 assert.match(hauling, /"woodcutters_lodge"[\s\S]*CommodityKind::Firewood/);
@@ -433,7 +434,11 @@ assert.match(inspector, /data-policy-chapel-sabbath/);
 assert.match(inspector, /data-policy-monastery-tithe/);
 assert.match(inspector, /data-storehouse-accepts-timber/);
 const bootstrap = fs.readFileSync('src/app/appBootstrap.ts', 'utf8');
-assert.match(bootstrap, /resourceInspector\.selectBuilding\(townHall\.id\)/);
+assert.match(
+  bootstrap,
+  /onToggleCityAdministration:[\s\S]*?settlements\.values\(\)[\s\S]*?settlement\.active[\s\S]*?townReport\.open\(communities\[0\]\.id\)/,
+  'administration should open the nearest active community report even after its temporary camp retires',
+);
 assert.doesNotMatch(bootstrap, /new CityAdministrationPanel/);
 
 console.log('Town Hall, Marketplace, and village storehouse gameplay tests passed');

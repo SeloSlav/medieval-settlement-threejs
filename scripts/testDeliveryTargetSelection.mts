@@ -106,14 +106,13 @@ assert.ok(
 );
 assert.match(
   expandedEconomy,
-  /dispatch_polearms_to_guardhouse[\s\S]*?select_guardhouse_armament_candidate\(/,
-  'polearm push routes should use the one-pass company-priority selector',
+  /pub fn step_military_requisitions[\s\S]*?military_equipment_costs\(cost\)[\s\S]*?request_connected_commodity\([\s\S]*?equipment_source_kinds\(commodity\)/,
+  'mustering companies should request their exact finished kits through ordinary indexed supply routes',
 );
-const frontierEconomyPolicy = read('server/src/frontier_economy_policy.rs');
 assert.match(
-  frontierEconomyPolicy,
-  /select_guardhouse_armament_candidate<T>[\s\S]{0,700}\.min_by/,
-  'company-priority armament dispatch must remain a one-pass minimum selection',
+  expandedEconomy,
+  /pub fn step_military_requisitions[\s\S]*?if !complete \{\s*continue;\s*\}[\s\S]*?if !all_at_muster \{\s*continue;\s*\}[\s\S]*?withdraw_building_commodity\(&mut source, commodity, amount as f64\)/,
+  'equipment must be withdrawn only after every kit is onsite and all mustering members have arrived',
 );
 assert.doesNotMatch(expandedEconomy, /(?:targets|sources)\.sort_by/);
 assert.ok(
@@ -167,9 +166,13 @@ assert.match(
 const woodcuttersLodge = read('server/src/simulation/woodcutters_lodge.rs');
 assert.match(
   woodcuttersLodge,
-  /find_nearest_mature_tree/,
-  'woodcutters should select a mature tree instead of a timber-supply building',
+  /super::forestry::step_forestry\(ctx, tick, clock, building\)/,
+  'woodcutters should use the shared standing-tree, log, and physical-haul lifecycle',
 );
+const forestry = read('server/src/simulation/forestry.rs');
+assert.match(forestry, /trees_in_work_area\(ctx, area\)[\s\S]*?tree_work_area_contains\(area, tree\.x, tree\.z\)/);
+assert.match(forestry, /tree\.harvest_owner\.is_none_or\(\|owner\| owner == building\.owner\)/);
+assert.match(forestry, /try_start_forestry_trip\(ctx, tick, clock, &building, tree, index, commodity\)/);
 assert.doesNotMatch(
   woodcuttersLodge,
   /select_supply_route_candidate|local_delivery_distance|road_path_route/,

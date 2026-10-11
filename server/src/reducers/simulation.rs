@@ -40,6 +40,8 @@ use crate::tables::{Building, Residence, SimPacingState};
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSchedule) {
     #[cfg(feature = "local-loadtest")]
     let _heartbeat_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm heartbeat");
+    #[cfg(feature = "local-loadtest")]
+    let heartbeat_phase = spacetimedb::log_stopwatch::LogStopwatch::new("heartbeat setup");
     let Some(config) = ctx.db.world_config().id().find(&0) else {
         return;
     };
@@ -95,10 +97,12 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     let realm_clock = crate::realm::ENABLED.then(|| crate::realm::advance_clock(ctx));
     let substeps = realm_clock.as_ref().map_or(substeps, |clock| clock.steps);
     let wall_seconds = realm_clock.as_ref().map_or(TICK_DT, |clock| clock.elapsed_micros as f64 / 1_000_000.0);
+    phase!(heartbeat_phase, "heartbeat surveyors");
     crate::realm::step_scouts(ctx, wall_seconds);
     retire_legacy_food_items(ctx);
     let has_delivery_trips = ctx.db.delivery_trip().iter().next().is_some();
     let has_combat_agents = ctx.db.combat_agent().iter().next().is_some();
+    phase!(heartbeat_phase, "heartbeat roads");
     let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)
         .then(|| SimTickContext::load_road_networks(ctx));
 
@@ -110,6 +114,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // Advance already-departed carts on every scheduler heartbeat using the
     // same authoritative rate as the calendar and economy. Named holy days
     // block new dispatch below, but never strand a real crew or its cargo.
+    phase!(heartbeat_phase, "heartbeat deliveries");
     if has_delivery_trips {
         let delivery_tick = SimTickContext::with_road_networks(
             shared_road_networks
@@ -126,6 +131,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // Live people and carts share the same wall-clock movement cadence. Raid
     // agents therefore advance on every scheduler heartbeat at the selected
     // speed instead of waiting for sparse economy/calendar substeps.
+    phase!(heartbeat_phase, "heartbeat combat");
     if !holiday_protected {
         // One shared pre-heartbeat snapshot makes the final steering solve the
         // sole authoritative integration for every combat faction.
@@ -181,6 +187,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             });
         }
     }
+    phase!(heartbeat_phase, "heartbeat economy");
     for _ in 0..substeps {
         run_one_sim_tick(
             ctx,
@@ -190,7 +197,9 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
                 .clone(),
         );
     }
+    phase!(heartbeat_phase, "heartbeat fog");
     crate::realm::refresh_fog(ctx);
+    phase!(heartbeat_phase, "heartbeat entities");
     if substeps > 0 { crate::realm::refresh_entities(ctx); }
     else { crate::realm::refresh_mobile_entities(ctx); }
 }
@@ -575,11 +584,14 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     drop(_phase);
     #[cfg(feature = "local-loadtest")]
     let logistics_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm logistics");
+    #[cfg(feature = "local-loadtest")]
+    let logistics_phase = spacetimedb::log_stopwatch::LogStopwatch::new("military requisitions");
     step_military_requisitions(ctx, &tick, &clock);
 
     // Local producers have now completed this tick's work. Match their free
     // carts together so workshop urgency and road length, rather than source
     // construction order, decide iron, salt, clay, charcoal, tool, and pottery routes.
+    phase!(logistics_phase, "material dispatch");
     let local_material_sources = local_material_source_ids
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
@@ -590,6 +602,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // to its six-cycle target. Remaining carts maintain one combined,
     // population- and season-scaled Marketplace reserve, preferring charcoal
     // so processed fuel does not stagnate in storage.
+    phase!(logistics_phase, "depot stalls");
     let household_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
@@ -597,6 +610,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_storehouse_market_stalls(ctx, &tick, &clock, environment, household_storehouses);
 
     // Depots whose carts remain free may feed other firewood-burning workshops.
+    phase!(logistics_phase, "depot firewood");
     let industrial_firewood_sources = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
@@ -604,6 +618,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
 
     // Only then may an idle depot collect the fullest producer overflow.
+    phase!(logistics_phase, "depot collection");
     let village_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
@@ -613,12 +628,14 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Producers have finished their own specialty-reserve duties. Their output
     // now moves to staffed granaries or other institutional consumers; only
     // depot workers subsequently stock the household Marketplace stalls.
+    phase!(logistics_phase, "institutional food");
     let institutional_food_sources = institutional_food_source_ids
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
         .collect();
     step_institutional_food_dispatch(ctx, &tick, &clock, institutional_food_sources);
 
+    phase!(logistics_phase, "guardhouses");
     for building_id in guardhouse_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -626,13 +643,17 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_guardhouse(ctx, &tick, &clock, building);
     }
 
+    phase!(logistics_phase, "backyard gardens");
     step_backyard_gardens(ctx, &tick, &clock, environment);
+    phase!(logistics_phase, "food spoilage");
     step_fresh_food_spoilage(ctx, &clock, environment, world_seed, food_spoilage_rate);
     // Physical hauling ends at stalls. Several checks per game day issue real
     // market stock to connected homes after local production, intake, and
     // spoilage without multiplying the household's monthly target lot.
     #[cfg(feature = "local-loadtest")]
     drop(logistics_timer);
+    #[cfg(feature = "local-loadtest")]
+    drop(logistics_phase);
     #[cfg(feature = "local-loadtest")]
     let households_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm households");
     drop(labor_roster_cache);
@@ -686,7 +707,15 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     }
     #[cfg(feature = "local-loadtest")]
     drop(households_timer);
+    // Household steps can change the healthy population. Start a fresh roster
+    // cache for burial/reclamation/founders' hauling; cart and military labor
+    // reservations are still read live, as in the production phase above.
+    let _tail_labor_cache = crate::economy::cache_production_labor_rosters();
+    #[cfg(feature = "local-loadtest")]
+    let tail_phase = spacetimedb::log_stopwatch::LogStopwatch::new("burials");
     step_burials(ctx, &tick, &clock, TICK_DT);
+    phase!(tail_phase, "reclamation");
     step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
+    phase!(tail_phase, "founding sites");
     step_founding_sites(ctx, &tick, &clock);
 }

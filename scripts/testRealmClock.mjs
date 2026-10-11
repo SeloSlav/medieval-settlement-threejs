@@ -60,7 +60,7 @@ const report = { clients: clientCount, elapsedSeconds, ticks, expectedTicks,
   maxObservedQueryMs: Math.max(...samples.map(s => s.queryMs)),
   maximumLagMs: Math.max(...samples.map(s => s.lagMs)), samples };
 mkdirSync('artifacts', { recursive: true });
-writeFileSync('artifacts/realm-clock-report.json', JSON.stringify(report, null, 2));
+writeFileSync(process.env.REALM_CLOCK_OUTPUT || 'artifacts/realm-clock-report.json', JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));
 assert(Math.abs(ticks - expectedTicks) <= Math.max(3, expectedTicks * 0.02),
   `Shared clock misses five-minute day: measured ${report.projectedDaySeconds.toFixed(1)} seconds/day`);

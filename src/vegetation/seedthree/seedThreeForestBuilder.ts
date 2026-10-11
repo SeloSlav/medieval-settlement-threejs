@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { isMultiplayer } from '../../multiplayer/gameMode.ts';
 import { InstanceDrawCompaction } from '../../scene/InstanceDrawCompaction.ts';
 import { StaticRenderBundle } from '../../scene/StaticRenderBundle.ts';
+import { setExactInstancePrototype } from '../../scene/ExactInstancePrototype.ts';
 import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
@@ -321,6 +322,7 @@ function createInstancedLodSet(
     if (includeBranches && child.type === 'Mesh' && !instancedChild.isInstancedMesh) {
       const mesh = child as THREE.Mesh;
       const geo = mesh.geometry.clone();
+      setExactInstancePrototype(geo,mesh.geometry);
       geo.userData.forestClone = true;
       geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
@@ -355,6 +357,7 @@ function createInstancedLodSet(
         const cardsPerTree = instanced.count;
         const total = cardsPerTree * groupCount;
         const geo = instanced.geometry.clone();
+        setExactInstancePrototype(geo,instanced.geometry);
         geo.userData.forestClone = true;
         const thickness = new Float32Array(total);
         for (let t = 0; t < total; t++) thickness[t] = 0.4 + 0.6 * rng.next();

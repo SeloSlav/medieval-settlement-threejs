@@ -1,7 +1,8 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
-const output = 'artifacts/realm-browser';
+const output = process.env.REALM_BROWSER_OUTPUT || 'artifacts/realm-browser';
+const forestBatches = process.env.REALM_BROWSER_FOREST_BATCHES !== '0';
 mkdirSync(output, { recursive: true });
 const { tokens } = JSON.parse(readFileSync('.tmp-realm-test-clients.json', 'utf8'));
 const database = process.env.REALM_TEST_DB || 'city-builder-realm-loadtest';
@@ -32,6 +33,12 @@ await context.addInitScript(({ token, database }) => {
 await page.route('**/src/main.ts*', async route => {
   const response = await route.fetch();
   await route.fulfill({ response, body: (await response.text()).replace('const app = new App(root);', 'const app = new App(root); window.__realmApp = app;') });
+});
+if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*', async route => {
+  const response = await route.fetch(), source = await response.text();
+  const registration = 'batches.add(tile.group);';
+  if (!source.includes(registration)) throw Error('Forest reference route no longer matches the production registration');
+  await route.fulfill({ response, body: source.replace(registration, '') });
 });
   const address = new URL(process.env.REALM_BROWSER_URL || 'http://127.0.0.1:5190/');
   if (!['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw Error('Local browser test only');
@@ -97,6 +104,11 @@ await page.route('**/src/main.ts*', async route => {
       frames: sorted.length, meanMs: sorted.reduce((a, b) => a + b, 0) / sorted.length,
       p95Ms: sorted[Math.floor(sorted.length * 0.95)], p99Ms: sorted[Math.floor(sorted.length * 0.99)],
       stream: app.realmPresentation.terrainStream.stream.stats,
+      forest: (() => {
+        const root = app.sceneManager.scene.getObjectByName('Streamed realm woodland');
+        return { stream: root?.userData.realmStream?.stats, colorBatches: root?.userData.realmInstanceBatches?.stats(),
+          shadowBatches: root?.userData.realmInstanceBatches?.stats(true) };
+      })(),
       stats: window.__medievalRoadStats, buildings: app.gameState.buildings.size,
       meshes: meshes.sort((a, b) => b.triangles - a.triangles).slice(0, 25),
       profile: window.__visualPerf.getReport(),
@@ -116,6 +128,7 @@ await page.route('**/src/main.ts*', async route => {
   Object.assign(report, completedProfile);
   report.berryDraws = berryDraws;
   report.clients = loadClients + 1;
+  report.forestBatchesEnabled = forestBatches;
   report.terrainBuffers = await page.evaluate(() => window.__realmApp.realmPresentation.terrainStream.stats);
   report.frameBudget = { targetMs: 1000 / 60, passed: report.p95Ms <= 1000 / 60,
     criterion: '95% of measured frame intervals at or below 16.67 ms' };

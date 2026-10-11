@@ -1227,6 +1227,15 @@ pub fn step_local_material_dispatch(
 ) {
     let mut candidates = Vec::new();
     let market_fuel_shortfalls = marketplace_fuel_shortfalls(ctx, tick, environment);
+    // Candidate matching is read-only. Several producers and commodities can
+    // inspect the same destination, so deserialize it and check inbound carts
+    // once here. Dispatch below still reads every selected row and cart live.
+    let mut target_rows = HashMap::<u64, Option<Building>>::new();
+    let mut target_inbound = HashMap::<u64, bool>::new();
+    let mut target_plans = HashMap::<
+        (u64, u8),
+        Option<(ProcessorInputDispatchDuty, f64, f64)>,
+    >::new();
 
     for source in &sources {
         if !LOCAL_MATERIAL_SOURCE_KINDS.contains(&source.kind.as_str())
@@ -1254,29 +1263,36 @@ pub fn step_local_material_dispatch(
                 continue;
             }
             for target_id in tick.building_ids_for_kinds(ctx, source.owner, target_kinds) {
-                let Some(target) = ctx.db.building().id().find(&target_id) else {
+                let Some(target) = target_rows
+                    .entry(target_id)
+                    .or_insert_with(|| ctx.db.building().id().find(&target_id))
+                    .as_ref()
+                else {
                     continue;
                 };
-                if target.id == source.id
-                    || target.kind == "trading_post"
-                    || !target.construction_complete
-                    || tick.building_disabled_by_fire(ctx, target.id)
-                    || !processor_requests_input(&target, commodity)
-                    || !processor_accepts_input(&target, commodity)
-                    || !extraction_accepts_maintenance_input(ctx, &target, commodity)
-                    || building_commodity_room(&target, commodity) <= 1e-6
-                    || building_has_inbound_supply_trip(ctx, target.id)
-                {
+                if target.id == source.id || target.kind == "trading_post" {
                     continue;
                 }
-                let target_plan = if target.kind == "village_storehouse"
-                    && commodity == CommodityKind::Charcoal
-                {
-                    storehouse_charcoal_transit_plan(ctx, tick, &target, &market_fuel_shortfalls)
-                } else {
-                    local_material_target_plan(&target, commodity)
-                };
-                let Some((duty, desired_stock, runway_cycles)) = target_plan else {
+                let target_plan = target_plans.entry((target.id, commodity.as_u8()))
+                    .or_insert_with(|| {
+                        if !target.construction_complete
+                            || tick.building_disabled_by_fire(ctx, target.id)
+                            || !processor_requests_input(target, commodity)
+                            || !processor_accepts_input(target, commodity)
+                            || !extraction_accepts_maintenance_input(ctx, target, commodity)
+                            || building_commodity_room(target, commodity) <= 1e-6
+                            || *target_inbound.entry(target.id)
+                                .or_insert_with(|| building_has_inbound_supply_trip(ctx, target.id))
+                        {
+                            return None;
+                        }
+                        if target.kind == "village_storehouse" && commodity == CommodityKind::Charcoal {
+                            storehouse_charcoal_transit_plan(ctx, tick, target, &market_fuel_shortfalls)
+                        } else {
+                            local_material_target_plan(target, commodity)
+                        }
+                    });
+                let Some((duty, desired_stock, runway_cycles)) = *target_plan else {
                     continue;
                 };
                 let Some(distance) =
@@ -1289,7 +1305,7 @@ pub fn step_local_material_dispatch(
                 }
                 let candidate = LocalMaterialDispatchCandidate {
                     source_id: source.id,
-                    building: target,
+                    building: target.clone(),
                     commodity,
                     distance,
                     duty,
@@ -1302,6 +1318,9 @@ pub fn step_local_material_dispatch(
     }
 
     sort_local_material_candidates(&mut candidates);
+    drop(target_rows);
+    drop(target_inbound);
+    drop(target_plans);
 
     let mut used_sources = HashSet::new();
     let mut used_targets = HashSet::new();

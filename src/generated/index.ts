@@ -61,8 +61,6 @@ import DisbandMilitiaReducer from "./disband_militia_reducer";
 import EnterWorldReducer from "./enter_world_reducer";
 import GrantCheatResourcesReducer from "./grant_cheat_resources_reducer";
 import HireMercenaryCompanyReducer from "./hire_mercenary_company_reducer";
-import LoadtestSeedTownReducer from "./loadtest_seed_town_reducer";
-import LoadtestSurveyorLossReducer from "./loadtest_surveyor_loss_reducer";
 import MarketplaceTradeReducer from "./marketplace_trade_reducer";
 import OrderRealmScoutReducer from "./order_realm_scout_reducer";
 import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
@@ -489,8 +487,6 @@ const reducersSchema = __reducers(
   __reducerSchema("enter_world", EnterWorldReducer),
   __reducerSchema("grant_cheat_resources", GrantCheatResourcesReducer),
   __reducerSchema("hire_mercenary_company", HireMercenaryCompanyReducer),
-  __reducerSchema("loadtest_seed_town", LoadtestSeedTownReducer),
-  __reducerSchema("loadtest_surveyor_loss", LoadtestSurveyorLossReducer),
   __reducerSchema("marketplace_trade", MarketplaceTradeReducer),
   __reducerSchema("order_realm_scout", OrderRealmScoutReducer),
   __reducerSchema("place_backyard_garden", PlaceBackyardGardenReducer),

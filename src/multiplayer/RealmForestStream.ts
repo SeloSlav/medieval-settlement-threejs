@@ -5,6 +5,7 @@ import type { ForestTreePlacement } from '../props/forestPlacements.ts';
 import { createSeedThreeForest, createSeedThreeForestController } from '../vegetation/seedthree/seedThreeForestBuilder.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import { ChunkStream } from './ChunkStream.ts';
+import { StreamedInstanceBatches } from '../scene/StreamedInstanceBatches.ts';
 import { REALM_CHUNKS_PER_SIDE, chunkBounds, worldChunk } from './realmPolicy.ts';
 
 type Tile = { group: THREE.Group; controller: SeedThreeForestController; dispose(): void };
@@ -12,6 +13,7 @@ type Tile = { group: THREE.Group; controller: SeedThreeForestController; dispose
 export async function createRealmForestStream(placements: ForestTreePlacement[],
   terrain: Pick<Terrain, 'getHeightAt' | 'generationSize'>, anisotropy: number, seed: number, renderer: WebGPURenderer) {
   const group = new THREE.Group(); group.name = 'Streamed realm woodland';
+  const batches = new StreamedInstanceBatches(); group.add(batches.root);
   // Bake shared species once during startup, before the normal renderer owns the GPU.
   const prepared = await createSeedThreeForest([], terrain, anisotropy, seed, renderer);
   const empty = createSeedThreeForestController(prepared);
@@ -40,8 +42,8 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
       const tile: Tile = { group: forest.group, controller, dispose: () => { controller.dispose(); forest.group.removeFromParent(); loaded.delete(id); } };
       loaded.set(id, tile); return tile;
     },
-    attach: (id, tile) => { attached.set(id, tile); group.add(tile.group); tile.group.updateMatrixWorld(true); },
-    detach: (id, tile) => { attached.delete(id); group.remove(tile.group); },
+    attach: (id, tile) => { attached.set(id, tile); group.add(tile.group); tile.group.updateMatrixWorld(true); batches.add(tile.group); },
+    detach: (id, tile) => { attached.delete(id); batches.remove(tile.group); group.remove(tile.group); },
     onError: (id, error) => console.error(`[Realm woodland ${id}]`, error),
   });
   const eachLoaded = (fn: (c: SeedThreeForestController) => void) => { for (const tile of loaded.values()) fn(tile.controller); };
@@ -72,6 +74,8 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
         const state=tile.controller.updateCamera(camera,distance,firstPerson,bounds,interacting,dt);
         changed=state.shadowCastersChanged||changed; presentationChanged=state.presentationChanged||presentationChanged;
       }
+      const batchUpdate=batches.prepare();
+      changed=batchUpdate.shadowChanged||changed; presentationChanged=batchUpdate.changed||presentationChanged;
       return {presentationChanged,shadowCastersChanged:changed};
     },
     getStructuralStats: () => {
@@ -80,6 +84,7 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
         const s=tile.controller.getStructuralStats(); result.draws+=s.draws; result.triangles+=s.triangles; result.instances+=s.instances;
         result.trees.nearTrees+=s.trees.nearTrees; result.trees.overviewTrees+=s.trees.overviewTrees; result.trees.visibleTrees+=s.trees.visibleTrees;
       }
+      const batchStats=batches.stats(); result.draws-=batchStats.sourceDraws-batchStats.draws;
       result.trees.totalTrees=placements.length; result.trees.culledTrees=placements.length-result.trees.visibleTrees; return result;
     },
     getProfileBreakdown: () => {
@@ -90,14 +95,16 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
           result[key].draws+=s[key].draws; result[key].triangles+=s[key].triangles; result[key].instances+=s[key].instances;
         }
       }
+      const batchStats=batches.stats(); result.submittedColor.draws-=batchStats.sourceDraws-batchStats.draws;
       return result;
     },
     setDeciduousFoliage: value => {season=value;eachLoaded(c=>c.setDeciduousFoliage(value));},
     setSnowCoverage: value => {snow=value;eachLoaded(c=>c.setSnowCoverage(value));},
     setDistantCanopyCardsEnabled: value => {distantCards=value;eachLoaded(c=>c.setDistantCanopyCardsEnabled(value));},
     setShadows: value => {shadows=value;eachLoaded(c=>c.setShadows(value));},
-    dispose: () => {stream.dispose();empty.dispose();group.removeFromParent();},
+    dispose: () => {stream.dispose();batches.dispose();empty.dispose();group.removeFromParent();},
   };
   group.userData.realmStream = stream;
+  group.userData.realmInstanceBatches = batches;
   return {group,controller};
 }

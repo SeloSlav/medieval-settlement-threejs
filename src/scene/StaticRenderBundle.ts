@@ -67,6 +67,7 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   type RenderObject = { object: THREE.Mesh; getDrawParameters(): { vertexCount: number; instanceCount: number } | null };
   type BundleData = { renderObjects?: RenderObject[]; version?: number };
   type ProjectionRenderer = {
+    _renderScene(...args: unknown[]): unknown;
     _projectObject(object: THREE.Object3D, camera: THREE.Camera, ...args: unknown[]): void;
     _renderBundle(bundle: { bundleGroup: StaticRenderBundle; camera: THREE.Camera }, ...args: unknown[]): void;
     _currentRenderContext: object;
@@ -78,8 +79,18 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   };
   const projectionRenderer = renderer as unknown as ProjectionRenderer;
   const original = projectionRenderer._projectObject;
+  const renderScene = projectionRenderer._renderScene;
   const renderBundle = projectionRenderer._renderBundle;
   const statistics = new WeakMap<BundleData, { draws: number; triangles: number }>();
+  projectionRenderer._renderScene = function(...args) {
+    // A light can render an entire shadow scene while recording the outer
+    // color bundle. Ordinary shadow casters must not enter that color bundle's
+    // refresh list or workload statistics. Restore its owner after the scene.
+    const parentBundle = this._currentRenderBundle;
+    this._currentRenderBundle = null;
+    try { return renderScene.call(this, ...args); }
+    finally { this._currentRenderBundle = parentBundle; }
+  };
   projectionRenderer._renderBundle = function(bundle, ...args) {
     if (!bundle.bundleGroup.isCityStaticRenderBundle) return renderBundle.call(this, bundle, ...args);
     const parentBundle = this._currentRenderBundle;

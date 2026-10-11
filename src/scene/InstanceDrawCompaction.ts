@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { StorageInstancedBufferAttribute } from 'three/webgpu';
+import { inheritExactInstancePrototype } from './ExactInstancePrototype.ts';
 
 type AttributePair = { source: THREE.InstancedBufferAttribute; output: THREE.InstancedBufferAttribute; version: number };
 
@@ -36,6 +37,7 @@ export class InstanceDrawCompaction {
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
     this.skipCollapsed = options.skipCollapsed === true;
     const geometry = new THREE.BufferGeometry();
+    inheritExactInstancePrototype(geometry, source.geometry);
     geometry.name = source.geometry.name;
     geometry.userData = { ...source.geometry.userData, instanceCompactionDraw: true };
     if (source.geometry.index) geometry.setIndex(source.geometry.index);

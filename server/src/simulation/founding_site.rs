@@ -1,6 +1,7 @@
 //! Lifecycle for the temporary founders' shelter and its open stockyard.
 
-use spacetimedb::ReducerContext;
+use spacetimedb::{Identity, ReducerContext};
+use std::collections::HashMap;
 
 use crate::balance_generated::{
     STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
@@ -22,6 +23,18 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
+
+#[derive(Default)]
+struct FoundingReservations {
+    timber: f64,
+    stone: f64,
+    ironwork: f64,
+    roof_tiles: f64,
+}
+
+// Construction and household projects have finished their step before this
+// phase. Relocation changes camps and inbound carts, never project reserves.
+type ReservationCache = HashMap<Identity, FoundingReservations>;
 /// While founders still occupy the shelter, move a household food load before
 /// draining the much larger fuel pile. Ironwork remains eligible so the
 /// maintenance chain can bootstrap before every founder is housed.
@@ -51,15 +64,13 @@ fn founding_relocation_load_amount(relocatable: f64, target_room: f64) -> f64 {
 }
 
 pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
+    let mut reservations = ReservationCache::new();
     let site_ids = ctx
         .db
         .building()
         .kind()
         .filter("founders_camp")
-        .filter(|building| {
-            building.construction_complete
-                && building.settlement_id != 0
-        })
+        .filter(|building| building.construction_complete && building.settlement_id != 0)
         .map(|building| building.id)
         .collect::<Vec<_>>();
 
@@ -81,7 +92,8 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
             site_changed = true;
         }
 
-        let town_hall = first_completed_building(ctx, site.owner, site.settlement_id, "town_hall");
+        let town_hall =
+            first_completed_building(ctx, tick, site.owner, site.settlement_id, "town_hall");
         if let Some(ref town_hall) = town_hall {
             if site.gold > EPSILON
                 && !building_has_active_trip(ctx, site.id)
@@ -111,7 +123,14 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
         let starter_supplies_only = site.founding_shelter_active;
         if !building_has_active_trip(ctx, site.id)
             && available_free_haulers(ctx, site.owner) > 0
-            && try_start_stockyard_relocation(ctx, tick, clock, &mut site, starter_supplies_only)
+            && try_start_stockyard_relocation(
+                ctx,
+                tick,
+                clock,
+                &mut site,
+                starter_supplies_only,
+                &mut reservations,
+            )
         {
             site_changed = true;
         }
@@ -168,32 +187,40 @@ fn try_start_stockyard_relocation(
     clock: &GameClock,
     site: &mut Building,
     starter_supplies_only: bool,
+    reservations: &mut ReservationCache,
 ) -> bool {
     let Some(network) = tick.road_network(site.owner) else {
         return false;
     };
 
+    // Failed choices do not mutate target stock; success returns immediately.
+    // Fetch the current settlement's rows once instead of once per commodity.
+    let targets: Vec<Building> = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&site.owner)
+        .filter(|candidate| {
+            candidate.id != site.id
+                && candidate.settlement_id == site.settlement_id
+                && candidate.construction_complete
+                && !tick.building_disabled_by_fire(ctx, candidate.id)
+        })
+        .collect();
     for &commodity in founding_relocation_commodities(starter_supplies_only) {
-        let relocatable = relocatable_stock(ctx, site, commodity);
+        let relocatable = relocatable_stock(ctx, site, commodity, reservations);
         if relocatable <= EPSILON {
             continue;
         }
 
-        let target = ctx
-            .db
-            .building()
-            .owner()
-            .filter(&site.owner)
-            .filter(|candidate| {
-                candidate.id != site.id
-                    && candidate.settlement_id == site.settlement_id
-                    && candidate.construction_complete
-                    && !tick.building_disabled_by_fire(ctx, candidate.id)
-                    && !building_has_conflicting_inbound_supply_trip(ctx, candidate, commodity)
-            })
+        let target = targets
+            .iter()
             .filter_map(|candidate| {
                 let (priority, room) =
-                    founding_destination_room(&candidate, commodity, starter_supplies_only)?;
+                    founding_destination_room(candidate, commodity, starter_supplies_only)?;
+                if building_has_conflicting_inbound_supply_trip(ctx, candidate, commodity) {
+                    return None;
+                }
                 let distance =
                     local_delivery_distance(&network, site.x, site.z, candidate.x, candidate.z)?;
                 Some((candidate, priority, room, distance))
@@ -214,7 +241,7 @@ fn try_start_stockyard_relocation(
             clock,
             network,
             site,
-            &target,
+            target,
             commodity,
             TIMBER_DELIVERY_SPEED_MPS,
             TIMBER_DELIVERY_UNLOAD_SEC,
@@ -278,88 +305,85 @@ fn founding_destination_priority(
     reclamation_destination_priority(commodity, kind)
 }
 
-fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: CommodityKind) -> f64 {
+fn relocatable_stock(
+    ctx: &ReducerContext,
+    site: &Building,
+    commodity: CommodityKind,
+    reservations: &mut ReservationCache,
+) -> f64 {
     let stock = building_commodity_stock(site, commodity).max(0.0);
+    if stock <= EPSILON {
+        return 0.0;
+    }
     let reserved = match commodity {
         CommodityKind::Timber
         | CommodityKind::Stone
         | CommodityKind::Ironwork
         | CommodityKind::RoofTiles => {
-            let construction_reserved: f64 = ctx
-                .db
-                .building()
-                .owner()
-                .filter(&site.owner)
-                .filter(|building| !building.construction_complete)
-                .map(|building| match commodity {
-                    CommodityKind::Timber => (building.construction_reserved_timber
-                        - building.construction_treasury_timber)
-                        .max(0.0),
-                    CommodityKind::Stone => (building.construction_reserved_stone
-                        - building.construction_treasury_stone)
-                        .max(0.0),
-                    CommodityKind::Ironwork => (building.construction_reserved_ironwork
-                        - building.construction_treasury_ironwork)
-                        .max(0.0),
-                    CommodityKind::RoofTiles => (building.construction_reserved_roof_tiles
-                        - building.construction_treasury_roof_tiles).max(0.0),
-                    CommodityKind::DressedStone => (building.construction_reserved_dressed_stone
-                        - building.construction_treasury_dressed_stone)
-                        .max(0.0),
-                    _ => 0.0,
-                })
-                .sum();
-            let residence_reserved: f64 = if matches!(
-                commodity,
-                CommodityKind::Ironwork | CommodityKind::RoofTiles
-            ) {
-                if commodity == CommodityKind::RoofTiles {
-                    ctx.db
-                        .residence()
-                        .owner()
-                        .filter(&site.owner)
-                        .filter(|residence| {
-                            residence_project_active(
-                                residence.upgrade_target_tier,
-                                residence.tier,
-                                residence.backyard_project_kind,
-                                residence.fire_repair_active,
-                                residence.decay_repair_active,
-                                residence.roof_tile_retrofit_active,
-                            )
-                        })
-                        .map(|residence| residence.upgrade_reserved_roof_tiles.max(0.0))
-                        .sum()
-                } else {
-                    0.0
-                }
-            } else {
-                ctx.db
-                    .residence()
-                    .owner()
-                    .filter(&site.owner)
-                    .filter(|residence| {
-                        residence_project_active(
-                            residence.upgrade_target_tier,
-                            residence.tier,
-                            residence.backyard_project_kind,
-                            residence.fire_repair_active,
-                            residence.decay_repair_active,
-                            residence.roof_tile_retrofit_active,
-                        )
-                    })
-                    .map(|residence| match commodity {
-                        CommodityKind::Timber => residence.upgrade_reserved_timber.max(0.0),
-                        CommodityKind::Stone => residence.upgrade_reserved_stone.max(0.0),
-                        _ => 0.0,
-                    })
-                    .sum()
-            };
-            construction_reserved + residence_reserved
+            let owner_reservations = reservations
+                .entry(site.owner)
+                .or_insert_with(|| load_founder_reservations(ctx, site.owner));
+            match commodity {
+                CommodityKind::Timber => owner_reservations.timber,
+                CommodityKind::Stone => owner_reservations.stone,
+                CommodityKind::Ironwork => owner_reservations.ironwork,
+                CommodityKind::RoofTiles => owner_reservations.roof_tiles,
+                _ => unreachable!(),
+            }
         }
         _ => 0.0,
     };
     (stock - reserved).max(0.0)
+}
+
+fn load_founder_reservations(ctx: &ReducerContext, owner: Identity) -> FoundingReservations {
+    let mut reserved = FoundingReservations::default();
+    for building in ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| !building.construction_complete)
+    {
+        reserved.timber += (building.construction_reserved_timber
+            - building.construction_treasury_timber)
+            .max(0.0);
+        reserved.stone +=
+            (building.construction_reserved_stone - building.construction_treasury_stone).max(0.0);
+        reserved.ironwork += (building.construction_reserved_ironwork
+            - building.construction_treasury_ironwork)
+            .max(0.0);
+        reserved.roof_tiles += (building.construction_reserved_roof_tiles
+            - building.construction_treasury_roof_tiles)
+            .max(0.0);
+    }
+    // Keep construction and residence sums separate, preserving the previous
+    // floating-point addition order for each commodity.
+    let mut residence_reserved = FoundingReservations::default();
+    for residence in ctx
+        .db
+        .residence()
+        .owner()
+        .filter(&owner)
+        .filter(|residence| {
+            residence_project_active(
+                residence.upgrade_target_tier,
+                residence.tier,
+                residence.backyard_project_kind,
+                residence.fire_repair_active,
+                residence.decay_repair_active,
+                residence.roof_tile_retrofit_active,
+            )
+        })
+    {
+        residence_reserved.timber += residence.upgrade_reserved_timber.max(0.0);
+        residence_reserved.stone += residence.upgrade_reserved_stone.max(0.0);
+        residence_reserved.roof_tiles += residence.upgrade_reserved_roof_tiles.max(0.0);
+    }
+    reserved.timber += residence_reserved.timber;
+    reserved.stone += residence_reserved.stone;
+    reserved.roof_tiles += residence_reserved.roof_tiles;
+    reserved
 }
 
 fn founding_storehouse_room(storehouse: &Building, commodity: CommodityKind) -> f64 {
@@ -380,14 +404,14 @@ fn founding_storehouse_room(storehouse: &Building, commodity: CommodityKind) -> 
 
 fn first_completed_building(
     ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
+    tick: &SimTickContext,
+    owner: Identity,
     settlement_id: u64,
     kind: &str,
 ) -> Option<Building> {
-    ctx.db
-        .building()
-        .owner()
-        .filter(&owner)
+    tick.building_ids_for_kinds(ctx, owner, &[kind])
+        .into_iter()
+        .filter_map(|id| ctx.db.building().id().find(&id))
         .filter(|building| {
             building.settlement_id == settlement_id
                 && building.kind == kind

@@ -8,6 +8,7 @@ import {
   type InstanceMatrixWriteSlicesResult,
 } from '@seedthree/core/instance-matrix-chunks.js';
 import { TREE_SHADOW_CAST_LAYER } from '../../scene/SceneLayers.ts';
+import { inheritExactInstancePrototype } from '../../scene/ExactInstancePrototype.ts';
 
 const DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048;
 const HIDDEN_TREE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -110,6 +111,7 @@ function cloneForestGeometryForIndependentPacking(
 ): THREE.BufferGeometry {
   const mutable = new Set(mutableAttributeNames);
   const geometry = new THREE.BufferGeometry();
+  inheritExactInstancePrototype(geometry,source);
   geometry.name = source.name;
   geometry.userData = { ...source.userData, forestClone: true };
   if (source.index) geometry.setIndex(source.index);
