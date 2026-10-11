@@ -4,7 +4,7 @@ import { denoise } from 'three/addons/tsl/display/DenoiseNode.js';
 import type { SceneAtmosphere } from './SceneAtmosphere.ts';
 import { sceneTsl, type SceneNode } from './sceneTsl.ts';
 
-const { Fn, diffuseColor, materialAO, max, min, mix, mrt, normalView, normalWorld, output, reference, vec3, vec4 } = sceneTsl;
+const { Fn, diffuseColor, materialAO, max, min, mix, mrt, normalView, normalWorld, output, reference, renderGroup, vec3, vec4 } = sceneTsl;
 
 export type SceneAmbientLights = { hemisphere: THREE.HemisphereLight; ambient: THREE.AmbientLight };
 
@@ -27,9 +27,9 @@ export function createSceneAmbientOcclusion(
   const hemi = lights.hemisphere;
   const ambient = lights.ambient;
   const skyWeight = normalWorld.y.mul(0.5).add(0.5);
-  const irradiance = mix(reference('groundColor', 'color', hemi), reference('color', 'color', hemi), skyWeight)
-    .mul(reference('intensity', 'float', hemi))
-    .add(reference('color', 'color', ambient).mul(reference('intensity', 'float', ambient)));
+  const irradiance = mix(reference('groundColor', 'color', hemi).setGroup(renderGroup), reference('color', 'color', hemi).setGroup(renderGroup), skyWeight)
+    .mul(reference('intensity', 'float', hemi).setGroup(renderGroup))
+    .add(reference('color', 'color', ambient).setGroup(renderGroup).mul(reference('intensity', 'float', ambient).setGroup(renderGroup)));
   const indirect = Fn((_, builder) => {
     const material = builder.material as THREE.MeshStandardMaterial & { lights?: boolean; aoNode?: typeof materialAO };
     if (!material.isMeshStandardMaterial && !material.lights) return vec4(0);

@@ -155,6 +155,7 @@ fn resource_ledger_slot(
 /// Existing resources are never removed, so this can safely be used again later.
 #[reducer]
 pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), String> {
+    crate::realm::require_single_player("grant_cheat_resources")?;
     let amount = validated_cheat_amount(amount)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -236,6 +237,7 @@ pub fn set_debug_date(
     month: u32,
     month_day: u32,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("set_debug_date")?;
     let Some(mut config) = ctx.db.world_config().id().find(&0) else {
         return Err("World configuration not found.".into());
     };
@@ -254,6 +256,7 @@ pub fn run_debug_map_action(
     z: f64,
     company_kind: u8,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("run_debug_map_action")?;
     if !x.is_finite() || !z.is_finite() {
         return Err("Debug placement must be a finite map position.".into());
     }

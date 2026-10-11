@@ -395,6 +395,10 @@ export function seatedVillagerContactHeight(
  * bounded number of instanced draws. Camera distance never changes asset class.
  */
 export class SettlementCrowdRenderer {
+  private readonly renderProjection = new THREE.Matrix4();
+  private readonly renderFrustum = new THREE.Frustum();
+  // Includes authored tools, horses, standards and nearby off-screen shadows.
+  private readonly renderSphere = new THREE.Sphere(new THREE.Vector3(), 8);
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
@@ -500,9 +504,17 @@ export class SettlementCrowdRenderer {
     this.combatProjectiles.update(dt);
 
     const visibleAgents = this.visibleAgents;
+    const renderCamera = view?.renderCamera;
+    if (renderCamera) {
+      renderCamera.updateWorldMatrix(true, false);
+      this.renderProjection.multiplyMatrices(renderCamera.projectionMatrix, renderCamera.matrixWorldInverse);
+      this.renderFrustum.setFromProjectionMatrix(this.renderProjection, renderCamera.coordinateSystem, renderCamera.reversedDepth);
+    }
     visibleAgents.length = 0;
     for (const agent of this.latestAgents) {
-      if (agent.active && isWithinCrowdView(agent.x, agent.z, view)) {
+      this.renderSphere.center.set(agent.x, agent.y + 1.2, agent.z);
+      if (agent.active && isWithinCrowdView(agent.x, agent.z, view)
+        && (!renderCamera || this.renderFrustum.intersectsSphere(this.renderSphere))) {
         visibleAgents.push(agent);
       }
     }

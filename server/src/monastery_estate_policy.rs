@@ -95,6 +95,7 @@ pub fn monastery_estate_corners(x: f64, z: f64, yaw: f64) -> [EstatePoint; 4] {
 
 pub fn playable_half_for_monastery_map_size(map_size: u8) -> f64 {
     match map_size {
+        3 => crate::realm_policy::WORLD_SIZE / 2.0,
         0 => 408.5,
         2 => 817.0 * std::f64::consts::SQRT_2,
         _ => 817.0,

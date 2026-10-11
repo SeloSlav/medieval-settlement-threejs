@@ -1,4 +1,5 @@
 import { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
+import { realmHeight } from '../multiplayer/realmLandscape.ts';
 import {
   KUPA_BANK_SUPPORT_FULL_RADIUS,
   KUPA_BANK_SUPPORT_OUTER_RADIUS,
@@ -386,6 +387,7 @@ export function sampleWorldRawTerrainHeight(
   layout: RiverLayout | null = null,
 ): number {
   const basinX = layout?.drain.x ?? 0;
+  if (settings.mapSize === 'realm') return realmHeight(x, z);
   const basinZ = layout?.drain.z ?? -88;
   const relief = topographyScale(settings.topography);
   if (settings.terrainPreset === 'gomirje_meadows' || settings.terrainPreset === 'mrkopalj_polje') {

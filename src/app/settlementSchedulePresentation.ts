@@ -1,5 +1,5 @@
 import type { SpacetimeGameSnapshot } from '../data/spacetimeGameStore.ts';
-import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import { SIM_REALTIME_RATE } from '../world/runtimeGameBalance.ts';
 import { simElapsedSeconds, type GameClock } from '../world/gameCalendar.ts';
 import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';

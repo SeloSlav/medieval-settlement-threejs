@@ -143,6 +143,16 @@ export class GameRuntime {
     const local = this.worldLayout.settings;
     const server = this.store.getAuthoritativeWorldGeneration();
     assertWorldGenerationCompatible(local, server, this.store.snapshot.simTick);
+    if (server?.mapSize === 'realm') {
+      // Realm generation and resource rows are deployed by the server operator.
+      applyAuthoritativeWorldGeneration(server);
+      const roads = this.callbacks.getRoadSnapshot?.();
+      if (!this.store.snapshot.roads && roads) await this.store.syncRoadNetworkNow(roads);
+      this.bootstrapComplete = true;
+      this.syncRoads(this.store.snapshot);
+      this.tryEmitSessionReady();
+      return;
+    }
     try {
       // The trailer director attaches to an established realm. The complete
       // generation contract was checked immediately above; do not republish

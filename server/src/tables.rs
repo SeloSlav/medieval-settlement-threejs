@@ -40,6 +40,8 @@ pub struct WorldConfig {
     pub seed: u64,
     pub next_building_id: u64,
     pub sim_tick: u64,
+    /// Economy steps in which household services run; holy days do not advance it.
+    pub household_tick: u64,
     /// Authoritative whole-simulation multiplier: 0 (paused), 1, 4, or 8.
     #[default(1)]
     pub game_speed: u8,
@@ -99,7 +101,7 @@ pub struct WorldConfig {
     pub wild_animal_attacks_enabled: bool,
 }
 
-#[spacetimedb::table(accessor = player_resources, public)]
+#[spacetimedb::table(accessor = player_resources)]
 pub struct PlayerResources {
     #[primary_key]
     pub owner: Identity,
@@ -459,7 +461,6 @@ pub struct PlayerResources {
 /// goods remain physical on buildings, residences, and delivery carts.
 #[spacetimedb::table(
     accessor = settlement,
-    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]
@@ -571,8 +572,9 @@ pub struct Settlement {
     pub name_customized: bool,
 }
 
-#[spacetimedb::table(accessor = quarry, public)]
+#[spacetimedb::table(accessor = quarry, index(accessor = chunk_id, btree(columns = [chunk_id])))]
 pub struct Quarry {
+    pub chunk_id: u32,
     #[primary_key]
     /// `quarry-*` rows are stone; `deposit-iron-*` and `deposit-salt-*`
     /// rows are mineral seams. Prefixes preserve the additive table schema.
@@ -585,8 +587,9 @@ pub struct Quarry {
     pub is_rich: bool,
 }
 
-#[spacetimedb::table(accessor = foraging_node, public)]
+#[spacetimedb::table(accessor = foraging_node, index(accessor = chunk_id, btree(columns = [chunk_id])))]
 pub struct ForagingNode {
+    pub chunk_id: u32,
     #[primary_key]
     pub node_id: String,
     pub node_kind: String,
@@ -601,7 +604,7 @@ pub struct ForagingNode {
 
 /// A single physical trunk section. Health is unconverted wood mass; split
 /// firewood remains here until a cart collects it. Slots never move or reorder.
-#[derive(spacetimedb::SpacetimeType, Clone, Debug)]
+#[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
 pub struct TimberLog {
     pub x: f64,
     pub z: f64,
@@ -610,7 +613,7 @@ pub struct TimberLog {
     pub firewood: f64,
 }
 
-#[derive(spacetimedb::SpacetimeType, Clone, Debug)]
+#[derive(spacetimedb::SpacetimeType, Clone, Debug, PartialEq)]
 pub struct ForestrySource {
     pub tree_id: String,
     pub log_index: u32,
@@ -619,8 +622,9 @@ pub struct ForestrySource {
     pub log_max_health: f64,
 }
 
-#[spacetimedb::table(accessor = tree_entity, public)]
+#[spacetimedb::table(accessor = tree_entity, index(accessor = chunk_id, btree(columns = [chunk_id])))]
 pub struct TreeEntity {
+    pub chunk_id: u32,
     #[primary_key]
     pub tree_id: String,
     pub layout_index: u32,
@@ -637,11 +641,12 @@ pub struct TreeEntity {
 
 #[spacetimedb::table(
     accessor = building,
-    public,
     index(accessor = owner, btree(columns = [owner])),
+    index(accessor = kind, btree(columns = [kind])),
+    index(accessor = construction_complete, btree(columns = [construction_complete])),
     index(accessor = settlement_id, btree(columns = [settlement_id]))
 )]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Building {
     #[primary_key]
     #[auto_inc]
@@ -1202,7 +1207,6 @@ pub struct Building {
 /// 0 = no trade, 1 = import to target, 2 = export above target.
 #[spacetimedb::table(
     accessor = trading_post_trade_rule,
-    public,
     index(accessor = building_id, btree(columns = [building_id])),
     index(accessor = owner, btree(columns = [owner]))
 )]
@@ -1228,7 +1232,6 @@ pub struct TradingPostTradeRule {
 /// Corners are stored clockwise and describe an oriented rectangle authored by the field tool.
 #[spacetimedb::table(
     accessor = farm_field,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = farmstead_id, btree(columns = [farmstead_id]))
 )]
@@ -1300,7 +1303,6 @@ pub struct FarmField {
 /// harvest, cellar work, storage, and cart labor remain on that monastic roster.
 #[spacetimedb::table(
     accessor = vineyard_parcel,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = building_id, btree(columns = [building_id]))
 )]
@@ -1333,7 +1335,6 @@ pub struct VineyardParcel {
 /// naturally when the surrounding woodland is felled or regrows.
 #[spacetimedb::table(
     accessor = pasture,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = farmstead_id, btree(columns = [farmstead_id]))
 )]
@@ -1361,7 +1362,6 @@ pub struct Pasture {
 /// from the authored area and remains occupied permanently as burials accumulate.
 #[spacetimedb::table(
     accessor = graveyard,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = chapel_id, btree(columns = [chapel_id]))
 )]
@@ -1392,7 +1392,6 @@ pub struct Graveyard {
 /// processing rooms, and carts remain shared at the holding.
 #[spacetimedb::table(
     accessor = pasture_herd,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = farmstead_id, btree(columns = [farmstead_id]))
 )]
@@ -1443,7 +1442,6 @@ pub struct PastureHerd {
 /// after its state has been materialized into linked `pasture_herd` rows.
 #[spacetimedb::table(
     accessor = livestock_herd,
-    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]
@@ -1495,7 +1493,6 @@ pub struct LivestockHerd {
 /// value permanently posts it to that workplace until the player releases it.
 #[spacetimedb::table(
     accessor = stable_ox,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = stable_id, btree(columns = [stable_id])),
     index(accessor = assigned_building_id, btree(columns = [assigned_building_id]))
@@ -1520,7 +1517,6 @@ pub struct StableOx {
 /// surviving horse physically crosses back into that pasture on disband.
 #[spacetimedb::table(
     accessor = cavalry_horse,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = pasture_id, btree(columns = [pasture_id])),
     index(accessor = assigned_company_id, btree(columns = [assigned_company_id])),
@@ -1547,7 +1543,7 @@ pub struct CavalryHorse {
     pub assigned_combat_agent_id: u64,
 }
 
-#[spacetimedb::table(accessor = road_network_state, public)]
+#[spacetimedb::table(accessor = road_network_state)]
 pub struct RoadNetworkState {
     #[primary_key]
     pub owner: Identity,
@@ -1556,7 +1552,6 @@ pub struct RoadNetworkState {
 
 #[spacetimedb::table(
     accessor = burgage_zone,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = settlement_id, btree(columns = [settlement_id]))
 )]
@@ -1581,12 +1576,11 @@ pub struct BurgageZone {
 
 #[spacetimedb::table(
     accessor = residence,
-    public,
     index(accessor = zone_id, btree(columns = [zone_id])),
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = settlement_id, btree(columns = [settlement_id]))
 )]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Residence {
     #[primary_key]
     #[auto_inc]
@@ -1676,10 +1670,12 @@ pub struct Residence {
     pub remedy_stock: f64,
     #[default(0u32)]
     pub deaths_total: u32,
-    /// Status shortages cause emigration on this timer; they never cause
-    /// starvation or disease directly.
+    /// Shortage duration at comfort_deficit_tick. The signed rate advances
+    /// against WorldConfig.household_tick without a write on every step.
     #[default(0u32)]
     pub comfort_deficit_ticks: u32,
+    pub comfort_deficit_tick: u64,
+    pub comfort_deficit_rate: i8,
     /// Consecutive unoccupied time used by long-term building decay.
     #[default(0u32)]
     pub vacancy_ticks: u32,
@@ -1786,7 +1782,6 @@ pub struct Residence {
 
 #[spacetimedb::table(
     accessor = backyard_garden,
-    public,
     index(accessor = residence_id, btree(columns = [residence_id])),
     index(accessor = owner, btree(columns = [owner]))
 )]
@@ -1830,7 +1825,6 @@ pub struct BackyardGarden {
 /// consecrated graveyard. One row represents one body and one handcart load.
 #[spacetimedb::table(
     accessor = corpse,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = residence_id, btree(columns = [residence_id])),
     index(accessor = chapel_id, btree(columns = [chapel_id])),
@@ -1868,7 +1862,7 @@ pub struct Corpse {
 }
 
 /// Simulated regional market prices and neighbor trade conditions for a player.
-#[spacetimedb::table(accessor = market_state, public)]
+#[spacetimedb::table(accessor = market_state)]
 pub struct MarketState {
     #[primary_key]
     pub owner: Identity,
@@ -1919,7 +1913,7 @@ pub struct MarketState {
 }
 
 /// Per-settlement frontier pressure. Peaceful worlds keep this row at zero.
-#[spacetimedb::table(accessor = settlement_security, public)]
+#[spacetimedb::table(accessor = settlement_security)]
 pub struct SettlementSecurity {
     #[primary_key]
     pub owner: Identity,
@@ -1980,7 +1974,7 @@ pub struct SettlementSecurity {
 /// One live hostile incursion per settlement. The row accumulates only results
 /// produced by physical combat agents reaching holdings; it never resolves
 /// losses on its own.
-#[spacetimedb::table(accessor = active_raid, public)]
+#[spacetimedb::table(accessor = active_raid)]
 #[derive(Clone)]
 pub struct ActiveRaid {
     #[primary_key]
@@ -2010,7 +2004,6 @@ pub struct ActiveRaid {
 /// unless one of these rows reaches it and finishes its looting action.
 #[spacetimedb::table(
     accessor = combat_agent,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = raid_id, btree(columns = [raid_id])),
     index(accessor = assigned_building_id, btree(columns = [assigned_building_id]))
@@ -2133,7 +2126,6 @@ pub struct RaidIncursionRoute {
 /// Active road delivery agent — position and phase are authoritative; cargo unloads on arrival.
 #[spacetimedb::table(
     accessor = delivery_trip,
-    public,
     index(accessor = building_id, btree(columns = [building_id])),
     index(accessor = labor_building_id, btree(columns = [labor_building_id])),
     index(accessor = residence_id, btree(columns = [residence_id])),
@@ -2196,7 +2188,6 @@ pub struct DeliveryTrip {
 /// A persistent physical bandit base generated independently of frontier raids.
 #[spacetimedb::table(
     accessor = bandit_camp,
-    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]
@@ -2223,7 +2214,6 @@ pub struct BanditCamp {
 /// Immutable entries shown in the Lord's report for physical bandit activity.
 #[spacetimedb::table(
     accessor = bandit_incident,
-    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]
@@ -2274,7 +2264,6 @@ pub struct MilitiaOrder {
 /// backing.
 #[spacetimedb::table(
     accessor = military_company,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = source_building_id, btree(columns = [source_building_id]))
 )]
@@ -2349,7 +2338,6 @@ pub struct MilitaryCompany {
 /// timestamps for compact contract messaging without exposing combat stats.
 #[spacetimedb::table(
     accessor = mercenary_contract,
-    public,
     index(accessor = owner, btree(columns = [owner]))
 )]
 #[derive(Clone)]
@@ -2396,7 +2384,6 @@ pub struct MilitaryMember {
 /// client can render steam; destroyed structures retain a ruin incident until demolition.
 #[spacetimedb::table(
     accessor = fire_incident,
-    public,
     index(accessor = owner, btree(columns = [owner])),
     index(accessor = target_id, btree(columns = [target_id]))
 )]
@@ -2435,17 +2422,21 @@ pub struct FireIncident {
 
 #[spacetimedb::table(
     accessor = residence_need,
-    public,
-    index(accessor = residence_id, btree(columns = [residence_id]))
+    index(accessor = residence_id, btree(columns = [residence_id])),
+    index(accessor = owner, btree(columns = [owner]))
 )]
+#[derive(Clone)]
 pub struct ResidenceNeed {
     #[primary_key]
     #[auto_inc]
     pub id: u64,
+    pub owner: Identity,
     pub residence_id: u64,
     pub need_kind: u8,
     pub stock: f64,
     pub deficit_ticks: u32,
+    pub deficit_tick: u64,
+    pub deficit_running: bool,
     /// Exact commodity used by the latest refill, or a reserved household-source code.
     /// This is display provenance only; stock remains the authoritative need balance.
     #[default(65535u16)]

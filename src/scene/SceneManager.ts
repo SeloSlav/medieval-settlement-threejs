@@ -54,7 +54,6 @@ import type { BuildingRoadConnectionSource } from '../roads/BuildingRoadConnecti
 import { RoadJunctionBuilder } from '../roads/RoadJunctionBuilder.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
-import { sampleRoadSurfaceY } from '../roads/RoadSurfaceSampling.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { DryStoneWallRenderer } from '../decorations/DryStoneWallRenderer.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
@@ -1064,6 +1063,8 @@ export class SceneManager {
     return this.illustratedMapActive;
   }
 
+  getStrategicMapScene(): THREE.Scene { return this.illustratedMap.scene; }
+
   getRenderOwner(): SceneRenderOwner {
     return resolveSceneRenderOwner(
       this.illustratedMapActive,
@@ -1570,6 +1571,10 @@ export class SceneManager {
     return this.forestManager;
   }
 
+  getBerryPatchRoot(): THREE.Group | null {
+    return this.berryPatchVisuals?.group ?? null;
+  }
+
   /**
    * The one accepted forest layout shared by SeedThree and the illustrated
    * map. No downstream renderer is allowed to regenerate approximate trees.
@@ -1709,7 +1714,7 @@ export class SceneManager {
   sampleRoadDeckY(x: number, z: number): number | null {
     const network = this.roadNetworkRef;
     if (!network) return null;
-    return sampleRoadSurfaceY(network.edges.values(), x, z);
+    return network.sampleSurfaceY(x, z);
   }
 
   findHuntingTarget(query: HuntingTargetQuery): HuntingTarget | null {

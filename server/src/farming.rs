@@ -448,6 +448,7 @@ fn regional_seed_hash(seed: u64, salt: u32) -> u32 {
 
 fn generation_half_for_map_size(map_size: u8) -> f64 {
     match map_size {
+        3 => crate::realm_policy::WORLD_SIZE / 2.0,
         0 => 310.0,
         2 => 876.812_408_671_318_9,
         _ => 620.0,
@@ -456,6 +457,7 @@ fn generation_half_for_map_size(map_size: u8) -> f64 {
 
 fn regional_prime_crop_count(map_size: u8) -> u8 {
     match map_size {
+        3 => FARM_REGIONAL_PRIME_CROPS_LARGE,
         0 => FARM_REGIONAL_PRIME_CROPS_SMALL,
         2 => FARM_REGIONAL_PRIME_CROPS_LARGE,
         _ => FARM_REGIONAL_PRIME_CROPS_MEDIUM,

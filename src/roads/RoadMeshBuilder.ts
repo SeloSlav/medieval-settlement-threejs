@@ -99,6 +99,7 @@ export class RoadMeshBuilder {
     // riverbed-height path while the visible bridge sits above it.
     const untrimmedSurfacePath = ribbonPath.map((point) => point.clone());
     edge.surfacePath = untrimmedSurfacePath;
+    network.invalidateRoadGeometry();
 
     const startNode = network.nodes.get(edge.startNodeId);
     const endNode = network.nodes.get(edge.endNodeId);

@@ -307,14 +307,18 @@ const residence = syncResidences(
     upgradeDeliveredTimber: 11.75,
     upgradeProgress: 0.625,
     malnutrition: 0.375,
+    comfortDeficitTick: 0n,
   }) as never],
   RESIDENCE_NEED_KINDS.map((kind, index) => rowWithDefaults({
     residenceId: 3n,
     needKind: RESIDENCE_NEED_KIND_IDS[kind],
     stock: index === 0 ? -2.5 : index + 0.625,
-    deficitTicks: index + 0.75,
+    deficitTicks: index,
+    deficitTick: 0n,
+    deficitRunning: false,
   }) as never),
   identityHex,
+  0n,
 ).get('residence-3');
 assert.ok(residence);
 assert.equal(residence.settlementId, 'settlement-41');

@@ -529,10 +529,27 @@ select:focus-visible {
 }
 
 .settlement-hud__perf {
-  display: none;
+  display: block;
+  position: fixed;
+  left: 16px;
+  bottom: 14px;
+  padding: 4px 10px;
+  border: 1px solid rgba(211, 188, 137, 0.3);
+  border-radius: 5px;
+  background: rgba(24, 27, 22, 0.9);
+  pointer-events: none;
+  z-index: 40;
+  min-width: 235px;
+  white-space: nowrap;
 }
 
-.settlement-hud__stat--perf {
+[data-game-mode="multiplayer"] [data-game-speed] { display: none !important; }
+
+.settlement-hud__perf .settlement-hud__stat--perf {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr auto;
   min-height: 100%;
@@ -540,6 +557,9 @@ select:focus-visible {
   border: 0;
   text-align: center;
 }
+
+.settlement-hud__perf .settlement-hud__value--fps { position: static; transform: none; font: 12px monospace; color: #e9dfc8; }
+.settlement-hud__perf .settlement-hud__label { display: inline; position: static; transform: none; font: 11px sans-serif; color: #c2b99f; }
 
 .settlement-hud__stat--perf::before {
   display: none;

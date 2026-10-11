@@ -12,6 +12,7 @@ const VALID_GAME_SPEEDS: [u8; 4] = [0, 1, 4, 8];
 
 #[reducer]
 pub fn set_game_speed(ctx: &ReducerContext, speed: u8) -> Result<(), String> {
+    crate::realm::require_single_player("Change world speed")?;
     if !VALID_GAME_SPEEDS.contains(&speed) {
         return Err("speed must be 0 (paused), 1, 4, or 8".into());
     }
@@ -59,6 +60,7 @@ pub fn configure_world(
     military_demands: u8,
     wild_animal_attacks_enabled: bool,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("Configure world")?;
     validate_map_size(map_size)?;
     validate_percent(topography, "topography")?;
     validate_percent(hydrology, "hydrology")?;
@@ -183,11 +185,12 @@ fn validate_military_demands(value: u8) -> Result<(), String> {
 }
 
 pub fn default_world_config() -> WorldConfig {
-    WorldConfig {
+    let mut config = WorldConfig {
         id: 0,
         seed: DEFAULT_WORLD_SEED,
         next_building_id: 1,
         sim_tick: 0,
+        household_tick: 0,
         game_speed: 1,
         map_size: MAP_SIZE_MEDIUM,
         topography: 50,
@@ -206,5 +209,15 @@ pub fn default_world_config() -> WorldConfig {
         military_demands: 1,
         wild_animal_attacks_enabled: true,
         configured: false,
+    };
+    if crate::realm::ENABLED {
+        config.seed = crate::realm_policy::WORLD_SEED;
+        config.map_size = 3;
+        config.topography = 12;
+        config.hydrology = 40;
+        config.forest_density = 32;
+        config.wild_animal_attacks_enabled = false;
+        config.configured = true;
     }
+    config
 }

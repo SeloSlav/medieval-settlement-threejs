@@ -11,6 +11,7 @@ export type IndexedRoadEdge = {
   path: THREE.Vector3[];
   useControlPoints: boolean;
   halfWidth: number;
+  bounds: BoundsXZ;
 };
 
 type BoundsXZ = {
@@ -179,7 +180,9 @@ export class RoadSpatialIndex {
       for (const edge of bucket) {
         if (seen.has(edge)) continue;
         seen.add(edge);
-        if (isPointNearPathBounds(x, z, edge.path, radius)) {
+        const bounds = edge.bounds;
+        if (x >= bounds.minX - radius && x <= bounds.maxX + radius
+          && z >= bounds.minZ - radius && z <= bounds.maxZ + radius) {
           results.push(edge);
         }
       }
@@ -209,10 +212,11 @@ export class RoadSpatialIndex {
       path,
       useControlPoints: path === edge.controlPoints,
       halfWidth: edge.width * 0.5,
+      bounds: computePathBounds(path, 0),
     };
     this.edgeHalfWidths.set(edge.id, indexed.halfWidth);
     this.maxSurfaceRadius = Math.max(this.maxSurfaceRadius, indexed.halfWidth);
-    const bounds = computePathBounds(path, 0);
+    const bounds = indexed.bounds;
     for (const key of cellKeysForBounds(bounds)) {
       const bucket = this.edgeCells.get(key);
       if (bucket) bucket.push(indexed);
@@ -238,11 +242,6 @@ function computePathBounds(path: THREE.Vector3[], padding: number): BoundsXZ {
     minZ: minZ - padding,
     maxZ: maxZ + padding,
   };
-}
-
-function isPointNearPathBounds(x: number, z: number, path: THREE.Vector3[], padding: number): boolean {
-  const bounds = computePathBounds(path, padding);
-  return x >= bounds.minX && x <= bounds.maxX && z >= bounds.minZ && z <= bounds.maxZ;
 }
 
 function cellKeysInRadius(x: number, z: number, radius: number): Iterable<number> {

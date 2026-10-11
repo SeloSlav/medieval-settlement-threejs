@@ -1,3 +1,4 @@
+pub(crate) use state::cache_tick_needs;
 pub mod firewood;
 pub mod food;
 mod kinds;
@@ -43,7 +44,7 @@ use crate::resident_welfare_policy::{
     starvation_death_chance, ticks_for_days,
 };
 use crate::simulation::residence_needs::state::{
-    delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
+    delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs, persist_needs_running,
     NeedState, NEED_SOURCE_FLOWER_LUXURY,
 };
 use crate::simulation::tick_context::SimTickContext;
@@ -62,7 +63,15 @@ pub fn step_residence_needs(
     sim_tick: u64,
     food_spoilage_rate: u8,
 ) {
+    let previous_residence = residence.clone();
+    let input_tick = state::input_household_tick(ctx);
+    let output_tick = state::output_household_tick(ctx);
+    residence.comfort_deficit_ticks = crate::household_timer_policy::counter_at(
+        residence.comfort_deficit_ticks, residence.comfort_deficit_tick, residence.comfort_deficit_rate, input_tick);
     if residence.population == 0 {
+        persist_needs_running(ctx, residence.id, &needs, false);
+        anchor_comfort_counter(&mut residence, &previous_residence, output_tick, 0);
+        if residence != previous_residence { ctx.db.residence().id().update(residence); }
         return;
     }
 
@@ -225,24 +234,38 @@ pub fn step_residence_needs(
         sim_tick,
     );
 
-    // The additive save column keeps its old name for compatibility, but it
-    // now tracks any continuously unmet active household service. Shortages
-    // affect approval and promotion eligibility—not work output or tenure.
+    // Shortages affect approval and promotion eligibility. Only changes in
+    // the counter's rate require a new persistent anchor.
     residence.comfort_deficit_ticks = next_service_deficit_ticks(
         residence.comfort_deficit_ticks,
         service_unmet,
         general_consumption_paused,
     );
+    let comfort_rate = if residence.population == 0 || general_consumption_paused { 0 }
+        else if service_unmet { 1 } else { -2 };
+    anchor_comfort_counter(&mut residence, &previous_residence, output_tick, comfort_rate);
     residence.abandoned = false;
     migrate_and_sync_food_inventory(ctx, &mut residence, &mut needs);
     let owner = residence.owner;
-    persist_needs(ctx, residence.id, &needs);
+    persist_needs_running(ctx, residence.id, &needs, residence.population > 0);
     let next_effective_workers = residence
         .population
         .saturating_sub(residence.sick_population);
-    ctx.db.residence().id().update(residence);
+    if residence != previous_residence { ctx.db.residence().id().update(residence); }
     if next_effective_workers < previous_effective_workers {
         reconcile_building_labor(ctx, owner);
+    }
+}
+
+fn anchor_comfort_counter(residence: &mut Residence, previous: &Residence, tick: u64, rate: i8) {
+    if crate::household_timer_policy::retain_anchor(previous.comfort_deficit_ticks, previous.comfort_deficit_tick,
+        previous.comfort_deficit_rate, tick, residence.comfort_deficit_ticks, rate) {
+        residence.comfort_deficit_ticks = previous.comfort_deficit_ticks;
+        residence.comfort_deficit_tick = previous.comfort_deficit_tick;
+        residence.comfort_deficit_rate = previous.comfort_deficit_rate;
+    } else {
+        residence.comfort_deficit_tick = tick;
+        residence.comfort_deficit_rate = rate;
     }
 }
 

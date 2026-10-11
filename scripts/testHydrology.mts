@@ -81,5 +81,10 @@ for (const [x, z] of [[-650, 620], [-540, -540], [0, 0], [539, 411], [280, 220]]
 assert.ok(sampleAuthoritativeGroundwaterScore(650, 620) > 0, 'large-map edges should retain aquifer variation');
 assert.ok(sampleAuthoritativeGroundwaterScore(1_100, -1_100) > 0, 'current large-map edges should remain sampled');
 assert.equal(sampleAuthoritativeGroundwaterScore(10_000, 10_000), 0);
+for (const x of [-6143, 0, 6143]) for (const z of [-6143, 0, 6143]) {
+  assert.equal(sampleWellGroundwaterScoreForWorldRules(x, z, seed, 50, false), 1);
+  assert.ok(sampleWorldGroundwaterScore(x, z, seed, 50) > 0, 'all realm corners retain groundwater');
+}
+for (const x of [6145, NaN, Infinity]) assert.equal(sampleWorldGroundwaterScore(x, 0, seed, 50), 0);
 
 console.log('Groundwater network and overlay exclusion checks passed.');

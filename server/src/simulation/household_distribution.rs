@@ -186,7 +186,8 @@ pub fn step_market_household_distribution(
         let market_candidates: Vec<Building> = ctx
             .db
             .building()
-            .iter()
+            .kind()
+            .filter(distribution_kind)
             .filter(|building| {
                 building.kind == distribution_kind
                     && building.construction_complete
@@ -381,11 +382,13 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
                 && residence.population > 0
                 && ResidenceNeedKind::Water.is_active_for_tier(residence.tier)
                 && !tick.residence_disabled_by_fire(ctx, residence.id)
+                // Territory is independent of pantry stock. Reject homes this
+                // well cannot serve before deserializing their need rows.
+                && tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id)
                 && delivery_stock_room(
                     ResidenceNeedKind::Water,
                     need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),
                 ) > 1e-9
-                && tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id)
         })
         .map(|residence| {
             let stock = need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water);

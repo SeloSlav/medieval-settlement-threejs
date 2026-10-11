@@ -46,8 +46,10 @@ pub fn step_well(
         return;
     };
 
+    let mut persisted = building.clone();
     let mut well = building;
     // Compatibility for saves created while wells exposed worker slots.
+    if well.assigned_labor != 0 { crate::economy::invalidate_production_labor_roster(well.owner); }
     well.assigned_labor = 0;
     let base_hydrology = sample_world_well_groundwater_score(
         well.x,
@@ -102,7 +104,7 @@ pub fn step_well(
     }
 
     let Some(network) = tick.road_network(well.owner) else {
-        ctx.db.building().id().update(well);
+        if well != persisted { ctx.db.building().id().update(well); }
         return;
     };
 
@@ -110,7 +112,10 @@ pub fn step_well(
     // before selection because nearest-well eligibility reads the indexed
     // building rows, then launch as many independently staffed bucket trips as
     // the incident demand, stored water, and free labor pool can support.
-    ctx.db.building().id().update(well.clone());
+    if well != persisted {
+        ctx.db.building().id().update(well.clone());
+        persisted = well.clone();
+    }
     let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
     if fire_response_needed {
         while available_free_haulers(ctx, well.owner) > 0 {
@@ -129,7 +134,7 @@ pub fn step_well(
         // Household and industrial draws wait until the emergency is over.
         // In particular, a dry well now accumulates a usable partial bucket
         // instead of having every sub-bucket refill consumed immediately.
-        ctx.db.building().id().update(well);
+        if well != persisted { ctx.db.building().id().update(well); }
         return;
     }
 
@@ -139,7 +144,7 @@ pub fn step_well(
     distribute_well_water(ctx, tick, &mut well);
     distribute_industrial_water(ctx, tick, network, &mut well);
 
-    ctx.db.building().id().update(well);
+    if well != persisted { ctx.db.building().id().update(well); }
 }
 
 fn distribute_industrial_water(

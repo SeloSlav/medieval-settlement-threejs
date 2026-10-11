@@ -51,6 +51,7 @@ type SizeResourceBudget = {
 };
 
 const SIZE_RESOURCE_BUDGETS: Record<WorldMapSize, SizeResourceBudget> = {
+  realm: { totalResourceNodes: 486, richResourceNodes: 81, minimumFoodNodes: 162, maximumWildFoodNodes: 243, varietyBonus: 10 },
   small: {
     totalResourceNodes: 5,
     richResourceNodes: 2,

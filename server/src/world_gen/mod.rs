@@ -89,25 +89,40 @@ pub struct RespawnPoint {
 }
 
 fn parse_embedded_trees() -> Vec<EmbeddedTree> {
-    let json = include_str!("../../generated/world_trees.json");
+    let json = if crate::realm::ENABLED { realm_json() } else { include_str!("../../generated/world_trees.json") };
     let file: EmbeddedTreesFile =
         serde_json::from_str(json).expect("world_trees.json must be valid");
     file.trees
 }
 
 fn parse_embedded_quarries() -> Vec<EmbeddedQuarry> {
-    let json = include_str!("../../generated/world_quarries.json");
+    let json = if crate::realm::ENABLED { realm_json() } else { include_str!("../../generated/world_quarries.json") };
     let file: EmbeddedQuarriesFile =
         serde_json::from_str(json).expect("world_quarries.json must be valid");
     file.quarries
 }
 
 fn parse_embedded_foraging() -> EmbeddedForagingFile {
-    let json = include_str!("../../generated/world_foraging.json");
+    let json = if crate::realm::ENABLED { realm_json() } else { include_str!("../../generated/world_foraging.json") };
     serde_json::from_str(json).expect("world_foraging.json must be valid")
 }
 
 static GAME_RESPAWN_CANDIDATES: OnceLock<Vec<RespawnPoint>> = OnceLock::new();
+
+fn realm_json() -> &'static str {
+    #[cfg(feature = "persistent-world")]
+    { include_str!("../../generated/realm_world.json") }
+    #[cfg(not(feature = "persistent-world"))]
+    { "{}" }
+}
+
+#[derive(Deserialize)]
+pub struct RealmSpawnPoint { pub slot: u32, pub x: f64, pub z: f64 }
+pub fn realm_spawns() -> Vec<RealmSpawnPoint> {
+    #[derive(Deserialize)]
+    struct Manifest { spawns: Vec<RealmSpawnPoint> }
+    serde_json::from_str::<Manifest>(realm_json()).expect("validated realm manifest").spawns
+}
 
 pub fn game_respawn_candidates() -> &'static [RespawnPoint] {
     GAME_RESPAWN_CANDIDATES

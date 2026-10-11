@@ -11,6 +11,9 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  scheduleId: __t.u64().primaryKey().name("schedule_id"),
-  scheduledAt: __t.scheduleAt().name("scheduled_at"),
+  owner: __t.identity().primaryKey(),
+  slot: __t.u32(),
+  campX: __t.f64().name("camp_x"),
+  campZ: __t.f64().name("camp_z"),
+  joinedAt: __t.timestamp().name("joined_at"),
 });

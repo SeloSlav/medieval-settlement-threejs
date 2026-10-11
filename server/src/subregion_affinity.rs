@@ -91,6 +91,7 @@ pub fn compute_land_use_profile(ctx: &ReducerContext) -> LandUseProfile {
         };
     };
     let generation_size = match config.map_size {
+        3 => crate::realm_policy::WORLD_SIZE,
         0 => 620.0,
         2 => 1_753.624_817_342_637_8,
         _ => 1_240.0,

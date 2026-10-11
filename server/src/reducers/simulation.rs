@@ -1,3 +1,11 @@
+macro_rules! phase {
+    ($timer:ident, $name:literal) => {
+        #[cfg(feature = "local-loadtest")]
+        drop($timer);
+        #[cfg(feature = "local-loadtest")]
+        let $timer = spacetimedb::log_stopwatch::LogStopwatch::new($name);
+    };
+}
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{BASE_SPEED_DENOMINATOR, BASE_SPEED_NUMERATOR, TICK_DT};
@@ -30,6 +38,8 @@ use crate::tables::WorldConfig;
 use crate::tables::{Building, Residence, SimPacingState};
 
 pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSchedule) {
+    #[cfg(feature = "local-loadtest")]
+    let _heartbeat_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm heartbeat");
     let Some(config) = ctx.db.world_config().id().find(&0) else {
         return;
     };
@@ -41,10 +51,10 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // probes, loading clients, and an entirely disconnected realm stay frozen.
     // Keep game_speed untouched so a returning player resumes their previous
     // 1x/4x/8x selection, while an intentional manual Pause remains Pause.
-    if ctx.db.active_game_session().iter().next().is_none() {
+    if !crate::realm::ENABLED && ctx.db.active_game_session().iter().next().is_none() {
         return;
     }
-    retire_removed_buildings(ctx);
+    if !crate::realm::ENABLED { retire_removed_buildings(ctx); }
     // Pause is a hard gameplay boundary: no clock, economy, migration,
     // movement, combat, delivery, weather, or fire state may mutate.
     if config.game_speed == 0 {
@@ -59,7 +69,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // A fresh world remains at its opening hour while the player surveys the
     // land. Placing the founders' camp creates the first building and starts
     // calendar/economy progression on the following scheduler heartbeat.
-    if ctx.db.building().iter().next().is_none() && ctx.db.residence().iter().next().is_none() {
+    if !crate::realm::ENABLED && ctx.db.building().iter().next().is_none() && ctx.db.residence().iter().next().is_none() {
         return;
     }
     let speed = match config.game_speed {
@@ -76,17 +86,24 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         .find(&0)
         .map(|state| state.step_credit)
         .unwrap_or(0);
-    let step_budget = previous_credit + speed as u16 * BASE_SPEED_NUMERATOR;
-    let substeps = step_budget / BASE_SPEED_DENOMINATOR;
-    let next_credit = step_budget % BASE_SPEED_DENOMINATOR;
+    let (base_numerator, base_denominator) = if crate::realm::ENABLED {
+        (crate::realm_policy::CLOCK_NUMERATOR, crate::realm_policy::CLOCK_DENOMINATOR)
+    } else { (BASE_SPEED_NUMERATOR, BASE_SPEED_DENOMINATOR) };
+    let step_budget = previous_credit + speed as u16 * base_numerator;
+    let substeps = step_budget / base_denominator;
+    let next_credit = step_budget % base_denominator;
+    let realm_clock = crate::realm::ENABLED.then(|| crate::realm::advance_clock(ctx));
+    let substeps = realm_clock.as_ref().map_or(substeps, |clock| clock.steps);
+    let wall_seconds = realm_clock.as_ref().map_or(TICK_DT, |clock| clock.elapsed_micros as f64 / 1_000_000.0);
+    crate::realm::step_scouts(ctx, wall_seconds);
     retire_legacy_food_items(ctx);
     let has_delivery_trips = ctx.db.delivery_trip().iter().next().is_some();
     let has_combat_agents = ctx.db.combat_agent().iter().next().is_some();
     let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)
         .then(|| SimTickContext::load_road_networks(ctx));
 
-    let heartbeat_sim_seconds = TICK_DT * speed as f64 * f64::from(BASE_SPEED_NUMERATOR)
-        / f64::from(BASE_SPEED_DENOMINATOR);
+    let heartbeat_sim_seconds = wall_seconds * speed as f64 * f64::from(base_numerator)
+        / f64::from(base_denominator);
     let heartbeat_clock = crate::simulation::game_clock(config.sim_tick);
     let holiday_protected = crate::simulation::holiday_observance(&heartbeat_clock).is_some();
     // Delivery speeds are expressed in world metres per simulation second.
@@ -151,16 +168,18 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
             shared_road_networks.as_ref(),
         );
     }
-    if ctx.db.sim_pacing_state().id().find(&0).is_some() {
-        ctx.db.sim_pacing_state().id().update(SimPacingState {
-            id: 0,
-            step_credit: next_credit,
-        });
-    } else {
-        ctx.db.sim_pacing_state().insert(SimPacingState {
-            id: 0,
-            step_credit: next_credit,
-        });
+    if !crate::realm::ENABLED {
+        if ctx.db.sim_pacing_state().id().find(&0).is_some() {
+            ctx.db.sim_pacing_state().id().update(SimPacingState {
+                id: 0,
+                step_credit: next_credit,
+            });
+        } else {
+            ctx.db.sim_pacing_state().insert(SimPacingState {
+                id: 0,
+                step_credit: next_credit,
+            });
+        }
     }
     for _ in 0..substeps {
         run_one_sim_tick(
@@ -171,9 +190,14 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
                 .clone(),
         );
     }
+    crate::realm::refresh_fog(ctx);
+    if substeps > 0 { crate::realm::refresh_entities(ctx); }
+    else { crate::realm::refresh_mobile_entities(ctx); }
 }
 
 fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
+    #[cfg(feature = "local-loadtest")]
+    let preparation_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm preparation");
     let Some(config) = ctx.db.world_config().id().find(&0) else {
         return;
     };
@@ -181,6 +205,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         return;
     }
 
+    #[cfg(feature = "local-loadtest")]
+    let _phase = spacetimedb::log_stopwatch::LogStopwatch::new("preparation start");
     let world_seed = config.seed;
     let world_map_size = config.map_size;
     let world_hydrology = config.hydrology;
@@ -189,19 +215,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let food_spoilage_rate = config.food_spoilage_rate;
     let conflict_enabled = config.conflict_enabled;
     let enemy_pressure = config.enemy_pressure;
-    ctx.db.world_config().id().update(WorldConfig {
-        sim_tick: config.sim_tick + 1,
-        ..config
-    });
-
-    let sim_tick = ctx
-        .db
-        .world_config()
-        .id()
-        .find(&0)
-        .map(|config| config.sim_tick)
-        .unwrap_or(0);
+    let sim_tick = config.sim_tick + 1;
     let clock = crate::simulation::game_clock(sim_tick);
+    let household_previous_tick = config.household_tick;
+    let household_tick = household_previous_tick + u64::from(crate::simulation::holiday_observance(&clock).is_none());
+    ctx.db.world_config().id().update(WorldConfig { sim_tick, household_tick, ..config });
     // A released tree completes its physical fall even as a rest day begins.
     crate::simulation::forestry::step_falling_trees(ctx);
     // Named holy days advance the calendar and presentation clock only. This
@@ -211,6 +229,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     if crate::simulation::holiday_observance(&clock).is_some() {
         return;
     }
+    let _need_cache = crate::simulation::residence_needs::cache_tick_needs(household_previous_tick, household_tick);
     let environment = crate::season_policy::environment_for(
         world_seed,
         world_hydrology,
@@ -226,8 +245,10 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_production_labor_stewards(ctx, &labor_review_tick, &clock, sim_tick);
         step_construction_labor_stewards(ctx, &labor_review_tick, &clock, sim_tick);
     }
+    phase!(_phase, "foraging");
     step_foraging_lifecycle(ctx, &clock, world_seed, environment, &road_networks);
 
+    phase!(_phase, "security");
     step_settlement_security(
         ctx,
         sim_tick,
@@ -239,7 +260,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         environment,
     );
     let tick = SimTickContext::with_road_networks(road_networks);
+    phase!(_phase, "tree regrowth");
     step_natural_tree_regrowth(ctx, sim_tick);
+    phase!(_phase, "fires");
     step_fires(
         ctx,
         &clock,
@@ -248,10 +271,18 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         world_seed,
         sim_tick,
     );
+    phase!(_phase, "construction");
     step_construction_sites(ctx, &tick, &clock);
+    phase!(_phase, "home upgrades");
     step_residence_upgrades(ctx, &tick, &clock);
+    phase!(_phase, "levies");
     step_land_levies(ctx, &tick, &clock);
 
+    #[cfg(feature = "local-loadtest")]
+    drop(preparation_timer);
+    #[cfg(feature = "local-loadtest")]
+    let production_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm workshops");
+    let labor_roster_cache = crate::economy::cache_production_labor_rosters();
     let mut lumber_mill_ids: Vec<u64> = Vec::new();
     let mut reforester_ids: Vec<u64> = Vec::new();
     let mut stone_quarry_ids: Vec<u64> = Vec::new();
@@ -351,6 +382,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Export rules get first claim on newly available local carts and stock.
     // Carts stage only settlement surplus; the off-map exchange settles once
     // per month without spawning a regional caravan unit.
+    phase!(_phase, "trade");
     step_trading_post_trade(ctx, &tick, &clock);
     step_household_discretionary_trade(ctx, &tick, &clock);
     step_marketplace_caravans(ctx, &clock, &tick, environment);
@@ -362,6 +394,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_marketplace_material_dispatch(ctx, &tick, &clock, material_marketplaces);
     step_regional_markets(ctx, sim_tick);
 
+    phase!(_phase, "reforesters");
     for building_id in reforester_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -369,6 +402,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_reforester(ctx, &tick, &clock, sim_tick, building);
     }
 
+    phase!(_phase, "lumber");
     for building_id in lumber_mill_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -376,6 +410,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_lumber_mill(ctx, &tick, &clock, building);
     }
 
+    phase!(_phase, "quarries");
     for building_id in stone_quarry_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -390,6 +425,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_large_quarry(ctx, &tick, &clock, building);
     }
 
+    phase!(_phase, "food suppliers");
     for building_id in hunters_hall_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -411,6 +447,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_fishing_camp(ctx, &tick, &clock, building);
     }
 
+    phase!(_phase, "woodcutters");
     for building_id in &woodcutters_lodge_ids {
         let Some(building) = ctx.db.building().id().find(building_id) else {
             continue;
@@ -421,11 +458,13 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Fresh lodge output may stage firewood at processors before their work
     // step. Depot carts are held until charcoal and market priorities have
     // been evaluated after production below.
+    phase!(_phase, "firewood");
     let industrial_firewood_sources = woodcutters_lodge_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
         .collect();
     step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
+    phase!(_phase, "wells");
     for building_id in well_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -443,6 +482,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         );
     }
 
+    phase!(_phase, "processors");
     for (sim_kind, building_id) in expanded_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -529,6 +569,12 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Recruitment reserves complete finished kits, then ordinary carts bring
     // them to the mustering hall. Companies become selectable only once every
     // recruit and every physical weapon/armor item is onsite.
+    #[cfg(feature = "local-loadtest")]
+    drop(production_timer);
+    #[cfg(feature = "local-loadtest")]
+    drop(_phase);
+    #[cfg(feature = "local-loadtest")]
+    let logistics_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm logistics");
     step_military_requisitions(ctx, &tick, &clock);
 
     // Local producers have now completed this tick's work. Match their free
@@ -585,6 +631,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // Physical hauling ends at stalls. Several checks per game day issue real
     // market stock to connected homes after local production, intake, and
     // spoilage without multiplying the household's monthly target lot.
+    #[cfg(feature = "local-loadtest")]
+    drop(logistics_timer);
+    #[cfg(feature = "local-loadtest")]
+    let households_timer = spacetimedb::log_stopwatch::LogStopwatch::new("realm households");
+    drop(labor_roster_cache);
     step_market_household_distribution(ctx, &tick, sim_tick, environment);
 
     // Religious houses buy only from staffed Trading Posts, never directly
@@ -633,6 +684,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             food_spoilage_rate,
         );
     }
+    #[cfg(feature = "local-loadtest")]
+    drop(households_timer);
     step_burials(ctx, &tick, &clock, TICK_DT);
     step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
     step_founding_sites(ctx, &tick, &clock);

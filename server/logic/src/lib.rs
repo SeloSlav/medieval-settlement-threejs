@@ -4,6 +4,15 @@
 #[path = "../../src/forestry_policy.rs"]
 pub mod forestry_policy;
 
+#[path = "../../src/realm_policy.rs"]
+pub mod realm_policy;
+
+#[path = "../../src/realm_navigation_policy.rs"]
+pub mod realm_navigation_policy;
+
+#[path = "../../src/household_timer_policy.rs"]
+pub mod household_timer_policy;
+
 #[path = "../../src/balance_generated.rs"]
 pub mod balance_generated;
 

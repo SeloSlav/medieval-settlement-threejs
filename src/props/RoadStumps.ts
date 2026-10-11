@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { StaticRenderBundle } from '../scene/StaticRenderBundle.ts';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import { distancePointToPolylineXZ } from '../utils/pathGeometry.ts';
@@ -79,7 +80,7 @@ export function createHarvestStumpInstances(
   maxAnisotropy = 1,
   resolveBark?: HarvestStumpBarkResolver,
 ): HarvestStumpInstances {
-  const group = new THREE.Group();
+  const group = new StaticRenderBundle();
   group.name = 'Harvest stumps';
   const meshes: THREE.InstancedMesh[] = [];
   const slots: StumpSlot[] = Array.from({ length: placements.length });

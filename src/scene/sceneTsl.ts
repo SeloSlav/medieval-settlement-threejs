@@ -8,12 +8,17 @@ export type SceneNode = {
   mul(...v: unknown[]): SceneNode; div(...v: unknown[]): SceneNode;
   negate(): SceneNode; exp(): SceneNode; oneMinus(): SceneNode;
   clamp(low: unknown, high: unknown): SceneNode; sample(uv: unknown): SceneNode;
+  element(index: unknown): SceneNode; toReadOnly(): SceneNode;
+  setGroup(group: unknown): SceneNode;
 };
 type NodeFunction = (...args: unknown[]) => SceneNode;
 export const sceneTsl = TSL as unknown as {
+  renderGroup: unknown;
   cameraPosition: SceneNode; positionWorld: SceneNode; normalWorld: SceneNode;
   normalView: SceneNode; diffuseColor: SceneNode; materialAO: SceneNode; output: SceneNode;
   float: NodeFunction; vec3: NodeFunction; vec4: NodeFunction; exp: NodeFunction;
+  vec2: NodeFunction; texture: NodeFunction;
+  storage: NodeFunction; uint: NodeFunction; floor: NodeFunction;
   distance: NodeFunction; max: NodeFunction; min: NodeFunction; mix: NodeFunction;
   smoothstep: NodeFunction; fog: NodeFunction; reference: NodeFunction;
   mrt: NodeFunction; renderOutput: NodeFunction;

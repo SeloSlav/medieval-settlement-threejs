@@ -24,6 +24,7 @@ pub fn bootstrap_quarries(
     ctx: &ReducerContext,
     quarries: Vec<QuarryBootstrap>,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("bootstrap_quarries")?;
     for quarry in quarries {
         if quarry.quarry_id.is_empty() || quarry.max_yield <= 0.0 {
             continue;
@@ -34,6 +35,7 @@ pub fn bootstrap_quarries(
             let rebalanced_remaining =
                 preserve_extracted_stone(existing.max_yield, existing.remaining, quarry.max_yield);
             ctx.db.quarry().quarry_id().update(Quarry {
+                chunk_id: crate::realm_policy::world_chunk(quarry.x, quarry.z).unwrap_or(0),
                 x: quarry.x,
                 z: quarry.z,
                 max_yield: quarry.max_yield,
@@ -43,6 +45,7 @@ pub fn bootstrap_quarries(
             });
         } else {
             ctx.db.quarry().insert(Quarry {
+                chunk_id: crate::realm_policy::world_chunk(quarry.x, quarry.z).unwrap_or(0),
                 quarry_id: quarry.quarry_id,
                 x: quarry.x,
                 z: quarry.z,
@@ -60,6 +63,7 @@ pub fn bootstrap_foraging(
     ctx: &ReducerContext,
     nodes: Vec<ForagingBootstrap>,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("bootstrap_foraging")?;
     for node in nodes {
         if node.node_id.is_empty() || node.max_yield <= 0.0 {
             continue;
@@ -80,6 +84,7 @@ pub fn bootstrap_foraging(
                 existing.remaining.min(node.max_yield)
             };
             ctx.db.foraging_node().node_id().update(ForagingNode {
+                chunk_id: if preserve_runtime_location { existing.chunk_id } else { crate::realm_policy::world_chunk(node.x, node.z).unwrap_or(0) },
                 // Disturbed game habitats may have migrated, but plants and
                 // fish are static world-layout sites and must stay aligned
                 // with the resources rendered by reconnecting clients.
@@ -110,6 +115,7 @@ pub fn bootstrap_foraging(
             });
         } else {
             ctx.db.foraging_node().insert(ForagingNode {
+                chunk_id: crate::realm_policy::world_chunk(node.x, node.z).unwrap_or(0),
                 node_id: node.node_id,
                 node_kind: node.node_kind,
                 x: node.x,
@@ -127,6 +133,7 @@ pub fn bootstrap_foraging(
 
 #[reducer]
 pub fn bootstrap_trees(ctx: &ReducerContext, trees: Vec<TreeBootstrap>) -> Result<(), String> {
+    crate::realm::require_single_player("bootstrap_trees")?;
     for tree in trees {
         if tree.tree_id.is_empty() {
             continue;
@@ -135,6 +142,7 @@ pub fn bootstrap_trees(ctx: &ReducerContext, trees: Vec<TreeBootstrap>) -> Resul
             continue;
         }
         ctx.db.tree_entity().insert(TreeEntity {
+                chunk_id: crate::realm_policy::world_chunk(tree.x, tree.z).unwrap_or(0),
             tree_id: tree.tree_id,
             layout_index: tree.layout_index,
             phase: "mature".to_string(),
@@ -180,6 +188,7 @@ fn first_camp_goods(stock: f64, standard_allocation: f64, multiplier: u8) -> f64
 /// the ordinary building-placement reducer once the world has loaded.
 #[reducer]
 pub fn bootstrap_founding_site(ctx: &ReducerContext, x: f64, z: f64) -> Result<(), String> {
+    crate::realm::require_single_player("bootstrap_founding_site")?;
     validate_founding_site_coordinates(x, z)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);

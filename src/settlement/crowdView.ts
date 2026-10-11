@@ -1,4 +1,7 @@
+import type { Camera } from 'three';
 export type CrowdViewState = {
+  /** Rendering only: off-screen actors continue their normal local simulation. */
+  renderCamera?: Camera;
   centerX: number;
   centerZ: number;
   viewRadius: number;

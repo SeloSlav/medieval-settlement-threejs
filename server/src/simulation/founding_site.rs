@@ -54,10 +54,10 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
     let site_ids = ctx
         .db
         .building()
-        .iter()
+        .kind()
+        .filter("founders_camp")
         .filter(|building| {
-            building.kind == "founders_camp"
-                && building.construction_complete
+            building.construction_complete
                 && building.settlement_id != 0
         })
         .map(|building| building.id)

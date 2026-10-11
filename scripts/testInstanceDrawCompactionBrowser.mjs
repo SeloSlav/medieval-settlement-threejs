@@ -19,7 +19,7 @@ try {
     renderer.shadowMap.enabled = true;
     const reports = [];
     // Exercise both uniform-backed and large interleaved instance matrices.
-    for (const n of [400, 1600]) for (const indexed of [true, false]) {
+    for (const n of [400, 1600]) for (const indexed of [true, false]) for (const grouped of [false, true]) {
     const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
     const geometry = indexed ? sourceGeometry : sourceGeometry.toNonIndexed();
     const offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
@@ -30,7 +30,13 @@ try {
     const material = new THREE.MeshBasicNodeMaterial();
     material.positionNode = TSL.positionLocal.add(TSL.attribute('offset','vec3').mul(clock));
     material.colorNode = TSL.attribute('tint','vec3');
-    const actual = new THREE.InstancedMesh(geometry,material,n), expected = new THREE.InstancedMesh(geometry.clone(),material,n);
+    const otherMaterial = new THREE.MeshBasicNodeMaterial({ color: 0xc4a627 });
+    if (grouped) {
+      geometry.clearGroups(); const count = geometry.index?.count ?? geometry.getAttribute('position').count;
+      const split = Math.floor(count / 6) * 3; geometry.addGroup(0,split,0); geometry.addGroup(split,count-split,1);
+    }
+    const drawMaterial = grouped ? [material,otherMaterial] : material;
+    const actual = new THREE.InstancedMesh(geometry,drawMaterial,n), expected = new THREE.InstancedMesh(geometry.clone(),drawMaterial,n);
     // The full reference must upload this frame's matrices independently of
     // Three's deferred interleaved-version synchronization for large forests.
     actual.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -43,7 +49,7 @@ try {
     actual.instanceMatrix.needsUpdate = expected.instanceMatrix.needsUpdate = true;
     const scenes = [new THREE.Scene(),new THREE.Scene()]; scenes[0].add(actual);scenes[1].add(expected);
     scenes.forEach(s => s.background = new THREE.Color(.1,.1,.1));
-    const shadowSource = new THREE.InstancedMesh(actual.geometry, material, n);
+    const shadowSource = new THREE.InstancedMesh(actual.geometry, drawMaterial, n);
     shadowSource.instanceMatrix = actual.instanceMatrix;
     shadowSource.instanceColor = actual.instanceColor;
     shadowSource.castShadow = true; shadowSource.frustumCulled = false;
@@ -101,7 +107,7 @@ try {
         const data=new Uint32Array(pair.output.array.buffer);
         const canonical=new Uint32Array(pair.source.array.buffer);
         for(let row=0;row<compaction.submittedInstances;row++)for(let k=0;k<pair.source.itemSize;k++) {
-          if(data[row*pair.source.itemSize+k]!==canonical[compaction.selected[row]*pair.source.itemSize+k])throw new Error('Compaction changed an authored attribute bit');
+          if(data[row*pair.output.itemSize+k]!==canonical[compaction.selected[row]*pair.source.itemSize+k])throw new Error(`Compaction changed an authored attribute bit: n=${n}, frame=${frame}, row=${row}, component=${k}, sourceSize=${pair.source.itemSize}, outputSize=${pair.output.itemSize}, sourceLength=${canonical.length}, outputLength=${data.length}`);
         }
       }
       frames.push({frame,submitted:compaction.submittedInstances,shadowSubmitted:shadowCompaction.submittedInstances,total:actual.count,difference});
@@ -112,8 +118,8 @@ try {
     shadowCompaction.dispose();shadowSource.removeFromParent();actual.castShadow=true;
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
-    reports.push({n,indexed,frames,restoredDifference});
-    target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();
+    reports.push({n,indexed,grouped,frames,restoredDifference});
+    target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();otherMaterial.dispose();
     }
     renderer.dispose();return reports;
   });

@@ -30,6 +30,12 @@ pub fn init(ctx: &ReducerContext) {
     // Deploy-time seed from embedded JSON. Connected clients replace this with
     // layout-derived bootstrap rows via configure_world + bootstrap_* reducers.
     seed_world_entities(ctx);
+    if crate::realm::ENABLED {
+        use crate::realm::realm_spawn;
+        for spawn in world_gen::realm_spawns() {
+            ctx.db.realm_spawn().insert(crate::realm::RealmSpawn { slot: spawn.slot, x: spawn.x, z: spawn.z });
+        }
+    }
     ensure_sim_schedule(ctx);
     log::info!("Medieval Road System module initialized (seed={seed})");
 }
@@ -37,6 +43,11 @@ pub fn init(ctx: &ReducerContext) {
 #[reducer(client_connected)]
 pub fn client_connected(ctx: &ReducerContext) {
     let owner = ctx.sender();
+    // Anonymous startup probes must not create simulated settlements in the realm.
+    if crate::realm::ENABLED {
+        use crate::realm::realm_member;
+        if ctx.db.realm_member().owner().find(owner).is_none() { return; }
+    }
     ensure_player_resources(ctx, owner);
     crate::building_kind_migration::migrate_removed_clay_pits(ctx, owner);
     crate::placement_validation::lock_legacy_building_placement_yaws(ctx, owner);
@@ -58,6 +69,7 @@ pub fn client_connected(ctx: &ReducerContext) {
 /// The browser invokes this only after bootstrap and road hydration complete.
 #[reducer]
 pub fn enter_world(ctx: &ReducerContext) -> Result<(), String> {
+    crate::realm::admit(ctx)?;
     let connection_id = ctx
         .connection_id()
         .ok_or_else(|| "enter_world requires a live client connection".to_string())?;
@@ -101,6 +113,7 @@ pub fn seed_world_entities(ctx: &ReducerContext) {
     if ctx.db.quarry().iter().count() == 0 {
         for quarry in world_gen::bootstrap_quarry_rows() {
             ctx.db.quarry().insert(Quarry {
+                chunk_id: crate::realm_policy::world_chunk(quarry.x, quarry.z).unwrap_or(0),
                 quarry_id: quarry.quarry_id,
                 x: quarry.x,
                 z: quarry.z,
@@ -114,6 +127,7 @@ pub fn seed_world_entities(ctx: &ReducerContext) {
     if ctx.db.foraging_node().iter().count() == 0 {
         for node in world_gen::bootstrap_foraging_rows() {
             ctx.db.foraging_node().insert(ForagingNode {
+                chunk_id: crate::realm_policy::world_chunk(node.x, node.z).unwrap_or(0),
                 node_id: node.node_id,
                 node_kind: node.node_kind,
                 x: node.x,
@@ -133,6 +147,7 @@ pub fn seed_world_entities(ctx: &ReducerContext) {
                 continue;
             }
             ctx.db.tree_entity().insert(TreeEntity {
+                chunk_id: crate::realm_policy::world_chunk(tree.x, tree.z).unwrap_or(0),
                 tree_id: tree.tree_id,
                 layout_index: tree.layout_index,
                 phase: "mature".to_string(),
@@ -301,6 +316,9 @@ fn ensure_sim_schedule(ctx: &ReducerContext) {
     let tick = TimeDuration::from_micros(TICK_MICROS);
     let _ = ctx.db.sim_tick_schedule().try_insert(SimTickSchedule {
         schedule_id: 0,
+        // The engine preserves recurring schedules across module updates and
+        // skips missed callback boundaries. RealmClock separately retains the
+        // elapsed simulation debt, so gameplay work is never skipped.
         scheduled_at: ScheduleAt::Interval(tick),
     });
 }

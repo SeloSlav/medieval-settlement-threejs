@@ -69,6 +69,9 @@ pub fn place_pasture(
     {
         return Err("Pastures must belong to one of your livestock buildings.".to_string());
     }
+    for (x,z) in [(corner_ax,corner_az),(corner_bx,corner_bz),(corner_cx,corner_cz),(corner_dx,corner_dz)] {
+        crate::realm::validate_construction(ctx,x,z)?;
+    }
     let corners = corners_from_values([
         corner_ax, corner_az, corner_bx, corner_bz, corner_cx, corner_cz, corner_dx, corner_dz,
     ]);

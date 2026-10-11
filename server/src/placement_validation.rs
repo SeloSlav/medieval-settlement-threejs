@@ -351,7 +351,7 @@ fn point_overlaps_circle(x: f64, z: f64, center_x: f64, center_z: f64, radius: f
     (x - center_x).powi(2) + (z - center_z).powi(2) <= radius * radius
 }
 
-fn polygon_overlaps_circle(
+pub(crate) fn polygon_overlaps_circle(
     polygon: &[Point2; 4],
     center_x: f64,
     center_z: f64,

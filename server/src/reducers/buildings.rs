@@ -427,6 +427,7 @@ pub(crate) fn place_building_internal(
     z: f64,
     yaw: Option<f64>,
 ) -> Result<u64, String> {
+    crate::realm::validate_construction(ctx, x, z)?;
     if !x.is_finite() || !z.is_finite() || yaw.is_some_and(|value| !value.is_finite()) {
         return Err("Building position and rotation must be finite.".into());
     }

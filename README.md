@@ -15,6 +15,32 @@
 
 ## Run the game locally
 
+The persistent multiplayer realm is under development. Its target is 50 players on one 12,288 m map, a shared five-minute day, and a 16.67 ms client frame budget. The full-day clock test passed with 50 subscribed clients and 67 developed settlements; the client frame budget has not passed yet. The opening screen offers single-player with its existing time controls and the persistent multiplayer realm with its shared clock.
+
+Cart and civilian-worker batching, retained GPU draw commands for opaque forest layers and harvest stumps, and road/navigation caches are shared with single-player. Giant-map terrain and forest residency are multiplayer-specific. `test:static-render-bundle-browser` compares native WebGPU pixels and draw counts with an uncached reference, including wind, shadow passes, instance edits, and camera movement; it also checks that unchanged draw sets reuse their commands.
+
+The realm embeds one shared water/elevation grid matching the client's 512×512 geography. Multiplayer road snapshots contain geometry only; single-player continues to publish its generated terrain. Surveyor orders use bounded routes around structures, with exact road centerlines available for narrow bridges. Every movement step checks structures and water again. Water checks visit each crossed cell and require continuous bridge coverage, including very small deck gaps.
+
+Dry terrain rectangles use a shared summed-area lookup, and repeated segment checks use bounded caches. The populated navigation build's full-day test measured 601 steps in 300.21 seconds with 50 subscribed clients and 67 settlements, with a maximum sampled backlog of 2.21 seconds (`artifacts/realm-clock-water-cache.json`). This validates the shared clock; the client frame budget remains unfinished.
+
+For a disposable local multiplayer test, start SpacetimeDB with `pnpm run dev:db`, then run in another PowerShell window:
+
+```powershell
+$env:REALM_TEST_URI='http://127.0.0.1:3000'
+$env:REALM_TEST_DB='city-builder-realm-loadtest'
+pnpm run build:server:realm-loadtest
+node scripts/publishLocalRealm.mjs
+pnpm run test:realm-clients
+pnpm run test:realm-production
+pnpm run test:realm-clock
+```
+
+The clients test admits 50 separate identities; the production fixture gives them developed towns and 17 independent outposts. `test:realm-clock` measures five real minutes and fails if the shared calendar loses pace or accumulates more than five seconds of unfinished simulation. Test identities and data stay in ignored local files. The publisher only accepts loopback servers; `--reset` wipes the selected disposable database.
+
+To view that test world, run the client with `VITE_MULTIPLAYER_URI` set to the same server URL and `VITE_MULTIPLAYER_DB_NAME` set to `city-builder-realm-loadtest`, then open `/?mode=multiplayer`. Set `REALM_BROWSER_URL` to the client URL before running `test:realm-browser`; its default is `http://127.0.0.1:5190/`. Browser evidence includes frame intervals, terrain residency, paper-map fog, and screenshots under `artifacts/realm-browser`.
+
+`pnpm run build:server:realm` builds the player realm without local fixture reducers. The `local-loadtest` build must remain local. The ordinary `deploy:local` command below continues to build single-player.
+
 This is the shortest way to start the complete game on Windows. You need [Node.js 22.12 or newer](https://nodejs.org/), [Rust](https://rustup.rs/), and the [SpacetimeDB CLI](https://spacetimedb.com/) installed first. The setup commands below use PowerShell.
 
 1. Open PowerShell in this project folder, download the project's submodule and install its packages:

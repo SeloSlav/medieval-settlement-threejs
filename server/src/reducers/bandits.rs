@@ -347,6 +347,7 @@ pub fn set_military_formation(
     company_id: u64,
     formation: u8,
 ) -> Result<(), String> {
+    crate::realm::require_single_player("Debug military deployment")?;
     if !matches!(
         formation,
         MILITARY_FORMATION_LINE

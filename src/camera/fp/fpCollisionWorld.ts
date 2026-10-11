@@ -14,6 +14,7 @@ const ROCK_QUERY_RADIUS_M = 12;
 const PLAYER_COLLISION_SKIN_M = 0.012;
 const LANDING_LIP_M = 0.16;
 const MAX_RESOLVE_ITERATIONS = 3;
+const MAX_AGENT_ROUTE_CACHE = 2048;
 
 type TreeCollisionState = {
   phase: TreePhase;
@@ -43,6 +44,8 @@ export type FpCollisionWorldConfig = {
     path: readonly PointXZ[],
     radius: number,
   ) => boolean;
+  /** Changes when non-mesh hazards or bridge openings change. */
+  getAgentNavigationVersion?: () => unknown;
 };
 
 export type FpBoxCollider = {
@@ -119,6 +122,8 @@ export class FpCollisionWorld {
   private lastTreeActivityVersion: unknown;
   private hasPreparedDynamic = false;
   private staticDirty = true;
+  private readonly agentRoutes = new Map<string, PointXZ[] | null>();
+  private lastAgentNavigationVersion: unknown;
 
   constructor(config: FpCollisionWorldConfig) {
     this.config = config;
@@ -126,6 +131,7 @@ export class FpCollisionWorld {
 
   invalidateStatic(): void {
     this.staticDirty = true;
+    this.agentRoutes.clear();
   }
 
   /**
@@ -137,12 +143,25 @@ export class FpCollisionWorld {
     radius = 0.28,
   ): PointXZ[] | null {
     if (this.staticDirty) this.rebuildStaticIndex();
+    const navigationVersion = this.config.getAgentNavigationVersion?.();
+    if (navigationVersion !== this.lastAgentNavigationVersion) {
+      this.agentRoutes.clear();
+      this.lastAgentNavigationVersion = navigationVersion;
+    }
+    // An unversioned custom hazard can move independently of static geometry.
+    const canCache = (!this.config.isAgentNavigationBlocked || !!this.config.getAgentNavigationVersion)
+      && Number.isFinite(radius) && path.every(point => Number.isFinite(point.x) && Number.isFinite(point.z));
+    const key = canCache ? `${radius}|${path.map(point => `${point.x},${point.z}`).join(';')}` : '';
+    if (canCache && this.agentRoutes.has(key)) {
+      const cached = this.agentRoutes.get(key)!;
+      this.agentRoutes.delete(key); this.agentRoutes.set(key, cached);
+      return copyAgentRoute(cached);
+    }
     const isStaticBlocked = (x: number, z: number): boolean =>
       this.staticIndex.diskOverlaps(x, z, radius);
     const isNavigationBlocked = this.config.isAgentNavigationBlocked;
-    if (!isNavigationBlocked) return routeAgentPolyline(path, isStaticBlocked);
     const mayNavigationPathBeBlocked = this.config.mayAgentNavigationPathBeBlocked;
-    return routeAgentPolylineWithDeferredObstacle(
+    const route = !isNavigationBlocked ? routeAgentPolyline(path, isStaticBlocked) : routeAgentPolylineWithDeferredObstacle(
       path,
       isStaticBlocked,
       (x, z) => isNavigationBlocked(x, z, radius),
@@ -150,6 +169,11 @@ export class FpCollisionWorld {
         ? (candidate) => mayNavigationPathBeBlocked(candidate, radius)
         : undefined,
     );
+    if (canCache) {
+      if (this.agentRoutes.size >= MAX_AGENT_ROUTE_CACHE) this.agentRoutes.delete(this.agentRoutes.keys().next().value!);
+      this.agentRoutes.set(key, copyAgentRoute(route));
+    }
+    return route;
   }
 
   prepare(x: number, z: number): void {
@@ -371,6 +395,10 @@ export class FpCollisionWorld {
     this.dynamicColliderCount += 1;
     this.nearby.push(collider);
   }
+}
+
+function copyAgentRoute(route: readonly PointXZ[] | null): PointXZ[] | null {
+  return route?.map(point => ({ x: point.x, z: point.z })) ?? null;
 }
 
 class StaticColliderIndex {

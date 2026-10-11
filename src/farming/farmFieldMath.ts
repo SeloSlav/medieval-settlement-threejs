@@ -412,6 +412,7 @@ function activeCropRegionContext(): CropRegionContext {
 function regionalPrimeCropCount(mapSize: WorldMapSize): number {
   switch (mapSize) {
     case 'small': return FARM_REGIONAL_PRIME_CROPS_SMALL;
+    case 'realm':
     case 'large': return FARM_REGIONAL_PRIME_CROPS_LARGE;
     default: return FARM_REGIONAL_PRIME_CROPS_MEDIUM;
   }

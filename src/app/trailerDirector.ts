@@ -85,9 +85,9 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   button('4 · Muster 100',()=>call('trailer_battle',[0,250,0]));
   button('5 · Ottoman 100',()=>call('trailer_battle',[1,250,60]));
   button('6 · Advance',async()=>{
-    const conn=getConnection()!;const companies=[...conn.db.military_company.iter()];
+    const conn=getConnection()!;const companies=[...conn.db.visible_military_company.iter()];
     for(let i=0;i<companies.length;i++){
-      const c=companies[i];const ids=[...conn.db.combat_agent.iter()].filter(a=>a.faction>=3&&a.raidId===c.id&&a.health>0).map(a=>Number(a.id));
+      const c=companies[i];const ids=[...conn.db.visible_combat_agent.iter()].filter(a=>a.faction>=3&&a.raidId===c.id&&a.health>0).map(a=>Number(a.id));
       await call('set_military_tactics',[Number(c.id),true,[3,7,10].includes(c.kind)]);
       await call('command_militia',[ids,250+(i%7)*7-21,32+(i>6?-8:0),0,0]);
     }
@@ -98,11 +98,11 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   button('Attach built city',()=>readyConnection());
   button('Save audit',async()=>{await fetch('http://127.0.0.1:5180/json/economy-'+Date.now(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(audit(),(_k,v)=>typeof v==='bigint'?v.toString():v)});});
 
-  function audit(){const c=getConnection();if(!c)return{};return{capturedAt:new Date().toISOString(),captureSpeed:trailerClock.speed,crowd:crowdDiagnostics(),world:[...c.db.world_config.iter()],buildings:[...c.db.building.iter()],residences:[...c.db.residence.iter()],needs:[...c.db.residence_need.iter()],deliveries:[...c.db.delivery_trip.iter()],companies:[...c.db.military_company.iter()],combatants:[...c.db.combat_agent.iter()],farms:[...c.db.farm_field.iter()]};}
+  function audit(){const c=getConnection();if(!c)return{};return{capturedAt:new Date().toISOString(),captureSpeed:trailerClock.speed,crowd:crowdDiagnostics(),world:[...c.db.world_config.iter()],buildings:[...c.db.visible_building.iter()],residences:[...c.db.visible_residence.iter()],needs:[...c.db.visible_residence_need.iter()],deliveries:[...c.db.visible_delivery_trip.iter()],companies:[...c.db.visible_military_company.iter()],combatants:[...c.db.visible_combat_agent.iter()],farms:[...c.db.visible_farm_field.iter()]};}
   const metricsTimer=setInterval(()=>{
     const c=getConnection();if(!c)return;
-    const homes=[...c.db.residence.iter()];const agents=[...c.db.combat_agent.iter()];const buildings=[...c.db.building.iter()];
-    const metrics={buildings:buildings.length,homes:homes.length,population:homes.reduce((n,r)=>n+r.population,0),tier4:homes.filter(r=>r.tier===4).length,carts:Number(c.db.delivery_trip.count()),friendly:agents.filter(a=>a.faction>=3&&a.health>0).length,ottoman:agents.filter(a=>a.faction===1&&a.health>0).length,companies:Number(c.db.military_company.count()),tick:String([...c.db.world_config.iter()][0]?.simTick)};
+    const homes=[...c.db.visible_residence.iter()];const agents=[...c.db.visible_combat_agent.iter()];const buildings=[...c.db.visible_building.iter()];
+    const metrics={buildings:buildings.length,homes:homes.length,population:homes.reduce((n,r)=>n+r.population,0),tier4:homes.filter(r=>r.tier===4).length,carts:Number(c.db.visible_delivery_trip.count()),friendly:agents.filter(a=>a.faction>=3&&a.health>0).length,ottoman:agents.filter(a=>a.faction===1&&a.health>0).length,companies:Number(c.db.visible_military_company.count()),tick:String([...c.db.world_config.iter()][0]?.simTick)};
     panel.querySelector('#trailer-metrics')!.textContent=JSON.stringify(metrics,null,1);
     void fetch('http://127.0.0.1:5180/json/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:status.textContent,...metrics})}).catch(()=>{});
   },2000);
@@ -114,7 +114,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     const forest=scene.getForestManager();
     forest?.removeAuthoritativeTreeLayouts(forest.getTreeLayouts().filter(t=>Math.abs(t.x-250)<95&&Math.abs(t.z-30)<85).map(t=>t.layoutIndex));
   };
-  const combatants=()=>[...getConnection()!.db.combat_agent.iter()];
+  const combatants=()=>[...getConnection()!.db.visible_combat_agent.iter()];
   const shortSubject=(name:string,a:ReturnType<typeof combatants>[number])=>name==='battle30_ottoman_bow'?a.faction===1&&[1,2].includes(a.sourceSlot%8):name==='battle30_croatian_bow'?a.faction===10:name==='battle30_sword'?a.faction===5:name==='battle30_janissary'?a.faction===1&&[3,4].includes(a.sourceSlot%8):a.faction===4;
   const activeShortSubjects=(name:string)=>combatants().filter(a=>a.health>40&&a.state===1&&shortSubject(name,a)&&a.sourceSlot>0);
   const fightingPair=()=>{
@@ -188,7 +188,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     }
     const trace:unknown[]=[];
     if(name==='muster_close'){
-      const cavalryCompany=[...getConnection()!.db.military_company.iter()].find(c=>c.kind===8);
+      const cavalryCompany=[...getConnection()!.db.visible_military_company.iter()].find(c=>c.kind===8);
       const riders=combatants().filter(a=>a.raidId===cavalryCompany?.id&&a.faction>=3&&a.health>0);
       if(riders.length){focusX=riders.reduce((n,a)=>n+a.x,0)/riders.length;focusZ=riders.reduce((n,a)=>n+a.z,0)/riders.length;}
     }
@@ -279,7 +279,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
     await readyConnection();trailerClock.speed=1;
     await saveAudit('battle-start-100-vs-100');
     const issueOrders=async()=>{
-      const companies=[...getConnection()!.db.military_company.iter()].sort((a,b)=>Number(a.id-b.id));
+      const companies=[...getConnection()!.db.visible_military_company.iter()].sort((a,b)=>Number(a.id-b.id));
       const enemies=combatants().filter(a=>a.faction===1&&a.health>0&&a.state!==5);
       if(!enemies.length)throw new Error('No live opposing force');
       for(const company of companies){
@@ -320,8 +320,8 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   };
   const shortBattle=async()=>{
     await readyConnection();
-    if(!Number(getConnection()!.db.building.count()))await author(0);
-    if(![...getConnection()!.db.building.iter()].some(b=>b.kind==='town_hall')){
+    if(!Number(getConnection()!.db.visible_building.count()))await author(0);
+    if(![...getConnection()!.db.visible_building.iter()].some(b=>b.kind==='town_hall')){
       await call('trailer_author',[JSON.stringify({x:-55,z:28,buildings:[
         {kind:'town_hall',x:185,z:-45,labor:0},
         {kind:'guardhouse',x:205,z:-12,labor:0},
@@ -376,7 +376,7 @@ export function installTrailerDirector(scene: SceneManager, camera: CameraContro
   });
   if(new URLSearchParams(location.search).has('produce')){
     const requested=new URLSearchParams(location.search).get('produce')??'battle';
-    const ready=setInterval(()=>{const c=getConnection();const loaded=c&&Number(c.db.world_config.count())>0&&(requested!=='battle'||(Number(c.db.military_company.count())>=14&&Number(c.db.combat_agent.count())>=200));if(getConnectionToken()&&loaded&&!busy){clearInterval(ready);busy=true;void (requested==='battle30'?shortBattle():requested==='revision'?reviseMilitary():requested==='battle'?recordBattle():produce(!['1','v3'].includes(requested),requested==='capture')).catch(e=>{status.textContent=String(e);console.error(e);}).finally(()=>{busy=false;});}},1500);
+    const ready=setInterval(()=>{const c=getConnection();const loaded=c&&Number(c.db.world_config.count())>0&&(requested!=='battle'||(Number(c.db.visible_military_company.count())>=14&&Number(c.db.visible_combat_agent.count())>=200));if(getConnectionToken()&&loaded&&!busy){clearInterval(ready);busy=true;void (requested==='battle30'?shortBattle():requested==='revision'?reviseMilitary():requested==='battle'?recordBattle():produce(!['1','v3'].includes(requested),requested==='capture')).catch(e=>{status.textContent=String(e);console.error(e);}).finally(()=>{busy=false;});}},1500);
   }
 }
 

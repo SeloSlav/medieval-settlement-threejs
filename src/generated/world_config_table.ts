@@ -15,6 +15,7 @@ export default __t.row({
   seed: __t.u64(),
   nextBuildingId: __t.u64().name("next_building_id"),
   simTick: __t.u64().name("sim_tick"),
+  householdTick: __t.u64().name("household_tick"),
   gameSpeed: __t.u8().name("game_speed"),
   mapSize: __t.u8().name("map_size"),
   topography: __t.u8(),

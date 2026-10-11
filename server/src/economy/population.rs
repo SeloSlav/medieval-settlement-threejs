@@ -159,12 +159,31 @@ fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         .sum()
 }
 
+thread_local! {
+    static PRODUCTION_LABOR_ROSTERS: std::cell::RefCell<Option<std::collections::HashMap<spacetimedb::Identity, u32>>> = const { std::cell::RefCell::new(None) };
+}
+/// Bounded to the production/logistics phase of a single reducer. Population
+/// and workplace rosters are stable here; new cart and military reservations
+/// are always read live. No cache survives the phase or another transaction.
+pub struct ProductionLaborCache;
+pub fn cache_production_labor_rosters() -> ProductionLaborCache {
+    PRODUCTION_LABOR_ROSTERS.with(|cache| *cache.borrow_mut() = Some(Default::default()));
+    ProductionLaborCache
+}
+impl Drop for ProductionLaborCache {
+    fn drop(&mut self) { PRODUCTION_LABOR_ROSTERS.with(|cache| *cache.borrow_mut() = None); }
+}
+pub fn invalidate_production_labor_roster(owner: spacetimedb::Identity) {
+    PRODUCTION_LABOR_ROSTERS.with(|cache| { if let Some(cache) = cache.borrow_mut().as_mut() { cache.remove(&owner); } });
+}
 pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
-    total_population(ctx, owner).saturating_sub(
-        total_assigned_labor(ctx, owner)
-            .saturating_add(total_free_hauler_labor(ctx, owner))
-            .saturating_add(active_military_resident_count(ctx, owner)),
-    )
+    let capacity = PRODUCTION_LABOR_ROSTERS.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if let Some(cache) = cache.as_mut() {
+            *cache.entry(owner).or_insert_with(|| total_population(ctx, owner).saturating_sub(total_assigned_labor(ctx, owner)))
+        } else { total_population(ctx, owner).saturating_sub(total_assigned_labor(ctx, owner)) }
+    });
+    capacity.saturating_sub(total_free_hauler_labor(ctx, owner).saturating_add(active_military_resident_count(ctx, owner)))
 }
 
 fn active_military_resident_count(
@@ -290,6 +309,7 @@ pub fn preempt_flexible_labor_for_workplace_callup(
 
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
+    invalidate_production_labor_roster(owner);
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
     let assignments = ctx
         .db
@@ -370,6 +390,7 @@ pub fn assign_building_labor(
     building_id: u64,
     requested_labor: u32,
 ) -> Result<(), String> {
+    invalidate_production_labor_roster(owner);
     let building = ctx
         .db
         .building()

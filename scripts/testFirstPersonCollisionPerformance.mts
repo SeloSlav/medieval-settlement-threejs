@@ -204,6 +204,46 @@ assert.equal(
   'missing dynamic version sources must retain conservative recomputation',
 );
 
+// Repeated civilian errands share exact routes until geometry or hazards change.
+let navigationVersion = 0;
+let hazardPresent = false;
+let routeProbes = 0;
+const routeWorld = new FpCollisionWorld({
+  getStaticRoots: () => [], getHeightAt: () => 0,
+  isAgentNavigationBlocked: (x, z) => {
+    routeProbes++;
+    return hazardPresent && x > -1 && x < 1 && z > -2 && z < 2;
+  },
+  getAgentNavigationVersion: () => navigationVersion,
+});
+const errand = [{ x: -5, z: 0 }, { x: 5, z: 0 }];
+const firstRoute = routeWorld.routeAgentPath(errand)!;
+const firstProbes = routeProbes;
+firstRoute[0].x = 1000;
+for (let i = 0; i < 1000; i++) assert.deepEqual(routeWorld.routeAgentPath(errand), errand);
+assert.equal(routeProbes, firstProbes, 'cached errands must not repeat navigation probes');
+hazardPresent = true; navigationVersion++;
+const detour = routeWorld.routeAgentPath(errand);
+assert(detour?.some(point => Math.abs(point.z) >= 2), 'a changed hazard must produce a fresh safe detour');
+assert(routeProbes > firstProbes);
+const detourProbes = routeProbes;
+assert.deepEqual(routeWorld.routeAgentPath(errand), detour);
+assert.equal(routeProbes, detourProbes);
+routeWorld.invalidateStatic();
+assert.deepEqual(routeWorld.routeAgentPath(errand), detour);
+assert(routeProbes > detourProbes, 'static changes must invalidate routes');
+const beforeRadiusChange = routeProbes;
+routeWorld.routeAgentPath(errand, 0.5);
+assert(routeProbes > beforeRadiusChange, 'different body footprints must not share cache entries');
+let unversionedHazard = false;
+const changingWorld = new FpCollisionWorld({
+  getStaticRoots: () => [], getHeightAt: () => 0,
+  isAgentNavigationBlocked: (x, z) => unversionedHazard && x > -1 && x < 1 && z > -2 && z < 2,
+});
+assert.deepEqual(changingWorld.routeAgentPath(errand), errand);
+unversionedHazard = true;
+assert(changingWorld.routeAgentPath(errand)?.some(point => Math.abs(point.z) >= 2), 'unversioned hazards require fresh routes');
+
 console.log(
   `test:first-person-collision-performance passed (${elapsed.toFixed(1)} ms / 20,000 cached prepares; 500 exact spatial queries)`,
 );

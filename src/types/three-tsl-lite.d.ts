@@ -41,6 +41,7 @@ declare module 'three/tsl' {
   export const sin: (value: unknown) => unknown;
   export const step: (edge: unknown, value: unknown) => unknown;
   export const time: unknown;
+  export const frameGroup: unknown;
   export const normalView: unknown;
   export const normalWorldGeometry: unknown;
   export const transformNormalToView: (value: unknown) => unknown;

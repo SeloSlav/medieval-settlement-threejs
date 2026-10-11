@@ -1125,6 +1125,8 @@ mod tests {
         assert_eq!(
             LOCAL_MATERIAL_SOURCE_KINDS,
             &[
+                "stone_mason",
+                "large_quarry",
                 "stone_quarry",
                 "mine",
                 "charcoal_burner",

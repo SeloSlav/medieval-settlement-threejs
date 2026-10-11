@@ -158,6 +158,7 @@ const MAP_SIZE_RANK: Record<WorldMapSize, number> = {
   small: 0,
   medium: 1,
   large: 2,
+  realm: 3,
 };
 
 export function isTerrainPresetAvailableForMapSize(

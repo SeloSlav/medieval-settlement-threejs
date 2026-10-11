@@ -10,12 +10,14 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-import {
-  SimTickSchedule,
-} from "./types";
-
-export default {
-  get schedule() {
-    return SimTickSchedule;
-  },
-};
+export default __t.row({
+  id: __t.string().primaryKey(),
+  owner: __t.identity(),
+  chunk: __t.u32(),
+  kind: __t.string(),
+  x: __t.f64(),
+  z: __t.f64(),
+  yaw: __t.f64(),
+  tier: __t.u8(),
+  complete: __t.bool(),
+});

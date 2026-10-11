@@ -30,7 +30,7 @@ pub fn run_forestry_regression(ctx: &ReducerContext) -> Result<(), String> {
     let store = fixture("village_storehouse", 8740.0);
     let stable = fixture("stable", 8760.0);
     let tree_id = "forestry-regression-tree".to_string();
-    ctx.db.tree_entity().insert(TreeEntity { tree_id: tree_id.clone(), layout_index: 321,
+    ctx.db.tree_entity().insert(TreeEntity { tree_id: tree_id.clone(), layout_index: 321, chunk_id: 0,
         phase: "mature".into(), growth_progress: 1.0, wood_yield: 12.0, x: 8700.0, z: 30.0,
         harvest_progress: 0.0, harvest_owner: None, work_building_id: 0, logs: vec![] });
     let networks = Arc::new(HashMap::from([(ctx.sender(), crate::roads::RoadNetwork::from_snapshot_json("{\"nodes\":[],\"edges\":[]}").unwrap())]));

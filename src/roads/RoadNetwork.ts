@@ -1,8 +1,10 @@
 ﻿import * as THREE from 'three';
+import { isMultiplayer } from '../multiplayer/gameMode.ts';
 import type { RoadEdge } from './RoadEdge.ts';
 import type { JunctionType, RoadNode } from './RoadNode.ts';
 import { RoadPathfinder } from './RoadPathfinder.ts';
 import { RoadSpatialIndex } from './roadSpatialIndex.ts';
+import { RoadSurfaceIndex } from './RoadSurfaceSampling.ts';
 import {
   combatRiverNavigationIsWaterAt,
   type CombatRiverNavigationGrid,
@@ -65,16 +67,36 @@ export class RoadNetwork {
   private nextDryStoneWallId = 1;
   private spatialIndex: RoadSpatialIndex | null = null;
   private spatialIndexDirty = true;
+  private surfaceIndex: RoadSurfaceIndex | null = null;
   private pathfinder: RoadPathfinder | null = null;
   private pathfinderDirty = true;
   private topologyRevision = 0;
+  private geometryRevision = 0;
   private riverNavigation: CombatRiverNavigationGrid | undefined;
 
   getTopologyRevision(): number {
     return this.topologyRevision;
   }
 
+  getNavigationRevision(): number {
+    return this.geometryRevision;
+  }
+
+  sampleSurfaceY(x: number, z: number): number | null {
+    this.surfaceIndex ??= new RoadSurfaceIndex(this.edges.values());
+    return this.surfaceIndex.sample(x, z);
+  }
+
+  /** Rendered curves and bridge decks replace the source centerline. */
+  invalidateRoadGeometry(): void {
+    this.geometryRevision += 1;
+    this.surfaceIndex = null;
+    this.spatialIndexDirty = true;
+    this.pathfinderDirty = true;
+  }
+
   setRiverNavigation(grid: CombatRiverNavigationGrid): void {
+    this.geometryRevision += 1;
     this.riverNavigation = grid;
     this.pathfinder?.invalidate();
   }
@@ -305,7 +327,7 @@ export class RoadNetwork {
         controlPoints: wall.controlPoints.map(cloneTuple),
         sampledPath: wall.sampledPath.map(cloneTuple),
       })),
-      riverNavigation: this.riverNavigation,
+      ...(isMultiplayer() ? {} : { riverNavigation: this.riverNavigation }),
     };
   }
 
@@ -331,8 +353,7 @@ export class RoadNetwork {
     this.nextEdgeId = snapshot.nextEdgeId;
     this.nextDryStoneWallId = snapshot.nextDryStoneWallId
       ?? inferNextDryStoneWallId(snapshot.dryStoneWalls ?? []);
-    // Older server snapshots predate combat river navigation. Preserve the
-    // locally generated mask until the next authoritative road sync adds it.
+    // Realm roads contain geometry only; the fixed world owns its terrain mask.
     if (snapshot.riverNavigation) {
       this.riverNavigation = snapshot.riverNavigation;
     }
@@ -517,8 +538,7 @@ export class RoadNetwork {
   }
 
   private invalidateSpatialIndex(): void {
-    this.spatialIndexDirty = true;
-    this.pathfinderDirty = true;
+    this.invalidateRoadGeometry();
     this.topologyRevision += 1;
   }
 

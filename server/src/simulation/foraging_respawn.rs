@@ -6,7 +6,7 @@ use crate::db::*;
 use crate::foraging_policy::{is_spring, population_growth_per_second};
 use crate::harvest_reserve_policy::protected_wild_stock;
 use crate::placement_validation::{
-    building_footprint_overlaps_circle, resolved_existing_building_yaw,
+    building_footprint_polygon_at_yaw, polygon_overlaps_circle, resolved_existing_building_yaw,
 };
 use crate::residence_consumption_policy::daily_household_bill_due;
 use crate::resident_welfare_policy::deterministic_unit;
@@ -123,6 +123,7 @@ fn migrate_disrupted_game_habitats(
     if buildings.is_empty() {
         return;
     }
+    let habitat = HabitatIndex::new(&buildings, road_networks);
     let mut resource_nodes: Vec<ForagingNode> = ctx.db.foraging_node().iter().collect();
 
     for node_index in 0..resource_nodes.len() {
@@ -132,16 +133,14 @@ fn migrate_disrupted_game_habitats(
         if !habitat_is_disrupted(
             resource_nodes[node_index].x,
             resource_nodes[node_index].z,
-            &buildings,
-            road_networks,
+            &habitat,
         ) {
             continue;
         }
         let Some((x, z)) = choose_migration_target(
             &resource_nodes[node_index],
             &resource_nodes,
-            &buildings,
-            road_networks,
+            &habitat,
             sim_tick,
         ) else {
             continue;
@@ -153,6 +152,7 @@ fn migrate_disrupted_game_habitats(
         ctx.db.foraging_node().node_id().update(ForagingNode {
             x,
             z,
+            chunk_id: crate::realm_policy::world_chunk(x, z).unwrap_or(0),
             anchor_x: x,
             anchor_z: z,
             respawn_cooldown: 0.0,
@@ -167,35 +167,41 @@ fn migrate_disrupted_game_habitats(
     }
 }
 
-fn habitat_is_disrupted(
-    x: f64,
-    z: f64,
-    buildings: &[Building],
-    road_networks: &SharedRoadNetworks,
-) -> bool {
-    buildings.iter().any(|building| {
-        building_def(&building.kind).is_some()
-            && building_footprint_overlaps_circle(
-                &building.kind,
-                building.x,
-                building.z,
-                Some(resolved_existing_building_yaw(
-                    road_networks.get(&building.owner),
-                    building,
-                )),
-                road_networks.get(&building.owner),
-                x,
-                z,
-                GAME_HABITAT_DISRUPTION_RADIUS,
-            )
-    })
+/// Footprints and road-facing orientation are immutable during this step.
+/// Index expanded bounds once instead of solving every building for every herd.
+struct HabitatIndex {
+    cells: std::collections::HashMap<(i32, i32), Vec<usize>>,
+    footprints: Vec<[crate::burgage::Point2; 4]>,
+}
+impl HabitatIndex {
+    fn new(buildings: &[Building], roads: &SharedRoadNetworks) -> Self {
+        let mut result = Self { cells: Default::default(), footprints: Vec::new() };
+        for b in buildings {
+            if building_def(&b.kind).is_none() { continue; }
+            let polygon = building_footprint_polygon_at_yaw(&b.kind, b.x, b.z, resolved_existing_building_yaw(roads.get(&b.owner), b));
+            let index = result.footprints.len();
+            let min_x = polygon.iter().map(|p| p.x).fold(f64::INFINITY, f64::min) - GAME_HABITAT_DISRUPTION_RADIUS;
+            let max_x = polygon.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max) + GAME_HABITAT_DISRUPTION_RADIUS;
+            let min_z = polygon.iter().map(|p| p.z).fold(f64::INFINITY, f64::min) - GAME_HABITAT_DISRUPTION_RADIUS;
+            let max_z = polygon.iter().map(|p| p.z).fold(f64::NEG_INFINITY, f64::max) + GAME_HABITAT_DISRUPTION_RADIUS;
+            for x in Self::cell(min_x)..=Self::cell(max_x) {
+                for z in Self::cell(min_z)..=Self::cell(max_z) { result.cells.entry((x,z)).or_default().push(index); }
+            }
+            result.footprints.push(polygon);
+        }
+        result
+    }
+    fn cell(v: f64) -> i32 { (v / 256.0).floor() as i32 }
+}
+fn habitat_is_disrupted(x: f64, z: f64, habitat: &HabitatIndex) -> bool {
+    habitat.cells.get(&(HabitatIndex::cell(x), HabitatIndex::cell(z))).is_some_and(|indices|
+        indices.iter().any(|i| polygon_overlaps_circle(&habitat.footprints[*i], x, z, GAME_HABITAT_DISRUPTION_RADIUS)))
 }
 
 fn choose_migration_target(
     node: &ForagingNode,
     resource_nodes: &[ForagingNode],
-    buildings: &[Building],
-    road_networks: &SharedRoadNetworks,
+    habitat: &HabitatIndex,
     sim_tick: u64,
 ) -> Option<(f64, f64)> {
     let candidates = world_gen::game_respawn_candidates();
@@ -205,7 +211,7 @@ fn choose_migration_target(
     let start = (sim_tick as usize + node.node_id.len()) % candidates.len();
     for offset in 0..candidates.len() {
         let point = &candidates[(start + offset) % candidates.len()];
-        if habitat_is_disrupted(point.x, point.z, buildings, road_networks) {
+        if habitat_is_disrupted(point.x, point.z, habitat) {
             continue;
         }
         let overlaps_other_resource = resource_nodes.iter().any(|other| {

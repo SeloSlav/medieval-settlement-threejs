@@ -1,3 +1,5 @@
+import { RealmPresentation } from '../multiplayer/RealmPresentation.ts';
+import { gameMode } from '../multiplayer/gameMode.ts';
 ﻿import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import { CameraController } from '../camera/CameraController.ts';
 import {
@@ -240,6 +242,7 @@ export class App {
   private snapshotApplierDeps: SpacetimeSnapshotApplierDeps | null = null;
   private readonly spacetimeSnapshotApplier = new SpacetimeSnapshotApplier();
   private lastTime = 0;
+  private realmPresentation: RealmPresentation | null = null;
   private fpsSampleStart = 0;
   private fpsFrameCount = 0;
   private fpsAccumulatedSeconds = 0;
@@ -358,6 +361,7 @@ export class App {
       );
     }
 
+    if (gameMode() === 'multiplayer') this.realmPresentation = new RealmPresentation(session.sceneManager, session.cameraController);
     this.liveContext = session.liveContext;
     this.sceneManager = session.sceneManager;
     this.frontierRiskMarkers = new FrontierRiskMarkers({
@@ -916,6 +920,8 @@ export class App {
   }
 
   dispose(): void {
+    this.realmPresentation?.dispose();
+    this.realmPresentation = null;
     if (this.disposed) return;
     this.disposed = true;
     if (this.sceneManager) setRendererAnimationLoop(this.sceneManager.renderer, null);
@@ -1064,7 +1070,9 @@ export class App {
       renderOrbitDistance = this.cameraController?.getOrbitDistance() ?? 240;
       renderCameraInteractionActive = this.cameraController?.isNavigationActive() ?? false;
     }
+    this.realmPresentation?.update(time);
     const crowdView = this.buildCrowdViewState();
+    if (this.realmPresentation) crowdView.renderCamera = this.sceneManager?.camera;
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,

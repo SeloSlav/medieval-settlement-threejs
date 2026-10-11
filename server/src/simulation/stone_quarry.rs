@@ -144,7 +144,7 @@ fn nearest_surface_deposit(
     let mut nearest: Option<SurfaceDeposit> = None;
     let mut nearest_distance_sq = f64::INFINITY;
 
-    for deposit in ctx.db.quarry().iter() {
+    for deposit in crate::simulation::spatial::quarries_in_radius(ctx, x, z, radius) {
         if deposit.remaining <= 1e-6 {
             continue;
         }
@@ -160,7 +160,7 @@ fn nearest_surface_deposit(
         nearest = Some(SurfaceDeposit::Geological(deposit, commodity));
     }
 
-    for deposit in ctx.db.foraging_node().iter() {
+    for deposit in crate::simulation::spatial::foraging_nodes_in_radius(ctx, x, z, radius) {
         if mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {

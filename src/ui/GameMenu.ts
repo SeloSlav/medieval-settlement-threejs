@@ -9,6 +9,7 @@ import {
   setConstellationGuidesEnabled,
 } from '../scene/constellationPreference.ts';
 import { GameControlsModal } from './GameControlsModal.ts';
+import { gameMode, switchGameMode } from '../multiplayer/gameMode.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
@@ -108,7 +109,7 @@ export class GameMenu {
       <div class="game-menu-dialog" role="dialog" aria-modal="true" aria-labelledby="game-menu-title">
         <header class="game-menu-header">
           <div>
-            <p class="game-menu-eyebrow">Game paused</p>
+            <p class="game-menu-eyebrow">${gameMode() === 'multiplayer' ? 'Persistent realm · time continues' : 'Single player'}</p>
             <h2 id="game-menu-title" class="game-menu-title">Settings</h2>
           </div>
           <button type="button" class="game-menu-return" data-return-button>Return to game</button>
@@ -234,6 +235,7 @@ export class GameMenu {
               <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
               <button type="button" class="game-menu-action" data-replay-tutorials>Replay tutorials…</button>
               <button type="button" class="game-menu-action game-menu-action--danger" data-new-world>New world…</button>
+              <button type="button" class="game-menu-action" data-switch-mode>${gameMode() === 'multiplayer' ? 'Return to single player' : 'Join persistent realm'}</button>
             </div>
           </section>
         </div>
@@ -262,6 +264,10 @@ export class GameMenu {
     const controlsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-game-controls]')!;
     const tutorialsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-replay-tutorials]')!;
     const newWorldButton = this.backdrop.querySelector<HTMLButtonElement>('[data-new-world]')!;
+    newWorldButton.hidden = gameMode() === 'multiplayer';
+    this.backdrop.querySelector<HTMLButtonElement>('[data-switch-mode]')!.addEventListener('click', () => {
+      switchGameMode(gameMode() === 'multiplayer' ? 'single' : 'multiplayer');
+    });
 
     this.controlsModal = new GameControlsModal(parent, {
       onOpenChange: options.onOpenChange,

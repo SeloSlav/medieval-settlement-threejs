@@ -188,6 +188,7 @@ pub fn raider_company_should_rout(
 
 pub fn playable_half_for_map_size(map_size: u8) -> f64 {
     match map_size {
+        3 => 6_144.0,
         // Keep these in sync with the full terrain extents in
         // src/world/worldGenerationSettings.ts. The visible heightfield is
         // playable all the way to its edge for every map size.

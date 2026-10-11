@@ -77,12 +77,14 @@ export class RoadPathfinder {
   private readonly network: RoadNetwork;
   private weightedGraph: Map<string, WeightedEdge[]> | null = null;
   private componentByNode: Map<string, number> | null = null;
+  private readonly snapCache = new Map<string, string[] | null>();
 
   constructor(network: RoadNetwork) {
     this.network = network;
   }
 
   invalidate(): void {
+    this.snapCache.clear();
     this.weightedGraph = null;
     this.componentByNode = null;
   }
@@ -424,6 +426,16 @@ export class RoadPathfinder {
   }
 
   private snapNodes(x: number, z: number): string[] | null {
+    const key = `${x},${z}`;
+    if (this.snapCache.has(key)) return this.snapCache.get(key)!;
+    const result = this.uncachedSnapNodes(x, z);
+    // Moving actors cannot grow this topology-owned cache without bound.
+    if (this.snapCache.size >= 2048) this.snapCache.clear();
+    this.snapCache.set(key, result);
+    return result;
+  }
+
+  private uncachedSnapNodes(x: number, z: number): string[] | null {
     const maxSnap = BUILDING_ROAD_ACCESS_DISTANCE;
     let bestDistance = maxSnap;
     let bestNodes: string[] = [];

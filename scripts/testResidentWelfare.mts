@@ -106,8 +106,8 @@ assert.doesNotMatch(residenceReducer, /fn repair_residence_decay/);
 assert.match(residenceReducer, /service_shortage_blocks_upgrade/);
 
 const clientSubscriptions = read('src/data/gameTableSubscriptions.ts');
-assert.match(clientSubscriptions, /'graveyard'/);
-assert.match(clientSubscriptions, /'corpse'/);
+assert.match(clientSubscriptions, /'visible_graveyard'/);
+assert.match(clientSubscriptions, /'visible_corpse'/);
 const placement = read('src/farming/FarmFieldTool.ts');
 assert.match(placement, /'field' \| 'pasture' \| 'graveyard'/);
 assert.match(placement, /GRAVEYARD_MAX_DISTANCE/);

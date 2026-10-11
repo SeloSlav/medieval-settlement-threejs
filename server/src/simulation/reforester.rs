@@ -62,10 +62,8 @@ pub fn step_reforester(
         building.tree_work_area_z,
         building.tree_work_area_radius,
     );
-    let recovering_trees: Vec<TreeEntity> = ctx
-        .db
-        .tree_entity()
-        .iter()
+    let recovering_trees: Vec<TreeEntity> = super::forestry::trees_in_work_area(ctx, work_area)
+        .into_iter()
         .filter(|tree| {
             if !matches!(tree.phase.as_str(), "stump" | "growing") {
                 return false;

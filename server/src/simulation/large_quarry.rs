@@ -117,7 +117,7 @@ pub fn step_large_quarry(
 
 fn rich_stone_beneath(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     let tolerance_sq = RICH_DEPOSIT_CENTER_TOLERANCE.powi(2);
-    ctx.db.quarry().iter().any(|deposit| {
+    crate::simulation::spatial::quarries_in_radius(ctx, x, z, RICH_DEPOSIT_CENTER_TOLERANCE).into_iter().any(|deposit| {
         quarry_geological_commodity(&deposit.quarry_id, deposit.is_rich).is_some()
             && (deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= tolerance_sq
     })

@@ -26,8 +26,14 @@ try {
     resourceVariety: 50,
     conflictEnabled: false,
     enemyPressure: 0,
+    banditCampsEnabled: false,
     severeWeatherEnabled: false,
     wellAquiferNetworksEnabled: false,
+    approvalDeclineRate: 100,
+    foodSpoilageRate: 100,
+    initialGoodsMultiplier: 1,
+    militaryDemands: 1,
+    wildAnimalAttacksEnabled: false,
   });
   // A far, finite coordinate avoids the small generated resource cluster. The
   // fresh-world founding reducer intentionally trusts the already validated
@@ -36,8 +42,9 @@ try {
     kind: 'founders_camp',
     x: 9_000,
     z: 9_000,
+    yaw: undefined,
   });
-  await waitUntil(() => first.db.building.count() > 0, 'founders camp replication');
+  await waitUntil(() => first.db.visible_building.count() > 0, 'founders camp replication');
 
   const idleTick = currentTick(first);
   await wait(1_000);
@@ -51,6 +58,16 @@ try {
   const enteredTick = currentTick(first);
   await waitUntil(() => currentTick(first) > enteredTick, 'tick after enter_world');
   assert.equal(currentSpeed(first), 1, 'entering must not rewrite selected speed');
+
+  await first.reducers.setGameSpeed({ speed: 0 });
+  await waitUntil(() => currentSpeed(first) === 0, 'single-player pause');
+  const pausedTick = currentTick(first);
+  await wait(1000);
+  assert.equal(currentTick(first), pausedTick, 'single-player pause freezes the clock');
+  for (const speed of [4, 8, 1]) {
+    await first.reducers.setGameSpeed({ speed });
+    await waitUntil(() => currentSpeed(first) === speed, `single-player ${speed}x`);
+  }
 
   const second = await connectAndSubscribe();
   clients.push(second);
@@ -109,7 +126,7 @@ async function connectAndSubscribe(): Promise<DbConnection> {
       .onError((context) => reject(new Error(String(context.event))))
       .subscribe([
         'SELECT * FROM world_config',
-        'SELECT * FROM building',
+        'SELECT * FROM visible_building',
       ]);
   });
   return connection;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { StorageInstancedBufferAttribute } from 'three/webgpu';
 
 type AttributePair = { source: THREE.InstancedBufferAttribute; output: THREE.InstancedBufferAttribute; version: number };
 
@@ -28,7 +29,8 @@ export class InstanceDrawCompaction {
   private disposed = false;
 
   constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean } = {}) {
-    if (source.geometry.getIndirect() || Array.isArray(source.material) || source.material.transparent) throw new Error('Instance compaction requires one opaque draw');
+    const materials = Array.isArray(source.material) ? source.material : [source.material];
+    if (source.geometry.getIndirect() || materials.some(material => material.transparent)) throw new Error('Instance compaction requires opaque materials');
     const attributes = Object.entries(source.geometry.attributes);
     if (attributes.some(([, a]) => (a as THREE.InstancedBufferAttribute).isInstancedBufferAttribute && ((a as THREE.InstancedBufferAttribute).meshPerAttribute !== 1 || a.count < source.instanceMatrix.count))) throw new Error('Instance compaction requires complete per-instance attributes');
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
@@ -37,6 +39,7 @@ export class InstanceDrawCompaction {
     geometry.name = source.geometry.name;
     geometry.userData = { ...source.geometry.userData, instanceCompactionDraw: true };
     if (source.geometry.index) geometry.setIndex(source.geometry.index);
+    for (const group of source.geometry.groups) geometry.addGroup(group.start, group.count, group.materialIndex);
     geometry.setDrawRange(source.geometry.drawRange.start, source.geometry.drawRange.count);
     this.pairs = [];
     for (const [name, raw] of attributes) {
@@ -53,13 +56,16 @@ export class InstanceDrawCompaction {
     this.draw.renderOrder = source.renderOrder; this.draw.frustumCulled = false;
     this.draw.customDepthMaterial = source.customDepthMaterial; this.draw.customDistanceMaterial = source.customDistanceMaterial;
     this.draw.userData = { ...source.userData, instanceCompactionDraw: true };
-    // Large WebGPU instance matrices use an internal interleaved buffer whose
-    // version is synchronized after geometry uploads. Dynamic usage uploads the
-    // current packed prefix immediately, including newly visible instances.
-    this.draw.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // Storage attributes are uploaded directly before drawing. They avoid the
+    // deferred internal interleaved-copy version and do not reupload a whole
+    // forest allocation every frame when the selected prefix is unchanged.
+    this.draw.instanceMatrix = new StorageInstancedBufferAttribute(source.instanceMatrix.count, 16);
+    this.draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     if (source.instanceColor) {
-      const output = source.instanceColor.clone() as THREE.InstancedBufferAttribute;
-      output.setUsage(THREE.DynamicDrawUsage); this.draw.instanceColor = output;
+      // WGSL vec3 storage has a vec4 stride. Allocate that stride explicitly so
+      // Three never replaces/pads the backing array after our first upload.
+      const output = new StorageInstancedBufferAttribute(source.instanceColor.count, 4);
+      output.setUsage(THREE.StaticDrawUsage); this.draw.instanceColor = output;
       this.pairs.push({ source: source.instanceColor, output, version: -1 });
     }
     this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
@@ -146,16 +152,17 @@ export class InstanceDrawCompaction {
     this.draw.count = count;
     if (!changed) return;
     for (const pair of this.pairs) {
-      const size = pair.source.itemSize, input = pair.source.array, output = pair.output.array;
+      const size = pair.source.itemSize, stride = pair.output.itemSize, input = pair.source.array, output = pair.output.array;
       for (let i = 0; i < this.copyRanges.length; i += 3) {
         const start = this.copyRanges[i]! * size;
-        output.set(input.subarray(start, start + this.copyRanges[i + 2]! * size), this.copyRanges[i + 1]! * size);
+        const length = this.copyRanges[i + 2]!;
+        if (size === stride) output.set(input.subarray(start, start + length * size), this.copyRanges[i + 1]! * stride);
+        else for (let row = 0; row < length; row++) {
+          output.set(input.subarray(start + row * size, start + (row + 1) * size), (this.copyRanges[i + 1]! + row) * stride);
+        }
       }
       pair.output.clearUpdateRanges();
-      // The internal matrix/color buffer also copies upload ranges one frame
-      // late. A full dynamic upload prevents an older, shorter range exposing
-      // stale or constructor-identity transforms as the visible count grows.
-      if (pair.output.usage !== THREE.DynamicDrawUsage) pair.output.addUpdateRange(0, count * size);
+      pair.output.addUpdateRange(0, count * stride);
       pair.output.needsUpdate = true;
     }
   }

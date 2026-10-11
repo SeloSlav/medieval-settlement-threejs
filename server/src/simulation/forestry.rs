@@ -12,6 +12,14 @@ use crate::tree_work_area_policy::{effective_tree_work_area, tree_work_area_cont
 use super::{SimTickContext, GameClock, labor_and_logistics_paused};
 use super::delivery_trips::{onsite_building_labor, try_start_forestry_trip};
 
+/// Realm forestry reads only intersecting indexed resource chunks. Single-player
+/// layouts retain their existing extent and selection semantics.
+pub fn trees_in_work_area(ctx: &ReducerContext, area: crate::tree_work_area_policy::TreeWorkArea) -> Vec<TreeEntity> {
+    if !crate::realm::ENABLED { return ctx.db.tree_entity().iter().collect(); }
+    crate::realm_policy::chunks_in_radius(area.x, area.z, area.radius).into_iter()
+        .flat_map(|chunk| ctx.db.tree_entity().chunk_id().filter(chunk)).collect()
+}
+
 pub fn step_falling_trees(ctx: &ReducerContext) {
     for mut tree in ctx.db.tree_entity().iter().filter(|t| t.phase == "falling") {
         tree.harvest_progress = (tree.harvest_progress + TICK_DT / TREE_FALL_SECONDS).min(1.0);
@@ -40,10 +48,13 @@ pub fn step_forestry(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameCl
     let commodity = if firewood { CommodityKind::Firewood } else { CommodityKind::Timber };
     let rate = crate::production_rate_policy::production_rate_multiplier(building.production_rate_percent);
     if rate <= 0.0 { return; }
+    // Neither harvesting nor a new haul can start without onsite workers and
+    // storage room. Full/away crews need no resource-chunk query this tick.
+    if building_commodity_room(&building, commodity) < 1.0 || onsite_building_labor(ctx, &building) == 0 { return; }
     let area = effective_tree_work_area(building.x, building.z, def.work_radius,
         building.tree_work_area_x, building.tree_work_area_z, building.tree_work_area_radius);
     // Both camps can use a tree in an overlapping work area; realms cannot steal one another's wood.
-    let mut trees: Vec<_> = ctx.db.tree_entity().iter().filter(|tree|
+    let mut trees: Vec<_> = trees_in_work_area(ctx, area).into_iter().filter(|tree|
         tree_work_area_contains(area, tree.x, tree.z)
         && tree.harvest_owner.is_none_or(|owner| owner == building.owner)
         && matches!(tree.phase.as_str(), "mature" | "falling" | "fallen" | "logs")

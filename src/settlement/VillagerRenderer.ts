@@ -3,7 +3,7 @@ import {
   advanceCombatMotion, receiveCombatMotion, combatLocomotion, combatAnimationMovementSpeed,
   type CombatMotion, type CombatLocomotion,
 } from './combatMotion.ts';
-import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import { SIM_REALTIME_RATE } from '../world/runtimeGameBalance.ts';
 import { banditOnTheftMission } from '../security/banditEquipment.ts';
 import { guardDogActivity } from '../security/dogActivity.ts';
 import { presentationNow, trailerClock } from '../app/trailerClock.ts';
@@ -221,7 +221,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   STARTING_POPULATION,
   WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
-} from '../generated/gameBalance.ts';
+} from '../world/runtimeGameBalance.ts';
 import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,

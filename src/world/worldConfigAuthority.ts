@@ -23,12 +23,14 @@ export const MAP_SIZE_CODES = {
   small: 0,
   medium: 1,
   large: 2,
+  realm: 3,
 } as const satisfies Record<WorldMapSize, number>;
 
 export const MAP_SIZE_BY_CODE: Record<number, WorldMapSize> = {
   0: 'small',
   1: 'medium',
   2: 'large',
+  3: 'realm',
 };
 
 export function encodeMapSize(mapSize: WorldMapSize): number {

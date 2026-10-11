@@ -1,7 +1,7 @@
 import {
   SIM_REALTIME_RATE,
   WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
-} from '../generated/gameBalance.ts';
+} from '../world/runtimeGameBalance.ts';
 import type { GameSpeed } from './gameSpeed.ts';
 
 /**

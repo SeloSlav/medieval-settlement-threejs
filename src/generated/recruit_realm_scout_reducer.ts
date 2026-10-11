@@ -10,10 +10,6 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  combatAgentId: __t.u64().primaryKey().name("combat_agent_id"),
-  owner: __t.identity(),
-  raidId: __t.u64().name("raid_id"),
-  pathDistance: __t.f64().name("path_distance"),
-  routePolylineJson: __t.string().name("route_polyline_json"),
-});
+export default {
+  settlementId: __t.u64(),
+};

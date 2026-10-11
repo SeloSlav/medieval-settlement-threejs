@@ -41,8 +41,8 @@ pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, cloc
     for building in ctx
         .db
         .building()
-        .iter()
-        .filter(|building| !building.construction_complete)
+        .construction_complete()
+        .filter(false)
     {
         let bucket = construction_priority_bucket(building.construction_priority);
         if bucket > CONSTRUCTION_PRIORITY_HOLD as usize {

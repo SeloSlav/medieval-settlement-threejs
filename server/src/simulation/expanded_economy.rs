@@ -530,10 +530,8 @@ pub fn step_seed_grain_distribution(
     tick: &SimTickContext,
     clock: &GameClock,
 ) {
-    let mut source_ids: Vec<u64> = ctx
-        .db
-        .building()
-        .iter()
+    let mut source_ids: Vec<u64> = ["granary", "trading_post", "monastery"].into_iter()
+        .flat_map(|kind| ctx.db.building().kind().filter(kind))
         .filter(|source| {
             matches!(
                 source.kind.as_str(),
@@ -753,6 +751,7 @@ pub fn step_watermill(
     environment: EnvironmentState,
     building: Building,
 ) {
+    let previous = building.clone();
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = environment.watermill_throughput_multiplier()
         * civilian_tool_throughput_multiplier(building.ironwork);
@@ -782,7 +781,7 @@ pub fn step_watermill(
         );
     }
     dispatch_typed_flour(ctx, tick, clock, &mut mill);
-    ctx.db.building().id().update(mill);
+    if mill != previous { ctx.db.building().id().update(mill); }
 }
 
 pub fn step_windmill(
@@ -793,6 +792,7 @@ pub fn step_windmill(
     world_seed: u64,
     building: Building,
 ) {
+    let previous = building.clone();
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let wind_throughput = crate::wind_policy::windmill_throughput_multiplier(
         world_seed,
@@ -828,7 +828,7 @@ pub fn step_windmill(
         );
     }
     dispatch_typed_flour(ctx, tick, clock, &mut mill);
-    ctx.db.building().id().update(mill);
+    if mill != previous { ctx.db.building().id().update(mill); }
 }
 
 fn selected_mill_recipe(mill: &Building) -> Option<(CommodityKind, CommodityKind, f64)> {
@@ -1767,16 +1767,14 @@ pub fn step_mine(
 fn mineworks_commodity_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<CommodityKind> {
     const CENTER_TOLERANCE: f64 = 2.5;
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
-    ctx.db
-        .quarry()
-        .iter()
+    crate::simulation::spatial::quarries_in_radius(ctx, x, z, CENTER_TOLERANCE).into_iter()
         .find_map(|deposit| {
             ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq)
                 .then(|| mineworks_geological_commodity(&deposit.quarry_id, deposit.is_rich))
                 .flatten()
         })
         .or_else(|| {
-            ctx.db.foraging_node().iter().find_map(|deposit| {
+            crate::simulation::spatial::foraging_nodes_in_radius(ctx, x, z, CENTER_TOLERANCE).into_iter().find_map(|deposit| {
                 ((deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z)
                     <= tolerance_sq)
                     .then(|| mineworks_clay_commodity(&deposit.node_kind, &deposit.node_id))
@@ -1791,6 +1789,12 @@ pub fn step_granary(
     clock: &GameClock,
     building: Building,
 ) {
+    // All granary work is dispatch. A cart already away prevents every branch
+    // below from dispatching, so avoid repeating the same logistics queries.
+    if building_has_active_trip(ctx, building.id) {
+        return;
+    }
+    let previous = building.clone();
     let mut granary = building;
     let grain_dispatch = next_granary_grain_dispatch(ctx, tick, clock, &granary);
     let grain_is_critical = grain_dispatch
@@ -1910,7 +1914,7 @@ pub fn step_granary(
             dispatch_granary_grain(ctx, tick, clock, &mut granary, dispatch);
         }
     }
-    ctx.db.building().id().update(granary);
+    if granary != previous { ctx.db.building().id().update(granary); }
 }
 
 pub fn step_bakery(
@@ -1919,6 +1923,7 @@ pub fn step_bakery(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let bakery = if let Some((flour, bread, bread_output)) = selected_bakery_recipe(&building) {
         step_processor(
             ctx,
@@ -1935,7 +1940,7 @@ pub fn step_bakery(
     } else {
         building
     };
-    ctx.db.building().id().update(bakery);
+    if bakery != previous { ctx.db.building().id().update(bakery); }
 }
 
 fn apply_farm_field_work(
@@ -2771,6 +2776,7 @@ pub fn step_spinning_retting_house(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let uses_flax = weaver_uses_flax(
         building.weaver_input_policy,
         building.wool,
@@ -2810,7 +2816,7 @@ pub fn step_spinning_retting_house(
         );
         dispatch_to_building(ctx, tick, clock, &mut spinner, commodity, &["trading_post"]);
     }
-    ctx.db.building().id().update(spinner);
+    if spinner != previous { ctx.db.building().id().update(spinner); }
 }
 
 pub fn step_weaver(
@@ -2819,6 +2825,7 @@ pub fn step_weaver(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let input = if weaver_uses_linen(
         building.weaver_input_policy,
         building.yarn,
@@ -2854,7 +2861,7 @@ pub fn step_weaver(
         CommodityKind::Cloth,
         &["trading_post"],
     );
-    ctx.db.building().id().update(weaver);
+    if weaver != previous { ctx.db.building().id().update(weaver); }
 }
 
 pub fn step_tannery(
@@ -2863,6 +2870,7 @@ pub fn step_tannery(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let tannery = step_processor(
         ctx,
         tick,
@@ -2875,7 +2883,7 @@ pub fn step_tannery(
         ],
         &[(CommodityKind::Leather, TANNERY_LEATHER_PER_CYCLE)],
     );
-    ctx.db.building().id().update(tannery);
+    if tannery != previous { ctx.db.building().id().update(tannery); }
 }
 
 pub fn step_cobbler(
@@ -2884,6 +2892,7 @@ pub fn step_cobbler(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let cobbler = step_processor(
         ctx,
         tick,
@@ -2892,7 +2901,7 @@ pub fn step_cobbler(
         &[(CommodityKind::Leather, COBBLER_LEATHER_PER_CYCLE)],
         &[(CommodityKind::Shoes, COBBLER_SHOES_PER_CYCLE)],
     );
-    ctx.db.building().id().update(cobbler);
+    if cobbler != previous { ctx.db.building().id().update(cobbler); }
 }
 
 pub fn step_chandlery(
@@ -2901,6 +2910,7 @@ pub fn step_chandlery(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let mut chandlery = step_processor(
         ctx,
         tick,
@@ -2928,7 +2938,7 @@ pub fn step_chandlery(
         CommodityKind::Candles,
         &["trading_post"],
     );
-    ctx.db.building().id().update(chandlery);
+    if chandlery != previous { ctx.db.building().id().update(chandlery); }
 }
 
 pub fn step_smokehouse(
@@ -3015,6 +3025,7 @@ pub fn step_charcoal_burner(
     environment: EnvironmentState,
     building: Building,
 ) {
+    let previous = building.clone();
     let burner = step_processor_at_rate(
         ctx,
         tick,
@@ -3024,7 +3035,7 @@ pub fn step_charcoal_burner(
         &[(CommodityKind::Charcoal, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE)],
         environment.charcoal_burner_throughput_multiplier(),
     );
-    ctx.db.building().id().update(burner);
+    if burner != previous { ctx.db.building().id().update(burner); }
 }
 
 pub fn step_smithy(
@@ -3033,6 +3044,7 @@ pub fn step_smithy(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let smithy = step_processor(
         ctx,
         tick,
@@ -3045,7 +3057,7 @@ pub fn step_smithy(
         ],
         &[(CommodityKind::Ironwork, SMITHY_IRONWORK_PER_CYCLE)],
     );
-    ctx.db.building().id().update(smithy);
+    if smithy != previous { ctx.db.building().id().update(smithy); }
 }
 
 type WorkshopRecipe = (
@@ -3460,7 +3472,8 @@ fn step_cavalry_yard_requisitions(ctx: &ReducerContext, tick: &SimTickContext, c
     let yards = ctx
         .db
         .building()
-        .iter()
+        .kind()
+        .filter("cavalry_yard")
         .filter(|building| {
             building.kind == "cavalry_yard"
                 && building.construction_complete
@@ -3646,10 +3659,11 @@ fn step_cavalry_company_field_resupply(
 
 pub fn step_stone_mason(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock, building: Building) {
     if crate::economy::total_stone(ctx, building.owner) < crate::balance_generated::MASON_STONE_PER_CYCLE { return; }
+    let previous = building.clone();
     let mason = step_processor(ctx, tick, clock, building,
         &[(CommodityKind::Stone, crate::balance_generated::MASON_STONE_PER_CYCLE)],
         &[(CommodityKind::DressedStone, crate::balance_generated::MASON_DRESSED_STONE_PER_CYCLE)]);
-    ctx.db.building().id().update(mason);
+    if mason != previous { ctx.db.building().id().update(mason); }
 }
 
 pub fn step_potter_kiln(
@@ -3658,6 +3672,7 @@ pub fn step_potter_kiln(
     clock: &GameClock,
     building: Building,
 ) {
+    let previous = building.clone();
     let firing_roof_tiles = potter_fires_roof_tiles(building.potter_firing_policy);
     let output = if firing_roof_tiles {
         (CommodityKind::RoofTiles, POTTER_ROOF_TILES_PER_CYCLE)
@@ -3676,7 +3691,7 @@ pub fn step_potter_kiln(
         ],
         &[output],
     );
-    ctx.db.building().id().update(potter);
+    if potter != previous { ctx.db.building().id().update(potter); }
 }
 
 pub fn step_apiary(
@@ -3964,10 +3979,9 @@ fn advance_monastery_vineyard_fermentation(
 
 fn apiary_landscape_forage_score(ctx: &ReducerContext, apiary: &Building) -> f64 {
     let radius_sq = apiary.work_radius.max(1.0).powi(2);
-    let mature_trees = ctx
-        .db
-        .tree_entity()
-        .iter()
+    let mature_trees = super::forestry::trees_in_work_area(ctx, crate::tree_work_area_policy::TreeWorkArea {
+            x: apiary.x, z: apiary.z, radius: apiary.work_radius.max(1.0),
+        }).into_iter()
         .filter(|tree| {
             tree.phase == "mature"
                 && (tree.x - apiary.x).powi(2) + (tree.z - apiary.z).powi(2) <= radius_sq
@@ -4809,7 +4823,7 @@ fn nearest_surface_extraction_commodity(
     let radius_sq = radius.max(0.0).powi(2);
     let mut nearest = None;
     let mut nearest_distance_sq = f64::INFINITY;
-    for deposit in ctx.db.quarry().iter() {
+    for deposit in crate::simulation::spatial::quarries_in_radius(ctx, x, z, radius) {
         if deposit.remaining <= 1e-6 {
             continue;
         }
@@ -4823,7 +4837,7 @@ fn nearest_surface_extraction_commodity(
             nearest_distance_sq = distance_sq;
         }
     }
-    for deposit in ctx.db.foraging_node().iter() {
+    for deposit in crate::simulation::spatial::foraging_nodes_in_radius(ctx, x, z, radius) {
         if mining_camp_clay_commodity(&deposit.node_kind, &deposit.node_id).is_none()
             || deposit.remaining <= 1e-6
         {
@@ -4840,7 +4854,7 @@ fn nearest_surface_extraction_commodity(
 
 fn rich_stone_commodity_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<CommodityKind> {
     const CENTER_TOLERANCE_SQ: f64 = 2.5 * 2.5;
-    ctx.db.quarry().iter().find_map(|deposit| {
+    crate::simulation::spatial::quarries_in_radius(ctx, x, z, 2.5).into_iter().find_map(|deposit| {
         ((deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= CENTER_TOLERANCE_SQ)
             .then(|| quarry_geological_commodity(&deposit.quarry_id, deposit.is_rich))
             .flatten()

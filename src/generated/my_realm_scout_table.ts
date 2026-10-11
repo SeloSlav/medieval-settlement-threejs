@@ -11,16 +11,13 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  combatAgentId: __t.u64().primaryKey().name("combat_agent_id"),
+  settlementId: __t.u64().primaryKey().name("settlement_id"),
   owner: __t.identity(),
-  companyId: __t.u64().name("company_id"),
+  health: __t.f64(),
   residenceId: __t.u64().name("residence_id"),
   residentSlot: __t.u32().name("resident_slot"),
-  personIdentity: __t.string().name("person_identity"),
-  optionalArmor: __t.u8().name("optional_armor"),
-  phase: __t.u8(),
-  ammunition: __t.u32(),
-  ammunitionCapacity: __t.u32().name("ammunition_capacity"),
-  originalHomeX: __t.f64().name("original_home_x"),
-  originalHomeZ: __t.f64().name("original_home_z"),
+  x: __t.f64(),
+  z: __t.f64(),
+  targetX: __t.f64().name("target_x"),
+  targetZ: __t.f64().name("target_z"),
 });

@@ -11,9 +11,11 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  sourceBuildingId: __t.u64().primaryKey().name("source_building_id"),
-  owner: __t.identity(),
-  raidId: __t.u64().name("raid_id"),
-  pathDistance: __t.f64().name("path_distance"),
-  routePolylineJson: __t.string().name("route_polyline_json"),
+  chunkId: __t.u32().name("chunk_id"),
+  quarryId: __t.string().primaryKey().name("quarry_id"),
+  x: __t.f64(),
+  z: __t.f64(),
+  maxYield: __t.f64().name("max_yield"),
+  remaining: __t.f64(),
+  isRich: __t.bool().name("is_rich"),
 });

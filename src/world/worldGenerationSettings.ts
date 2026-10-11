@@ -9,7 +9,7 @@ import {
 
 export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
-export type WorldMapSize = 'small' | 'medium' | 'large';
+export type WorldMapSize = 'small' | 'medium' | 'large' | 'realm';
 export type WorldConflictMode = 'peaceful' | 'frontier';
 export type WorldDifficultyRate = 0 | 100 | 150;
 export type WorldInitialGoodsMultiplier = 1 | 2;
@@ -71,6 +71,11 @@ export const MAP_SIZE_PRESETS: Record<WorldMapSize, WorldDimensions & {
   label: string;
   smallMapAreas: number;
 }> = {
+  realm: {
+    playableSize: 12_288, terrainSize: 12_288, playableHalf: 6_144,
+    generationSize: 12_288, generationHalf: 6_144,
+    label: 'Persistent realm', smallMapAreas: 81,
+  },
   small: {
     playableSize: SMALL_PLAYABLE_SIZE,
     terrainSize: SMALL_PLAYABLE_SIZE,
@@ -199,7 +204,7 @@ export function normalizeWorldGenerationSettings(
   const requestedSeed = typeof partial.seed === 'number' && Number.isFinite(partial.seed)
     ? partial.seed >>> 0
     : DEFAULT_WORLD_GENERATION_SETTINGS.seed;
-  const mapSize = partial.mapSize === 'small' || partial.mapSize === 'large'
+  const mapSize = partial.mapSize === 'small' || partial.mapSize === 'large' || partial.mapSize === 'realm'
     ? partial.mapSize
     : 'medium';
   const requestedTerrainPreset = terrainPresetFromSeed(requestedSeed);

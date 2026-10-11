@@ -11,6 +11,9 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u8().primaryKey(),
-  stepCredit: __t.u16().name("step_credit"),
+  id: __t.string().primaryKey(),
+  owner: __t.identity(),
+  chunk: __t.u32(),
+  explored: __t.u64(),
+  visible: __t.u64(),
 });

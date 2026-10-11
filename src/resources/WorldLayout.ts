@@ -1,4 +1,5 @@
 import { fullTerrainBounds } from '../terrain/terrainBounds.ts';
+import { createRealmWorldLayout } from '../multiplayer/realmWorldLayout.ts';
 import { RiverLayout } from '../rivers/RiverLayout.ts';
 import {
   fishPlacementTargetScore,
@@ -65,6 +66,7 @@ export type WorldLayout = {
 };
 
 export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WORLD_GENERATION_SETTINGS): WorldLayout {
+  if (settings.mapSize === 'realm') return createRealmWorldLayout();
   const normalizedSettings = normalizeWorldGenerationSettings(settings);
   const dims = resolveWorldDimensions(normalizedSettings.mapSize);
   const riverBounds = fullTerrainBounds(dims.terrainSize);

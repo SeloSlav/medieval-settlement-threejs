@@ -1,3 +1,4 @@
+import { isWorldPointExplored } from '../multiplayer/realmVisibility.ts';
 import * as THREE from 'three';
 import type { WorldMapMarker } from './worldMapMarkers.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -94,6 +95,8 @@ export class QuarryMapIcons {
     const nodes = this.options.getGeologicalNodes();
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
+      if (!isWorldPointExplored(marker.x, marker.z)) { button.hidden = true; continue; }
+      button.hidden = false;
       const node = geologicalNodeForMapMarker(marker, nodes);
       const stampArtSize = illustratedMapActive
         ? mapStampArtSize(marker, node?.isRich === true)

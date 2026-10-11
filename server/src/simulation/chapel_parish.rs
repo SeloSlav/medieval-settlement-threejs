@@ -224,7 +224,8 @@ fn try_chapel_poor_relief(
     let marketplaces: Vec<Building> = ctx
         .db
         .building()
-        .iter()
+        .owner()
+        .filter(chapel.owner)
         .filter(|building| {
             building.kind == "trading_post"
                 && building.construction_complete

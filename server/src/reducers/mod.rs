@@ -4,6 +4,8 @@ pub mod bootstrap;
 pub mod buildings;
 pub mod cavalry_horses;
 pub mod cheats;
+#[cfg(feature = "local-loadtest")]
+pub mod realm_loadtest;
 #[cfg(feature = "trailer")]
 pub mod trailer;
 pub mod farm_fields;

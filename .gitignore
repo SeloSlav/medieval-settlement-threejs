@@ -74,6 +74,7 @@ blob-report/
 /.codex-tmp/
 /.codex-work/
 /.tmp-*/
+/.tmp-realm-test-clients.json
 /.tmp_*/
 *.tsbuildinfo
 

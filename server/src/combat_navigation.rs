@@ -104,6 +104,17 @@ pub struct CombatNavigation {
 }
 
 impl CombatNavigation {
+    pub fn civilian_position_is_clear(&self, point: NavPoint) -> bool {
+        !self.candidates(point, point, 0.0).into_iter().any(|index| self.obstacles[index].contains(point))
+    }
+    /// Civilian routes may exit a structure that was built over their current
+    /// position, but never enter an unrelated footprint or tunnel through it.
+    pub fn civilian_segment_is_clear(&self, start: NavPoint, end: NavPoint) -> bool {
+        !self.candidates(start, end, 0.0).into_iter().any(|index| {
+            let obstacle = self.obstacles[index];
+            !obstacle.contains(start) && obstacle.entry(start, end).is_some()
+        })
+    }
     pub fn push(&mut self, obstacle: CombatObstacle) {
         let index = self.obstacles.len();
         let corners = obstacle.corners();

@@ -48,8 +48,8 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
     let mut post_ids: Vec<u64> = ctx
         .db
         .building()
-        .iter()
-        .filter(|building| building.kind == "trading_post")
+        .kind()
+        .filter("trading_post")
         .map(|building| building.id)
         .collect();
     post_ids.sort_unstable();

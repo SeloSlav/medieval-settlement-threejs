@@ -5,7 +5,7 @@ import {
   SIM_TICK_SECONDS,
   TRADE_RESOURCE_KINDS,
   type TradeResourceKind,
-} from '../generated/gameBalance.ts';
+} from '../world/runtimeGameBalance.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import { priceMultiplierFor, type RegionalMarketState } from './regionalMarket.ts';
 

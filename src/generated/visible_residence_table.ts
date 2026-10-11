@@ -47,6 +47,8 @@ export default __t.row({
   remedyStock: __t.f64().name("remedy_stock"),
   deathsTotal: __t.u32().name("deaths_total"),
   comfortDeficitTicks: __t.u32().name("comfort_deficit_ticks"),
+  comfortDeficitTick: __t.u64().name("comfort_deficit_tick"),
+  comfortDeficitRate: __t.i8().name("comfort_deficit_rate"),
   vacancyTicks: __t.u32().name("vacancy_ticks"),
   condition: __t.u8(),
   lastStarvationDeathHungerTicks: __t.u32().name("last_starvation_death_hunger_ticks"),

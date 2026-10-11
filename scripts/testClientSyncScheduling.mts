@@ -132,7 +132,7 @@ function testIssuedGuardPolearmSnapshotQuantization(): void {
 
 function testAuthoritativeTableSubscriptions(): void {
   assert.ok(
-    GAME_TABLE_SUBSCRIPTIONS.includes('market_state'),
+    GAME_TABLE_SUBSCRIPTIONS.includes('visible_market_state'),
     'regional market prices must be subscribed before the marketplace inspector can show them',
   );
   assert.equal(
@@ -225,7 +225,7 @@ async function testTableCallbackCoalescing(): Promise<void> {
     },
   );
   sync.attachHandlers({
-    db: { building: buildingTable },
+    db: { visible_building: buildingTable },
   } as Parameters<GameTableSync['attachHandlers']>[0]);
 
   for (let index = 0; index < 100; index++) {
@@ -254,12 +254,17 @@ async function testTableCallbackCoalescing(): Promise<void> {
     yaw: 0,
     population: 4n,
     abandoned: false,
+    comfortDeficitTicks: 0,
+    comfortDeficitTick: 0n,
+    comfortDeficitRate: 0,
   };
   const needRow = {
     residenceId: 1n,
     needKind: 0n,
     stock: 1,
-    deficitTicks: 0n,
+    deficitTicks: 0,
+    deficitTick: 0n,
+    deficitRunning: false,
   };
   const residenceTable = {
     iter: () => {
@@ -286,8 +291,8 @@ async function testTableCallbackCoalescing(): Promise<void> {
     },
   ).attachHandlers({
     db: {
-      residence: residenceTable,
-      residence_need: needTable,
+      visible_residence: residenceTable,
+      visible_residence_need: needTable,
     },
   } as never);
   for (const callback of residenceCallbacks) callback();
@@ -322,8 +327,8 @@ async function testTableCallbackCoalescing(): Promise<void> {
     },
   ).attachHandlers({
     db: {
-      quarry: emptyTable(quarryCallbacks, () => { quarryReads += 1; }),
-      foraging_node: emptyTable(foragingCallbacks, () => { foragingReads += 1; }),
+      visible_quarry: emptyTable(quarryCallbacks, () => { quarryReads += 1; }),
+      visible_foraging_node: emptyTable(foragingCallbacks, () => { foragingReads += 1; }),
     },
   } as never);
   for (const callback of quarryCallbacks) callback();

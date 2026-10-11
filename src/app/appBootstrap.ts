@@ -300,6 +300,7 @@ export async function bootstrapAppSession(
     isAgentNavigationBlocked: isAgentNavigationBlockedByWater,
     mayAgentNavigationPathBeBlocked: (path, radius) =>
       sceneManager.riverField.renderedWaterMayTouchPolyline(path, radius),
+    getAgentNavigationVersion: () => roadNetwork.getNavigationRevision(),
   });
 
   const requireSessionReady = (): void => {
@@ -997,6 +998,7 @@ export async function bootstrapAppSession(
   };
 
   const requestGameSpeed = (speed: GameSpeed): void => {
+    if (new URLSearchParams(window.location.search).get('mode') === 'multiplayer') return;
     void spacetimeStore.setGameSpeed(speed).catch((error) => {
       const message = error instanceof Error ? error.message : 'Could not change game speed.';
       toastManager?.show(message, { variant: 'error', durationMs: 4500 });

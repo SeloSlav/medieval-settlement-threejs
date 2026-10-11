@@ -139,6 +139,9 @@ export function nearestClayDeposit(
  * size-based resource budget.
  */
 export class ClayDepositLayout {
+  static fromSites(seed: number, sites: ClayDepositSite[]): ClayDepositLayout {
+    return new ClayDepositLayout(seed, sites);
+  }
   readonly sites: readonly ClayDepositSite[];
   readonly seed: number;
 

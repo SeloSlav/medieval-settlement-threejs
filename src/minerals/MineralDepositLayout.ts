@@ -84,6 +84,9 @@ export function mineralDepositLabel(site: MineralDepositSite): string {
 }
 
 export class MineralDepositLayout {
+  static fromSites(seed: number, sites: MineralDepositSite[]): MineralDepositLayout {
+    return new MineralDepositLayout(seed, sites);
+  }
   readonly sites: readonly MineralDepositSite[];
   readonly seed: number;
 

@@ -51,15 +51,15 @@ type CavalryHorseTableHandle = TableHandle & {
 };
 
 function settlementTableFromDb(db: unknown): SettlementTableHandle | undefined {
-  return (db as { settlement?: SettlementTableHandle }).settlement;
+  return (db as { visible_settlement?: SettlementTableHandle }).visible_settlement;
 }
 
 function stableOxTableFromDb(db: unknown): StableOxTableHandle | undefined {
-  return (db as { stable_ox?: StableOxTableHandle }).stable_ox;
+  return (db as { visible_stable_ox?: StableOxTableHandle }).visible_stable_ox;
 }
 
 function cavalryHorseTableFromDb(db: unknown): CavalryHorseTableHandle | undefined {
-  return (db as { cavalry_horse?: CavalryHorseTableHandle }).cavalry_horse;
+  return (db as { visible_cavalry_horse?: CavalryHorseTableHandle }).visible_cavalry_horse;
 }
 
 type TableChange<Row> =
@@ -83,43 +83,43 @@ export class GameTableSync {
     const cavalryHorseTable = cavalryHorseTableFromDb(db);
 
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
-    syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
+    syncPlayerResources(db.visible_player_resources ? db.visible_player_resources.iter() : [], this.state);
     this.state.settlements = syncSettlements(
       settlementTable ? settlementTable.iter() : [],
       this.state.identityHex,
     );
-    syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
+    syncMarketState(db.visible_market_state ? db.visible_market_state.iter() : [], this.state);
     this.state.tradingPostTradeRules = syncTradingPostTradeRules(
-      db.trading_post_trade_rule ? db.trading_post_trade_rule.iter() : [],
+      db.visible_trading_post_trade_rule ? db.visible_trading_post_trade_rule.iter() : [],
       this.state.identityHex,
     );
     syncSettlementSecurity(
-      db.settlement_security ? db.settlement_security.iter() : [],
+      db.visible_settlement_security ? db.visible_settlement_security.iter() : [],
       this.state,
     );
     this.state.quarries = syncQuarries(
-      db.quarry ? db.quarry.iter() : [],
-      db.foraging_node ? db.foraging_node.iter() : [],
+      db.visible_quarry ? db.visible_quarry.iter() : [],
+      db.visible_foraging_node ? db.visible_foraging_node.iter() : [],
     );
-    this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
-    this.state.trees = syncTrees(db.tree_entity ? db.tree_entity.iter() : []);
-    this.state.buildings = syncBuildings(db.building ? db.building.iter() : [], this.state.identityHex);
-    this.state.farmFields = syncFarmFields(db.farm_field ? db.farm_field.iter() : [], this.state.identityHex);
-    this.state.pastures = syncPastures(db.pasture ? db.pasture.iter() : [], this.state.identityHex);
+    this.state.foragingNodes = syncForagingNodes(db.visible_foraging_node ? db.visible_foraging_node.iter() : []);
+    this.state.trees = syncTrees(db.visible_tree_entity ? db.visible_tree_entity.iter() : []);
+    this.state.buildings = syncBuildings(db.visible_building ? db.visible_building.iter() : [], this.state.identityHex);
+    this.state.farmFields = syncFarmFields(db.visible_farm_field ? db.visible_farm_field.iter() : [], this.state.identityHex);
+    this.state.pastures = syncPastures(db.visible_pasture ? db.visible_pasture.iter() : [], this.state.identityHex);
     this.state.vineyardParcels = syncVineyardParcels(
-      db.vineyard_parcel ? db.vineyard_parcel.iter() : [],
+      db.visible_vineyard_parcel ? db.visible_vineyard_parcel.iter() : [],
       this.state.identityHex,
     );
     this.state.graveyards = syncGraveyards(
-      db.graveyard ? db.graveyard.iter() : [],
+      db.visible_graveyard ? db.visible_graveyard.iter() : [],
       this.state.identityHex,
     );
     this.state.corpses = syncCorpses(
-      db.corpse ? db.corpse.iter() : [],
+      db.visible_corpse ? db.visible_corpse.iter() : [],
       this.state.identityHex,
     );
     this.state.livestockHerds = syncLivestockHerds(
-      db.pasture_herd ? db.pasture_herd.iter() : [],
+      db.visible_pasture_herd ? db.visible_pasture_herd.iter() : [],
       this.state.identityHex,
     );
     this.state.stableOxen = syncStableOxen(
@@ -131,50 +131,51 @@ export class GameTableSync {
       this.state.identityHex,
     );
     this.state.burgageZones = syncBurgageZones(
-      db.burgage_zone ? db.burgage_zone.iter() : [],
+      db.visible_burgage_zone ? db.visible_burgage_zone.iter() : [],
       this.state.identityHex,
     );
     this.state.residences = syncResidences(
-      db.residence ? db.residence.iter() : [],
-      db.residence_need ? db.residence_need.iter() : [],
+      db.visible_residence ? db.visible_residence.iter() : [],
+      db.visible_residence_need ? db.visible_residence_need.iter() : [],
       this.state.identityHex,
+      db.world_config?.id.find(0)?.householdTick ?? 0n,
     );
     this.state.backyardGardens = syncBackyardGardens(
-      db.backyard_garden ? db.backyard_garden.iter() : [],
+      db.visible_backyard_garden ? db.visible_backyard_garden.iter() : [],
       this.state.identityHex,
     );
     this.state.deliveryTrips = syncDeliveryTrips(
-      db.delivery_trip ? db.delivery_trip.iter() : [],
+      db.visible_delivery_trip ? db.visible_delivery_trip.iter() : [],
       this.state.identityHex,
     );
     this.state.fireIncidents = syncFireIncidents(
-      db.fire_incident ? db.fire_incident.iter() : [],
+      db.visible_fire_incident ? db.visible_fire_incident.iter() : [],
       this.state.identityHex,
       this.state.simTick,
     );
     this.state.combatAgents = syncCombatAgents(
-      db.combat_agent ? db.combat_agent.iter() : [],
+      db.visible_combat_agent ? db.visible_combat_agent.iter() : [],
       this.state.identityHex,
-      db.military_company ? db.military_company.iter() : [],
+      db.visible_military_company ? db.visible_military_company.iter() : [],
     );
     this.state.militaryCompanies = syncMilitaryCompanies(
-      db.military_company ? db.military_company.iter() : [],
+      db.visible_military_company ? db.visible_military_company.iter() : [],
       this.state.identityHex,
     );
     this.state.banditCamps = syncBanditCamps(
-      db.bandit_camp ? db.bandit_camp.iter() : [],
+      db.visible_bandit_camp ? db.visible_bandit_camp.iter() : [],
       this.state.identityHex,
     );
     this.state.banditIncidents = syncBanditIncidents(
-      db.bandit_incident ? db.bandit_incident.iter() : [],
+      db.visible_bandit_incident ? db.visible_bandit_incident.iter() : [],
       this.state.identityHex,
     );
     this.state.activeRaid = syncActiveRaid(
-      db.active_raid ? db.active_raid.iter() : [],
+      db.visible_active_raid ? db.visible_active_raid.iter() : [],
       this.state.identityHex,
     );
     this.state.roads = syncRoadNetwork(
-      db.road_network_state ? db.road_network_state.iter() : [],
+      db.visible_road_network_state ? db.visible_road_network_state.iter() : [],
       this.state.identityHex,
     );
 
@@ -184,7 +185,7 @@ export class GameTableSync {
   syncBuildings(connection: DbConnection): void {
     const db = connection.db;
     this.state.buildings = syncBuildings(
-      db.building ? db.building.iter() : [],
+      db.visible_building ? db.visible_building.iter() : [],
       this.state.identityHex,
     );
     this.onChanged();
@@ -193,9 +194,10 @@ export class GameTableSync {
   syncResidences(connection: DbConnection): void {
     const db = connection.db;
     this.state.residences = syncResidences(
-      db.residence ? db.residence.iter() : [],
-      db.residence_need ? db.residence_need.iter() : [],
+      db.visible_residence ? db.visible_residence.iter() : [],
+      db.visible_residence_need ? db.visible_residence_need.iter() : [],
       this.state.identityHex,
+      db.world_config?.id.find(0)?.householdTick ?? 0n,
     );
     this.onChanged();
   }
@@ -272,15 +274,16 @@ export class GameTableSync {
 
     bindTable(db.world_config, () => {
       syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
+      scheduleResidenceBundle();
       this.state.fireIncidents = syncFireIncidents(
-        db.fire_incident ? db.fire_incident.iter() : [],
+        db.visible_fire_incident ? db.visible_fire_incident.iter() : [],
         this.state.identityHex,
         this.state.simTick,
       );
     }, false);
 
-    bindTable(db.player_resources, () => {
-      syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
+    bindTable(db.visible_player_resources, () => {
+      syncPlayerResources(db.visible_player_resources ? db.visible_player_resources.iter() : [], this.state);
     }, false);
 
     bindTable(settlementTable, () => {
@@ -290,20 +293,20 @@ export class GameTableSync {
       );
     });
 
-    bindTable(db.market_state, () => {
-      syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
+    bindTable(db.visible_market_state, () => {
+      syncMarketState(db.visible_market_state ? db.visible_market_state.iter() : [], this.state);
     }, false);
 
-    bindTable(db.trading_post_trade_rule, () => {
+    bindTable(db.visible_trading_post_trade_rule, () => {
       this.state.tradingPostTradeRules = syncTradingPostTradeRules(
-        db.trading_post_trade_rule ? db.trading_post_trade_rule.iter() : [],
+        db.visible_trading_post_trade_rule ? db.visible_trading_post_trade_rule.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.settlement_security, () => {
+    bindTable(db.visible_settlement_security, () => {
       syncSettlementSecurity(
-        db.settlement_security ? db.settlement_security.iter() : [],
+        db.visible_settlement_security ? db.visible_settlement_security.iter() : [],
         this.state,
       );
     }, false);
@@ -318,13 +321,13 @@ export class GameTableSync {
         resourceNodesPending = false;
         if (foragingRowsChanged) {
           this.state.foragingNodes = syncForagingNodes(
-            db.foraging_node ? db.foraging_node.iter() : [],
+            db.visible_foraging_node ? db.visible_foraging_node.iter() : [],
           );
         }
         if (quarryRowsChanged || foragingRowsChanged) {
           this.state.quarries = syncQuarries(
-            db.quarry ? db.quarry.iter() : [],
-            db.foraging_node ? db.foraging_node.iter() : [],
+            db.visible_quarry ? db.visible_quarry.iter() : [],
+            db.visible_foraging_node ? db.visible_foraging_node.iter() : [],
           );
         }
         quarryRowsChanged = false;
@@ -345,14 +348,14 @@ export class GameTableSync {
       table.onUpdate(handler);
       table.onDelete(handler);
     };
-    bindResourceNodeTable(db.quarry, () => {
+    bindResourceNodeTable(db.visible_quarry, () => {
       quarryRowsChanged = true;
     });
-    bindResourceNodeTable(db.foraging_node, () => {
+    bindResourceNodeTable(db.visible_foraging_node, () => {
       foragingRowsChanged = true;
     });
 
-    if (db.tree_entity) {
+    if (db.visible_tree_entity) {
       const treeChanges = queueTableChanges<TreeEntity>((changes) => {
         const nextTrees = new Map(this.state.trees);
         for (const change of changes) {
@@ -367,12 +370,12 @@ export class GameTableSync {
         }
         this.state.trees = nextTrees;
       });
-      db.tree_entity.onInsert((_ctx, row) => treeChanges.insert(row));
-      db.tree_entity.onUpdate((_ctx, oldRow, row) => treeChanges.update(oldRow, row));
-      db.tree_entity.onDelete((_ctx, row) => treeChanges.delete(row));
+      db.visible_tree_entity.onInsert((_ctx, row) => treeChanges.insert(row));
+      db.visible_tree_entity.onUpdate((_ctx, oldRow, row) => treeChanges.update(oldRow, row));
+      db.visible_tree_entity.onDelete((_ctx, row) => treeChanges.delete(row));
     }
 
-    if (db.building) {
+    if (db.visible_building) {
       const buildingChanges = queueTableChanges<Building>((changes) => {
         const nextBuildings = new Map(this.state.buildings);
         for (const change of changes) {
@@ -387,49 +390,49 @@ export class GameTableSync {
         }
         this.state.buildings = nextBuildings;
       });
-      db.building.onInsert((_ctx, row) => buildingChanges.insert(row));
-      db.building.onUpdate((_ctx, oldRow, row) => buildingChanges.update(oldRow, row));
-      db.building.onDelete((_ctx, row) => buildingChanges.delete(row));
+      db.visible_building.onInsert((_ctx, row) => buildingChanges.insert(row));
+      db.visible_building.onUpdate((_ctx, oldRow, row) => buildingChanges.update(oldRow, row));
+      db.visible_building.onDelete((_ctx, row) => buildingChanges.delete(row));
     }
 
-    bindTable(db.farm_field, () => {
+    bindTable(db.visible_farm_field, () => {
       this.state.farmFields = syncFarmFields(
-        db.farm_field ? db.farm_field.iter() : [],
+        db.visible_farm_field ? db.visible_farm_field.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.pasture, () => {
+    bindTable(db.visible_pasture, () => {
       this.state.pastures = syncPastures(
-        db.pasture ? db.pasture.iter() : [],
+        db.visible_pasture ? db.visible_pasture.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.vineyard_parcel, () => {
+    bindTable(db.visible_vineyard_parcel, () => {
       this.state.vineyardParcels = syncVineyardParcels(
-        db.vineyard_parcel ? db.vineyard_parcel.iter() : [],
+        db.visible_vineyard_parcel ? db.visible_vineyard_parcel.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.graveyard, () => {
+    bindTable(db.visible_graveyard, () => {
       this.state.graveyards = syncGraveyards(
-        db.graveyard ? db.graveyard.iter() : [],
+        db.visible_graveyard ? db.visible_graveyard.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.corpse, () => {
+    bindTable(db.visible_corpse, () => {
       this.state.corpses = syncCorpses(
-        db.corpse ? db.corpse.iter() : [],
+        db.visible_corpse ? db.visible_corpse.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.pasture_herd, () => {
+    bindTable(db.visible_pasture_herd, () => {
       this.state.livestockHerds = syncLivestockHerds(
-        db.pasture_herd ? db.pasture_herd.iter() : [],
+        db.visible_pasture_herd ? db.visible_pasture_herd.iter() : [],
         this.state.identityHex,
       );
     });
@@ -448,9 +451,9 @@ export class GameTableSync {
       );
     });
 
-    bindTable(db.burgage_zone, () => {
+    bindTable(db.visible_burgage_zone, () => {
       this.state.burgageZones = syncBurgageZones(
-        db.burgage_zone ? db.burgage_zone.iter() : [],
+        db.visible_burgage_zone ? db.visible_burgage_zone.iter() : [],
         this.state.identityHex,
       );
     });
@@ -462,9 +465,10 @@ export class GameTableSync {
       queueMicrotask(() => {
         residenceBundlePending = false;
         this.state.residences = syncResidences(
-          db.residence ? db.residence.iter() : [],
-          db.residence_need ? db.residence_need.iter() : [],
+          db.visible_residence ? db.visible_residence.iter() : [],
+          db.visible_residence_need ? db.visible_residence_need.iter() : [],
           this.state.identityHex,
+          db.world_config?.id.find(0)?.householdTick ?? 0n,
         );
         notify();
       });
@@ -475,53 +479,53 @@ export class GameTableSync {
       table.onUpdate(scheduleResidenceBundle);
       table.onDelete(scheduleResidenceBundle);
     };
-    bindResidenceBundleTable(db.residence);
-    bindResidenceBundleTable(db.residence_need);
+    bindResidenceBundleTable(db.visible_residence);
+    bindResidenceBundleTable(db.visible_residence_need);
 
-    bindTable(db.backyard_garden, () => {
+    bindTable(db.visible_backyard_garden, () => {
       this.state.backyardGardens = syncBackyardGardens(
-        db.backyard_garden ? db.backyard_garden.iter() : [],
+        db.visible_backyard_garden ? db.visible_backyard_garden.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.delivery_trip, () => {
+    bindTable(db.visible_delivery_trip, () => {
       this.state.deliveryTrips = syncDeliveryTrips(
-        db.delivery_trip ? db.delivery_trip.iter() : [],
+        db.visible_delivery_trip ? db.visible_delivery_trip.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.fire_incident, () => {
+    bindTable(db.visible_fire_incident, () => {
       this.state.fireIncidents = syncFireIncidents(
-        db.fire_incident ? db.fire_incident.iter() : [],
+        db.visible_fire_incident ? db.visible_fire_incident.iter() : [],
         this.state.identityHex,
         this.state.simTick,
       );
     });
 
-    if (db.combat_agent) {
+    if (db.visible_combat_agent) {
       const combatChanges = queueTableChanges<CombatAgent>(() => {
         this.state.combatAgents = syncCombatAgents(
-          db.combat_agent ? db.combat_agent.iter() : [],
+          db.visible_combat_agent ? db.visible_combat_agent.iter() : [],
           this.state.identityHex,
-          db.military_company ? db.military_company.iter() : [],
+          db.visible_military_company ? db.visible_military_company.iter() : [],
         );
       });
-      db.combat_agent.onInsert((_ctx, row) => combatChanges.insert(row));
-      db.combat_agent.onUpdate((_ctx, oldRow, row) =>
+      db.visible_combat_agent.onInsert((_ctx, row) => combatChanges.insert(row));
+      db.visible_combat_agent.onUpdate((_ctx, oldRow, row) =>
         combatChanges.update(oldRow, row)
       );
-      db.combat_agent.onDelete((_ctx, row) => combatChanges.delete(row));
+      db.visible_combat_agent.onDelete((_ctx, row) => combatChanges.delete(row));
     }
 
-    bindTable(db.military_company, () => {
+    bindTable(db.visible_military_company, () => {
       this.state.militaryCompanies = syncMilitaryCompanies(
-        db.military_company ? db.military_company.iter() : [],
+        db.visible_military_company ? db.visible_military_company.iter() : [],
         this.state.identityHex,
       );
       // A pace/facing order can arrive without any soldier moving this tick.
-      const orders = new Map([...(db.military_company?.iter() ?? [])].map(row => [row.id.toString(), row]));
+      const orders = new Map([...(db.visible_military_company?.iter() ?? [])].map(row => [row.id.toString(), row]));
       let agents = this.state.combatAgents;
       for (const [id, agent] of agents) {
         const company = agent.companyId ? orders.get(agent.companyId) : undefined;
@@ -534,29 +538,29 @@ export class GameTableSync {
       this.state.combatAgents = agents;
     });
 
-    bindTable(db.bandit_camp, () => {
+    bindTable(db.visible_bandit_camp, () => {
       this.state.banditCamps = syncBanditCamps(
-        db.bandit_camp ? db.bandit_camp.iter() : [],
+        db.visible_bandit_camp ? db.visible_bandit_camp.iter() : [],
         this.state.identityHex,
       );
     });
-    bindTable(db.bandit_incident, () => {
+    bindTable(db.visible_bandit_incident, () => {
       this.state.banditIncidents = syncBanditIncidents(
-        db.bandit_incident ? db.bandit_incident.iter() : [],
+        db.visible_bandit_incident ? db.visible_bandit_incident.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.active_raid, () => {
+    bindTable(db.visible_active_raid, () => {
       this.state.activeRaid = syncActiveRaid(
-        db.active_raid ? db.active_raid.iter() : [],
+        db.visible_active_raid ? db.visible_active_raid.iter() : [],
         this.state.identityHex,
       );
     });
 
-    bindTable(db.road_network_state, () => {
+    bindTable(db.visible_road_network_state, () => {
       this.state.roads = syncRoadNetwork(
-        db.road_network_state ? db.road_network_state.iter() : [],
+        db.visible_road_network_state ? db.visible_road_network_state.iter() : [],
         this.state.identityHex,
       );
     });

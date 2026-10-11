@@ -453,10 +453,8 @@ pub fn step_marketplace_caravans(
     tick: &SimTickContext,
     _environment: EnvironmentState,
 ) {
-    let marketplace_ids: Vec<u64> = ctx
-        .db
-        .building()
-        .iter()
+    let marketplace_ids: Vec<u64> = ["marketplace", "trading_post"].into_iter()
+        .flat_map(|kind| ctx.db.building().kind().filter(kind))
         .filter(|building| {
             matches!(building.kind.as_str(), "marketplace" | "trading_post")
                 && building.construction_complete

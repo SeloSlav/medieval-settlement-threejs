@@ -10,8 +10,8 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  connectionId: __t.connectionId().primaryKey().name("connection_id"),
-  identity: __t.identity(),
-  enteredAt: __t.timestamp().name("entered_at"),
-});
+export default {
+  settlementId: __t.u64(),
+  x: __t.f64(),
+  z: __t.f64(),
+};

@@ -61,6 +61,11 @@ impl FarmsteadSeedReserves {
 }
 
 pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
+thread_local! {
+    // Exact serialized topology is the invalidation key, including bridge/water
+    // navigation. A database reset or any owner's road edit replaces this cache.
+    static ROAD_SNAPSHOT_CACHE: RefCell<Option<(Vec<(Identity, String)>, SharedRoadNetworks)>> = const { RefCell::new(None) };
+}
 
 const LIVESTOCK_TREE_INDEX_CELL_METERS: f64 = 32.0;
 type MatureTreeSpatialIndex = HashMap<(i32, i32), Vec<(f64, f64)>>;
@@ -101,13 +106,20 @@ impl SimTickContext {
     /// delivery heartbeat and every economy substep share immutable networks,
     /// while each context below still owns fresh mutable simulation caches.
     pub fn load_road_networks(ctx: &ReducerContext) -> SharedRoadNetworks {
-        let mut road_networks = HashMap::new();
-        for state in ctx.db.road_network_state().iter() {
-            if let Some(network) = RoadNetwork::from_snapshot_json(&state.snapshot_json) {
-                road_networks.insert(state.owner, network);
+        let mut snapshots: Vec<_> = ctx.db.road_network_state().iter().map(|s| (s.owner,s.snapshot_json)).collect();
+        snapshots.sort_by_key(|s| s.0);
+        ROAD_SNAPSHOT_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if let Some((previous, networks)) = cache.as_ref() {
+                if *previous == snapshots { return networks.clone(); }
             }
-        }
-        Arc::new(road_networks)
+            let road_networks: SharedRoadNetworks = Arc::new(snapshots.iter().filter_map(|(owner,json)| {
+                let mut network = RoadNetwork::from_snapshot_json(json)?;
+                crate::roads::apply_world_navigation(&mut network);
+                Some((*owner, network))
+            }).collect());
+            *cache = Some((snapshots, road_networks.clone())); road_networks
+        })
     }
 
     pub fn with_road_networks(road_networks: SharedRoadNetworks) -> Self {

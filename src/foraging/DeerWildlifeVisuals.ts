@@ -93,6 +93,14 @@ const STAG_MODEL_URL = '/assets/models/deer/quaternius-stag.glb';
 const DOE_TARGET_HEIGHT = 1.7;
 const STAG_TARGET_HEIGHT = 2;
 const TAU = Math.PI * 2;
+class DeerVisualRoot extends THREE.Group {
+  override updateMatrixWorld(force?: boolean): void {
+    // Scene traversal ignores Object3D.visible when updating transforms.
+    // Hidden habitats have no physics here; sync restores their population and
+    // placement before their first visible frame.
+    if (this.visible) super.updateMatrixWorld(force);
+  }
+}
 /**
  * Adds a representative authored herd to every habitat. Low populations remain
  * literal while larger populations use a logarithmic visual density curve.
@@ -193,7 +201,7 @@ export async function createDeerWildlifeVisuals(
       model.position.y = -source.bounds.min.y * modelScale + 0.025;
       configureModelMeshes(model);
 
-      const root = new THREE.Group();
+      const root = new DeerVisualRoot();
       root.name = sex === 'stag' ? 'Rigged roaming stag' : 'Rigged roaming doe';
       root.userData.deerSex = sex;
       root.add(model);
@@ -282,6 +290,10 @@ export async function createDeerWildlifeVisuals(
     }
 
     for (const visual of deer) {
+      // Missing/depleted habitats have no visible or huntable animals. Their
+      // authoritative relocation is applied by sync(), so avoid path probes
+      // and pose updates for every undiscovered herd in the persistent world.
+      if (!visual.root.visible) continue;
       updateDeerMotion(visual.motion, dtSeconds, {
         observer: firstPersonObserver,
         forcedThreats: loggingSourcesByHabitat.get(visual.nodeId) ?? [],

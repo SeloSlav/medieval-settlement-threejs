@@ -10,7 +10,7 @@ export {
   resolveCloseGroundLod,
 } from './grassLodMath.ts';
 
-let lastDirtZoomGate = Number.NaN;
+const dirtZoomGates = new WeakMap<Terrain, number>();
 
 /** CPU-side brown-soil zoom gate (200–650%) written to a terrain vertex attribute. */
 export function updateTerrainZoomBlend(
@@ -19,7 +19,7 @@ export function updateTerrainZoomBlend(
   firstPersonActive = false,
 ): void {
   const { dirtGate } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
-  if (Math.abs(dirtGate - lastDirtZoomGate) < 0.002) return;
-  lastDirtZoomGate = dirtGate;
+  if (Math.abs(dirtGate - (dirtZoomGates.get(terrain) ?? Number.NaN)) < 0.002) return;
+  dirtZoomGates.set(terrain, dirtGate);
   terrain.setDirtZoomGate(dirtGate);
 }

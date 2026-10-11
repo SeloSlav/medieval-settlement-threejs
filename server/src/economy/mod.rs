@@ -61,6 +61,7 @@ pub(crate) use marketplace_trade_policy::marketplace_proceeds_cart_load;
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };
+pub(crate) use population::{cache_production_labor_rosters, invalidate_production_labor_roster};
 pub use population::{
     assign_building_labor, available_building_labor, available_workplace_labor,
     initial_construction_labor, preempt_flexible_labor_for_workplace_callup,

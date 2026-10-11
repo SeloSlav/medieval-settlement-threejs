@@ -436,6 +436,7 @@ export const ForagingBootstrap = __t.object("ForagingBootstrap", {
 export type ForagingBootstrap = __Infer<typeof ForagingBootstrap>;
 
 export const ForagingNode = __t.object("ForagingNode", {
+  chunkId: __t.u32(),
   nodeId: __t.string(),
   nodeKind: __t.string(),
   x: __t.f64(),
@@ -779,6 +780,7 @@ export const PlayerResources = __t.object("PlayerResources", {
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
 export const Quarry = __t.object("Quarry", {
+  chunkId: __t.u32(),
   quarryId: __t.string(),
   x: __t.f64(),
   z: __t.f64(),
@@ -805,6 +807,77 @@ export const RaidIncursionRoute = __t.object("RaidIncursionRoute", {
   routePolylineJson: __t.string(),
 });
 export type RaidIncursionRoute = __Infer<typeof RaidIncursionRoute>;
+
+export const RealmClock = __t.object("RealmClock", {
+  id: __t.u8(),
+  lastWallMicros: __t.i64(),
+  remainderMicros: __t.u64(),
+});
+export type RealmClock = __Infer<typeof RealmClock>;
+
+export const RealmEntity = __t.object("RealmEntity", {
+  id: __t.string(),
+  owner: __t.identity(),
+  chunk: __t.u32(),
+  kind: __t.string(),
+  x: __t.f64(),
+  z: __t.f64(),
+  yaw: __t.f64(),
+  tier: __t.u8(),
+  complete: __t.bool(),
+});
+export type RealmEntity = __Infer<typeof RealmEntity>;
+
+export const RealmFog = __t.object("RealmFog", {
+  id: __t.string(),
+  owner: __t.identity(),
+  chunk: __t.u32(),
+  explored: __t.u64(),
+  visible: __t.u64(),
+});
+export type RealmFog = __Infer<typeof RealmFog>;
+
+export const RealmInterest = __t.object("RealmInterest", {
+  owner: __t.identity(),
+  chunk: __t.u32(),
+});
+export type RealmInterest = __Infer<typeof RealmInterest>;
+
+export const RealmMember = __t.object("RealmMember", {
+  owner: __t.identity(),
+  slot: __t.u32(),
+  campX: __t.f64(),
+  campZ: __t.f64(),
+  joinedAt: __t.timestamp(),
+});
+export type RealmMember = __Infer<typeof RealmMember>;
+
+export const RealmScout = __t.object("RealmScout", {
+  settlementId: __t.u64(),
+  owner: __t.identity(),
+  health: __t.f64(),
+  residenceId: __t.u64(),
+  residentSlot: __t.u32(),
+  x: __t.f64(),
+  z: __t.f64(),
+  targetX: __t.f64(),
+  targetZ: __t.f64(),
+});
+export type RealmScout = __Infer<typeof RealmScout>;
+
+export const RealmScoutRoute = __t.object("RealmScoutRoute", {
+  settlementId: __t.u64(),
+  waypointsJson: __t.string(),
+  leg: __t.u32(),
+});
+export type RealmScoutRoute = __Infer<typeof RealmScoutRoute>;
+
+export const RealmSpawn = __t.object("RealmSpawn", {
+  slot: __t.u32(),
+  x: __t.f64(),
+  z: __t.f64(),
+});
+export type RealmSpawn = __Infer<typeof RealmSpawn>;
 
 export const Residence = __t.object("Residence", {
   id: __t.u64(),
@@ -843,6 +916,8 @@ export const Residence = __t.object("Residence", {
   remedyStock: __t.f64(),
   deathsTotal: __t.u32(),
   comfortDeficitTicks: __t.u32(),
+  comfortDeficitTick: __t.u64(),
+  comfortDeficitRate: __t.i8(),
   vacancyTicks: __t.u32(),
   condition: __t.u8(),
   lastStarvationDeathHungerTicks: __t.u32(),
@@ -885,10 +960,13 @@ export type Residence = __Infer<typeof Residence>;
 
 export const ResidenceNeed = __t.object("ResidenceNeed", {
   id: __t.u64(),
+  owner: __t.identity(),
   residenceId: __t.u64(),
   needKind: __t.u8(),
   stock: __t.f64(),
   deficitTicks: __t.u32(),
+  deficitTick: __t.u64(),
+  deficitRunning: __t.bool(),
   sourceKind: __t.u16(),
 });
 export type ResidenceNeed = __Infer<typeof ResidenceNeed>;
@@ -1030,6 +1108,7 @@ export const TreeBootstrap = __t.object("TreeBootstrap", {
 export type TreeBootstrap = __Infer<typeof TreeBootstrap>;
 
 export const TreeEntity = __t.object("TreeEntity", {
+  chunkId: __t.u32(),
   treeId: __t.string(),
   layoutIndex: __t.u32(),
   phase: __t.string(),
@@ -1072,6 +1151,7 @@ export const WorldConfig = __t.object("WorldConfig", {
   seed: __t.u64(),
   nextBuildingId: __t.u64(),
   simTick: __t.u64(),
+  householdTick: __t.u64(),
   gameSpeed: __t.u8(),
   mapSize: __t.u8(),
   topography: __t.u8(),

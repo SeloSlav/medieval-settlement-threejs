@@ -7,8 +7,9 @@ import {
 } from '../../residences/residenceNeedState.ts';
 import type { ResidenceState } from '../../resources/types.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
+import { householdCounterAt } from '../../residences/householdTimers.ts';
 
-function buildNeedsByResidence(rows: Iterable<ResidenceNeed>): Map<string, ResidenceState['needs']> {
+function buildNeedsByResidence(rows: Iterable<ResidenceNeed>, householdTick: bigint): Map<string, ResidenceState['needs']> {
   const needsByResidence = new Map<string, ResidenceState['needs']>();
   for (const row of rows) {
     const kind = needKindFromId(Number(row.needKind));
@@ -21,7 +22,7 @@ function buildNeedsByResidence(rows: Iterable<ResidenceNeed>): Map<string, Resid
       residenceId,
       mergeNeedRow(needs, kind, {
         stock: wholeResourceUnits(row.stock),
-        deficitTicks: Number(row.deficitTicks),
+        deficitTicks: householdCounterAt(row.deficitTicks, row.deficitTick, row.deficitRunning ? 1 : 0, householdTick),
         sourceKind: sourceKind < 65535 ? sourceKind : null,
       }),
     );
@@ -33,11 +34,12 @@ export function syncResidences(
   residenceRows: Iterable<Residence>,
   needRows: Iterable<ResidenceNeed>,
   identityHex: string | null,
+  householdTick: bigint,
 ): Map<string, ResidenceState> {
   const residences = new Map<string, ResidenceState>();
   if (!identityHex) return residences;
 
-  const needsByResidence = buildNeedsByResidence(needRows);
+  const needsByResidence = buildNeedsByResidence(needRows, householdTick);
   for (const row of residenceRows) {
     if (row.owner.toHexString() !== identityHex) continue;
     // Additive server fields may be absent from an older generated binding
@@ -154,7 +156,7 @@ export function syncResidences(
       illnessTicks: Number(upgradeRow.illnessTicks ?? 0),
       remedyStock: wholeResourceUnits(upgradeRow.remedyStock),
       deathsTotal: Number(upgradeRow.deathsTotal ?? 0),
-      comfortDeficitTicks: Number(upgradeRow.comfortDeficitTicks ?? 0),
+      comfortDeficitTicks: householdCounterAt(row.comfortDeficitTicks, row.comfortDeficitTick, row.comfortDeficitRate, householdTick),
       vacancyTicks: 0,
       condition: 0,
       decayRepairActive: false,

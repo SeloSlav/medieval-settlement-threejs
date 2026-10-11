@@ -4,6 +4,7 @@ import { probeServerWorldConfig } from '../network/serverWorldProbe.ts';
 import { resetWorld } from '../data/spacetimeReducers.ts';
 import { NobleSetupPanel, type NobleSetupStep } from '../ui/NobleSetupPanel.ts';
 import { WorldSetupPanel } from '../ui/WorldSetupPanel.ts';
+import { gameMode } from '../multiplayer/gameMode.ts';
 import type { NobleProfile } from '../ui/nobleProfile.ts';
 import { resolveWorldGenerationAuthority } from '../world/worldConfigAuthority.ts';
 import {
@@ -21,6 +22,14 @@ export async function resolveWorldGenerationSettings(
   root: HTMLElement,
   onProgress?: (progress: WorldBootstrapProgress) => void,
 ): Promise<WorldGenerationSettings> {
+  if (gameMode() === 'multiplayer') {
+    onProgress?.({ label: 'Joining the persistent realm', detail: 'Finding your settlement' });
+    const probe = await probeServerWorldConfig();
+    if (!probe?.generation.configured || probe.generation.mapSize !== 'realm') {
+      throw new Error('The persistent realm is unavailable. Start the realm server, then retry.');
+    }
+    return probe.generation;
+  }
   const explicitNewWorld = new URLSearchParams(window.location.search).has('new');
   if (explicitNewWorld) {
     return promptNewWorldSetup(root);
@@ -78,6 +87,7 @@ async function promptNewWorldSetup(root: HTMLElement): Promise<WorldGenerationSe
 }
 
 export async function beginNewWorld(isReady: () => boolean): Promise<void> {
+  if (gameMode() === 'multiplayer') return;
   if (!isReady()) {
     window.alert('SpacetimeDB is not connected. Start the local server and try again.');
     return;

@@ -85,7 +85,7 @@ const alternativeHome = residence({
 });
 alternativeHome.needs.firewood = { stock: 8, deficitTicks: 0, sourceKind: 22 };
 alternativeHome.needs.ale = { stock: 4, deficitTicks: 0, sourceKind: 55 };
-alternativeHome.needs.preservedFood.stock = 7;
+alternativeHome.needs.savoryPreserves.stock = 7;
 alternativeHome.needs.luxury = { stock: 1, deficitTicks: 0, sourceKind: 65_534 };
 assert.equal(residenceNeedSource(alternativeHome, 'firewood')?.key, 'charcoal');
 assert.equal(
@@ -93,7 +93,7 @@ assert.equal(
   'cider',
   'commodity 55 must resolve to the unified cider resource',
 );
-assert.equal(residenceNeedSource(alternativeHome, 'preservedFood')?.key, 'smokedFish');
+assert.equal(residenceNeedSource(alternativeHome, 'savoryPreserves')?.key, 'smokedFish');
 assert.equal(residenceNeedSource(alternativeHome, 'luxury')?.key, 'luxuryFlowers');
 alternativeHome.needs.luxury.sourceKind = 8;
 assert.equal(residenceNeedSource(alternativeHome, 'luxury')?.key, 'honey');
@@ -108,7 +108,7 @@ assert.match(css, /residence-need-icon__source[\s\S]{0,220}width: 15px/);
 assert.match(css, /residence-need-icon__source--action[\s\S]{0,220}inspector-action-icon/);
 
 const residenceNeedBinding = readFileSync(
-  new URL('../src/generated/residence_need_table.ts', import.meta.url),
+  new URL('../src/generated/visible_residence_need_table.ts', import.meta.url),
   'utf8',
 );
 assert.match(residenceNeedBinding, /sourceKind:\s*__t\.u16\(\)\.name\("source_kind"\)/);

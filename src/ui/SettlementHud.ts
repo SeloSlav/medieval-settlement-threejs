@@ -1,4 +1,5 @@
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
+import { isMultiplayer } from '../multiplayer/gameMode.ts';
 import {
   formatCalendarDate,
   formatWeekday,
@@ -35,7 +36,7 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   SIM_REALTIME_RATE,
-} from '../generated/gameBalance.ts';
+} from '../world/runtimeGameBalance.ts';
 import { seasonAlmanacTooltip } from './seasonAlmanac.ts';
 import {
   applyHeraldryToElement,
@@ -866,6 +867,7 @@ export class SettlementHud {
     );
     this.speedButtons = [...this.panel.querySelectorAll<HTMLButtonElement>('[data-game-speed]')];
     for (const button of this.speedButtons) {
+      button.hidden = isMultiplayer();
       button.addEventListener('click', () => {
         const speed = Number(button.dataset.gameSpeed) as GameSpeed;
         if (GAME_SPEEDS.includes(speed)) {
@@ -874,6 +876,8 @@ export class SettlementHud {
       });
     }
     this.fpsValue = this.mustElement('[data-stat="fps"]');
+    // Fixed positioning must escape the transformed HUD's containing block.
+    document.body.append(this.fpsValue.closest('.settlement-hud__perf')!);
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
     for (const summaryCard of [this.laborStat, this.housingStat]) {
@@ -1324,7 +1328,7 @@ export class SettlementHud {
 
   setSpeedControlsEnabled(enabled: boolean): void {
     for (const button of this.speedButtons) {
-      button.disabled = !enabled;
+      button.disabled = !enabled || isMultiplayer();
     }
   }
 
@@ -1674,9 +1678,11 @@ export class SettlementHud {
   }
 
   setFps(fps: number): void {
-    const displayFps = Math.min(90, Math.round(fps));
+    const displayFps = Math.max(0, Math.round(fps));
     if (displayFps === this.displayedFps) return;
-    this.fpsValue.textContent = displayFps.toString();
+    const frameMs = fps > 0 ? 1000 / fps : 0;
+    this.fpsValue.textContent = `${displayFps} · ${frameMs.toFixed(2)} / 16.67 ms`;
+    this.fpsValue.title = 'Measured frame interval / 60 FPS budget. Includes CPU, GPU and presentation pacing.';
     this.panel.classList.toggle('is-low', displayFps < 60);
     this.panel.classList.toggle('is-fast', displayFps >= 85);
     this.displayedFps = displayFps;
@@ -2112,6 +2118,7 @@ export class SettlementHud {
   }
 
   dispose(): void {
+    this.fpsValue.closest('.settlement-hud__perf')?.remove();
     this.cancelApprovalClose();
     this.cancelFoodStoresClose();
     this.cancelFuelStoresClose();

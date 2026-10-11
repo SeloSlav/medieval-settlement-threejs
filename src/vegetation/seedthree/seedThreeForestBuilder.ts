@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { isMultiplayer } from '../../multiplayer/gameMode.ts';
 import { InstanceDrawCompaction } from '../../scene/InstanceDrawCompaction.ts';
+import { StaticRenderBundle } from '../../scene/StaticRenderBundle.ts';
 import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
@@ -606,6 +608,8 @@ export function getSeedThreeForestStartupTiming(): SeedThreeForestStartupTiming 
   };
 }
 
+const realmPrototypeCache = new WeakMap<WebGPURenderer, Map<SeedThreePresetKey, { prototype: THREE.LOD; assets: SeedThreeSpeciesAssets }>>();
+
 export async function createSeedThreeForest(
   placements: ForestTreePlacement[],
   terrain: Pick<Terrain, 'getHeightAt' | 'generationSize'>,
@@ -621,6 +625,11 @@ export async function createSeedThreeForest(
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const group = new THREE.Group();
   group.name = 'SeedThree Gorski Kotar forest';
+  // Only opaque layers share commands. Canopy crossfades retain their ordinary
+  // transparent ordering relative to river banks, roads and other effects.
+  const opaqueDraws = new StaticRenderBundle();
+  opaqueDraws.name = 'Cached opaque SeedThree forest draws';
+  group.add(opaqueDraws);
   const overviewBillboardGroup = new THREE.Group();
   overviewBillboardGroup.name = 'SeedThree overview tree billboards';
   overviewBillboardGroup.visible = false;
@@ -634,6 +643,8 @@ export async function createSeedThreeForest(
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
   const prototypeByPreset = new Map<SeedThreePresetKey, THREE.LOD>();
   const speciesStartupTimings: SeedThreeForestSpeciesStartupTiming[] = [];
+  const prototypeCache = isMultiplayer() ? (realmPrototypeCache.get(renderer) ?? new Map()) : null;
+  if (prototypeCache) realmPrototypeCache.set(renderer, prototypeCache);
 
   // Texture fetch/decode is independent across species. Start every request
   // before the renderer-exclusive branch-card bakes so network and image
@@ -653,6 +664,10 @@ export async function createSeedThreeForest(
     if (!entry) continue;
     const assetWaitMs = performance.now() - assetWaitStartedAt;
     const { presetKey, species, assets } = entry;
+    const cached = prototypeCache?.get(presetKey);
+    if (cached) {
+      assetsByPreset.set(presetKey, cached.assets); prototypeByPreset.set(presetKey, cached.prototype); continue;
+    }
     assetsByPreset.set(presetKey, assets);
     const branchCardsStartedAt = performance.now();
     const branchCards = await ensureSeedThreeBranchCards(
@@ -671,6 +686,7 @@ export async function createSeedThreeForest(
       branchCards: branchCards ?? undefined,
     });
     prototypeByPreset.set(presetKey, prototype as THREE.LOD);
+    prototypeCache?.set(presetKey, { prototype: prototype as THREE.LOD, assets });
     speciesStartupTimings.push({
       preset: presetKey,
       assetWaitMs,
@@ -781,13 +797,13 @@ export async function createSeedThreeForest(
         horizonOnly,
       );
       buckets.push(bucket);
-      if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
+      if (bucket.nearSet.branches) opaqueDraws.add(bucket.nearSet.branches);
       for (const cardMesh of bucket.nearSet.cards) {
         if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
-        else group.add(cardMesh);
+        else opaqueDraws.add(cardMesh);
       }
-      if (bucket.nearShadowSet.branches) group.add(bucket.nearShadowSet.branches);
-      for (const cardMesh of bucket.nearShadowSet.cards) group.add(cardMesh);
+      if (bucket.nearShadowSet.branches) opaqueDraws.add(bucket.nearShadowSet.branches);
+      for (const cardMesh of bucket.nearShadowSet.cards) opaqueDraws.add(cardMesh);
       const overviewParent = horizonOnly ? horizonForestGroup : overviewBillboardGroup;
       if (bucket.overviewSet.branches) overviewParent.add(bucket.overviewSet.branches);
       for (const cardMesh of bucket.overviewSet.cards) overviewParent.add(cardMesh);
@@ -1696,22 +1712,28 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
   forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
     bucket.nearSet.branches, bucket.nearShadowSet.branches,
+    ...(isMultiplayer() ? [...bucket.nearSet.cards, ...bucket.nearShadowSet.cards, ...bucket.overviewSet.cards] : []),
   ])
     .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24
       && !Array.isArray(mesh.material) && !mesh.material.transparent)
     .map(mesh => {
       const wind = mesh.geometry.getAttribute('aWind');
-      let maximumWeight = 0;
-      for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
+      let maximumWeight = wind ? 0 : 1;
+      if (wind) for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
       const vectors = mesh.geometry.getAttribute('aWindVec');
       let version = -1, maximumVector = 0;
+      const thickness = mesh.geometry.getAttribute('aThickness');
+      let maximumThickness = 0;
+      if (thickness) for (let i = 0; i < thickness.count; i++) maximumThickness = Math.max(maximumThickness, Math.abs(thickness.getX(i)));
+      mesh.geometry.computeBoundingBox();
+      const flutterBound = thickness ? Math.sqrt(2.36) * .05 * maximumThickness * Math.max(0, mesh.geometry.boundingBox!.max.y) : 0;
       return new InstanceDrawCompaction(mesh, () => {
-        if (version !== (vectors as THREE.BufferAttribute).version) {
+        if (vectors && version !== (vectors as THREE.BufferAttribute).version) {
           version = (vectors as THREE.BufferAttribute).version; maximumVector = 0;
           for (let i = 0; i < vectors.count; i++) maximumVector = Math.max(maximumVector, Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)));
         }
         // Exact bound for the bark shader: its two sine weights sum to one.
-        return .01 + Math.abs(windStrength.value) * .35 * maximumWeight * maximumVector;
+        return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutterBound);
       }, { skipCollapsed: true });
     });
   return {

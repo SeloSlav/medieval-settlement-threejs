@@ -92,6 +92,7 @@ fn author(ctx: &ReducerContext, json: &str) -> Result<(), String> {
             r.upgrade_target_tier=0;r.upgrade_progress=0.0;r.upgrade_assigned_labor=0;
             r.upgrade_reserved_timber=0.0;r.upgrade_reserved_stone=0.0;r.upgrade_reserved_gold=0.0;
             r.tiled_roof=p.tier>=3 && r.id%3!=0;r.hunger_ticks=0;r.comfort_deficit_ticks=0;
+            r.comfort_deficit_tick=0;r.comfort_deficit_rate=0;
             r.rye_bread=12.0;r.meat=8.0;r.fish=8.0;r.milk=8.0;r.cured_meat=8.0;r.cheese=8.0;r.honey=6.0;
             r.condition=0;r.abandoned=false;r.sick_population=0;r.malnutrition=0.0;
             let rid=r.id;

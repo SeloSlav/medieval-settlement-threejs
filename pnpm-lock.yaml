@@ -12,8 +12,8 @@ importers:
         specifier: ^0.21.0
         version: 0.21.0
       spacetimedb:
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.10.2
+        version: 2.10.2
       three:
         specifier: ^0.185.1
         version: 0.185.1
@@ -660,12 +660,13 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  spacetimedb@2.0.1:
-    resolution: {integrity: sha512-19YkLz1P+JQDlYvlegDsn3YF4OsE2Pih31e5Xx/kobTExKwx/AtFWRUSA/EiRWvMV9jaIWzMhnsVfG+1fJ39Aw==}
+  spacetimedb@2.10.2:
+    resolution: {integrity: sha512-9HxcpM5b7uKTZWSMShd/pQRgpIabFxVHfya/4vfvSDBvcSO4OiRiqv8hRGMYZuoH2FEKLjt6EOs+gBfN3OytVg==}
     peerDependencies:
       '@angular/core': '>=17.0.0'
       '@tanstack/react-query': ^5.0.0
       react: ^18.0.0 || ^19.0.0-0 || ^19.0.0
+      solid-js: ^1.6.0
       svelte: ^4.0.0 || ^5.0.0
       undici: ^6.19.2
       vue: ^3.3.0
@@ -675,6 +676,8 @@ packages:
       '@tanstack/react-query':
         optional: true
       react:
+        optional: true
+      solid-js:
         optional: true
       svelte:
         optional: true
@@ -1196,7 +1199,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  spacetimedb@2.0.1:
+  spacetimedb@2.10.2:
     dependencies:
       base64-js: 1.5.1
       headers-polyfill: 4.0.3

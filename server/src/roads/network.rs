@@ -3,6 +3,7 @@
 use serde::Deserialize;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
 
@@ -50,18 +51,23 @@ struct RiverNavigationRow {
 }
 
 #[derive(Debug, Clone)]
-struct RiverNavigationGrid {
+pub struct RiverNavigationGrid {
     resolution: usize,
     start_x: f64,
     start_z: f64,
     span_x: f64,
     span_z: f64,
     wet_cells: Vec<u8>,
+    wet_prefix: Vec<u32>,
     heights: Vec<f32>,
 }
 
 #[derive(Debug, Clone)]
 pub struct RoadNetwork {
+    water_segment_cache: std::cell::RefCell<HashMap<[u64;4],bool>>,
+    distance_cache: std::cell::RefCell<HashMap<[u64; 4], Option<f64>>>,
+    snap_cache: std::cell::RefCell<HashMap<[u64; 2], Option<Vec<String>>>>,
+    nearest_cache: std::cell::RefCell<HashMap<[u64; 2], f64>>,
     nodes: HashMap<String, (f64, f64)>,
     edges: Vec<RoadEdgeRow>,
     /// Stable pairs of edge endpoints used by autonomous road patrols. Each
@@ -77,7 +83,7 @@ pub struct RoadNetwork {
     surface_edge_cells: HashMap<(i32, i32), Vec<usize>>,
     surface_node_cells: HashMap<(i32, i32), Vec<String>>,
     max_surface_half_width: f64,
-    river_navigation: Option<RiverNavigationGrid>,
+    river_navigation: Option<Arc<RiverNavigationGrid>>,
 }
 
 const ROAD_SURFACE_CELL_SIZE: f64 = 24.0;
@@ -102,6 +108,13 @@ struct EdgeProjection {
 }
 
 impl RoadNetwork {
+    /// Immutable map data can be shared across every owner's graph and clone.
+    pub fn set_river_navigation(&mut self, navigation: Arc<RiverNavigationGrid>) {
+        self.river_navigation = Some(navigation);
+        self.distance_cache.borrow_mut().clear();
+        self.snap_cache.borrow_mut().clear();
+        self.water_segment_cache.borrow_mut().clear();
+    }
     /// Bilinear sampling of the same terrain grid published with river navigation.
     pub fn combat_elevation(&self, x: f64, z: f64) -> f64 {
         let Some(grid) = &self.river_navigation else { return 0.0; };
@@ -120,7 +133,7 @@ impl RoadNetwork {
         let snapshot: RoadSnapshot = serde_json::from_str(json).ok()?;
         let river_navigation = snapshot
             .river_navigation
-            .and_then(RiverNavigationGrid::from_row);
+            .and_then(RiverNavigationGrid::from_row).map(Arc::new);
         let mut nodes = HashMap::new();
         for node in snapshot.nodes {
             nodes.insert(node.id, (node.position[0], node.position[2]));
@@ -205,6 +218,9 @@ impl RoadNetwork {
             build_surface_spatial_index(&nodes, &snapshot.edges, &endpoint_half_width);
 
         Some(Self {
+            water_segment_cache: Default::default(),
+            distance_cache: Default::default(), snap_cache: Default::default(),
+            nearest_cache: Default::default(),
             nodes,
             edges: snapshot.edges,
             patrol_stops,
@@ -221,6 +237,8 @@ impl RoadNetwork {
     }
 
     pub fn nearest_distance(&self, x: f64, z: f64) -> f64 {
+        let key = [x.to_bits(), z.to_bits()];
+        if let Some(value) = self.nearest_cache.borrow().get(&key) { return *value; }
         let mut best = f64::INFINITY;
         for &(nx, nz) in self.nodes.values() {
             best = best.min(distance(x, z, nx, nz));
@@ -228,6 +246,9 @@ impl RoadNetwork {
         for edge in &self.edges {
             best = best.min(distance_to_polyline(x, z, &edge.sampled_path));
         }
+        let mut cache = self.nearest_cache.borrow_mut();
+        if cache.len() >= 2048 { cache.clear(); }
+        cache.insert(key, best);
         best
     }
 
@@ -388,7 +409,7 @@ impl RoadNetwork {
         let sample_spacing = self
             .river_navigation
             .as_ref()
-            .map(RiverNavigationGrid::cell_size)
+            .map(|grid| grid.cell_size())
             .unwrap_or(4.0)
             .max(0.5);
         let segments = (distance / (sample_spacing * 0.55)).ceil().clamp(1.0, 16.0) as usize;
@@ -437,7 +458,7 @@ impl RoadNetwork {
         let sample_spacing = self
             .river_navigation
             .as_ref()
-            .map(RiverNavigationGrid::cell_size)
+            .map(|grid| grid.cell_size())
             .unwrap_or(5.0)
             .max(1.0);
         let segments = (direct_distance / sample_spacing).ceil().clamp(1.0, 256.0) as usize;
@@ -470,6 +491,14 @@ impl RoadNetwork {
     /// Bridge samples are therefore classified as road before consulting the
     /// rendered wet mask shared by the client.
     pub fn segment_avoids_open_water(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
+        let key=[ax.to_bits(),az.to_bits(),bx.to_bits(),bz.to_bits()];
+        if let Some(result)=self.water_segment_cache.borrow().get(&key) { return *result; }
+        let result=self.uncached_segment_avoids_open_water(ax,az,bx,bz);
+        let mut cache=self.water_segment_cache.borrow_mut();
+        if cache.len()>=8192 { cache.clear(); }
+        cache.insert(key,result);result
+    }
+    fn uncached_segment_avoids_open_water(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
         let Some(navigation) = self.river_navigation.as_ref() else {
             return true;
         };
@@ -480,16 +509,58 @@ impl RoadNetwork {
         if length <= 1e-8 {
             return !self.is_open_water_at(ax, az);
         }
-        let samples = (length / (navigation.cell_size() * 0.35))
-            .ceil()
-            .clamp(1.0, 256.0) as usize;
-        for index in 0..=samples {
-            let t = index as f64 / samples as f64;
-            if self.is_open_water_at(ax + (bx - ax) * t, az + (bz - az) * t) {
-                return false;
+        // Most town journeys occupy dry rectangles. One summed-area lookup
+        // proves that without allocating or walking any cell/bridge intervals.
+        if !navigation.bounds_have_water(ax.min(bx),az.min(bz),ax.max(bx),az.max(bz)) { return true; }
+        navigation.visit_wet_intervals(ax, az, bx, bz, |from, to| {
+            self.surface_covers_segment(
+                ax + (bx-ax)*from, az + (bz-az)*from,
+                ax + (bx-ax)*to, az + (bz-az)*to,
+            )
+        })
+    }
+
+    /// Intersect the line with road capsules and merge their coverage. Checking
+    /// a few points would allow a gap between two bridge decks to be crossed.
+    fn surface_covers_segment(&self, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
+        if distance(ax,az,bx,bz) <= 1e-9 { return self.is_on_road_surface(ax,az); }
+        let radius = distance(ax,az,bx,bz)*0.5 + self.max_surface_half_width + ROAD_SURFACE_MARGIN;
+        let keys = surface_cell_keys((ax+bx)*0.5,(az+bz)*0.5,radius);
+        let mut edges = HashSet::new();
+        let mut nodes = HashSet::new();
+        let mut intervals = Vec::new();
+        for key in keys {
+            if let Some(indices) = self.surface_edge_cells.get(&key) {
+                for &index in indices {
+                    if !edges.insert(index) { continue; }
+                    let edge = &self.edges[index];
+                    let width = edge.width*0.5 + ROAD_SURFACE_MARGIN;
+                    for pair in edge.sampled_path.windows(2) {
+                        capsule_intervals([ax,az],[bx,bz],[pair[0][0],pair[0][2]],
+                            [pair[1][0],pair[1][2]],width,&mut intervals);
+                    }
+                }
+            }
+            if let Some(ids) = self.surface_node_cells.get(&key) {
+                for id in ids {
+                    if !nodes.insert(id) { continue; }
+                    let width = self.endpoint_half_width.get(id).copied().unwrap_or(0.0);
+                    if width > 0.0 {
+                        if let Some(&(x,z)) = self.nodes.get(id) {
+                            circle_interval([ax,az],[bx,bz],[x,z],width+ROAD_SURFACE_MARGIN,&mut intervals);
+                        }
+                    }
+                }
             }
         }
-        true
+        intervals.sort_unstable_by(|a,b| a.0.total_cmp(&b.0));
+        let mut covered = 0.0;
+        for (from,to) in intervals {
+            if from > covered + 1e-10 { return false; }
+            covered = covered.max(to);
+            if covered >= 1.0-1e-10 { return true; }
+        }
+        false
     }
 
     fn is_open_water_at(&self, x: f64, z: f64) -> bool {
@@ -512,6 +583,17 @@ impl RoadNetwork {
 
     /// Shortest travel distance along the road graph, including off-road access legs.
     pub fn road_path_distance(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
+        let key = [ax.to_bits(), az.to_bits(), bx.to_bits(), bz.to_bits()];
+        if let Some(distance) = self.distance_cache.borrow().get(&key) { return *distance; }
+        let result = self.uncached_road_path_distance(ax, az, bx, bz);
+        self.cache_distance(key, result); result
+    }
+    fn cache_distance(&self, key: [u64; 4], value: Option<f64>) {
+        let mut cache = self.distance_cache.borrow_mut();
+        if cache.len() >= 8192 { cache.clear(); }
+        cache.insert(key, value);
+    }
+    fn uncached_road_path_distance(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
         let graph_distance = self
             .shortest_path_solve(ax, az, bx, bz)
             .map(|solve| self.route_distance(ax, az, bx, bz, &solve.node_path));
@@ -542,11 +624,14 @@ impl RoadNetwork {
         if targets.is_empty() {
             return Vec::new();
         }
+        if let Some(cached) = targets.iter().map(|&(x,z)| self.distance_cache.borrow().get(&[ax.to_bits(),az.to_bits(),x.to_bits(),z.to_bits()]).copied()).collect::<Option<Vec<_>>>() { return cached; }
         let distances = self.shortest_node_distances_from(ax, az);
 
         targets
             .iter()
             .map(|&(tx, tz)| {
+                let key = [ax.to_bits(), az.to_bits(), tx.to_bits(), tz.to_bits()];
+                if let Some(distance) = self.distance_cache.borrow().get(&key) { return *distance; }
                 let graph_distance = distances.as_ref().and_then(|distances| {
                     let target_nodes = self.snap_nodes(tx, tz)?;
                     target_nodes
@@ -562,12 +647,13 @@ impl RoadNetwork {
                 let interior_edge_distance = self
                     .same_edge_road_route(ax, az, tx, tz)
                     .map(|route| route.distance);
-                match (graph_distance, interior_edge_distance) {
+                let result = match (graph_distance, interior_edge_distance) {
                     (Some(graph), Some(interior)) => Some(graph.min(interior)),
                     (Some(graph), None) => Some(graph),
                     (None, Some(interior)) => Some(interior),
                     (None, None) => None,
-                }
+                };
+                self.cache_distance(key, result); result
             })
             .collect()
     }
@@ -1057,6 +1143,13 @@ impl RoadNetwork {
     }
 
     fn snap_nodes(&self, x: f64, z: f64) -> Option<Vec<String>> {
+        let key = [x.to_bits(),z.to_bits()];
+        if let Some(nodes) = self.snap_cache.borrow().get(&key) { return nodes.clone(); }
+        let result = self.uncached_snap_nodes(x,z);
+        let mut cache = self.snap_cache.borrow_mut(); if cache.len() >= 512 { cache.clear(); }
+        cache.insert(key,result.clone()); result
+    }
+    fn uncached_snap_nodes(&self, x: f64, z: f64) -> Option<Vec<String>> {
         let max_snap = BUILDING_ROAD_ACCESS_DISTANCE;
         let mut best_distance = max_snap;
         let mut best_nodes: Vec<String> = Vec::new();
@@ -1148,6 +1241,50 @@ impl RoadNetwork {
 }
 
 impl RiverNavigationGrid {
+    fn bounds_have_water(&self,min_x:f64,min_z:f64,max_x:f64,max_z:f64)->bool {
+        let scale=(self.resolution-1) as f64;
+        let raw=[((min_x-self.start_x)/self.span_x*scale).round(),
+            ((min_z-self.start_z)/self.span_z*scale).round(),
+            ((max_x-self.start_x)/self.span_x*scale).round(),
+            ((max_z-self.start_z)/self.span_z*scale).round()];
+        let limit=self.resolution as f64;
+        if raw[2]<0.0||raw[3]<0.0||raw[0]>=limit||raw[1]>=limit { return false; }
+        let x0=raw[0].max(0.0) as usize;let z0=raw[1].max(0.0) as usize;
+        let x1=raw[2].min(limit-1.0) as usize+1;let z1=raw[3].min(limit-1.0) as usize+1;
+        let stride=self.resolution+1;
+        self.wet_prefix[z1*stride+x1]+self.wet_prefix[z0*stride+x0]
+            > self.wet_prefix[z1*stride+x0]+self.wet_prefix[z0*stride+x1]
+    }
+    /// Split only at crossed nearest-cell boundaries (at most 2*n+2). Every
+    /// nonzero wet span, including a corner graze, reaches the caller.
+    fn visit_wet_intervals(&self, ax: f64, az: f64, bx: f64, bz: f64,
+        mut visit: impl FnMut(f64,f64)->bool) -> bool {
+        let scale = (self.resolution-1) as f64;
+        let a = [(ax-self.start_x)/self.span_x*scale,(az-self.start_z)/self.span_z*scale];
+        let b = [(bx-self.start_x)/self.span_x*scale,(bz-self.start_z)/self.span_z*scale];
+        let mut boundaries = vec![0.0,1.0];
+        for axis in 0..2 {
+            let delta = b[axis]-a[axis];
+            if delta.abs() <= 1e-12 { continue; }
+            let low = (a[axis].min(b[axis])+0.5).ceil().max(0.0) as usize;
+            let high = (a[axis].max(b[axis])+0.5).floor().min(self.resolution as f64).max(0.0) as usize;
+            for boundary in low..=high {
+                let t = (boundary as f64-0.5-a[axis])/delta;
+                if t > 0.0 && t < 1.0 { boundaries.push(t); }
+            }
+        }
+        boundaries.sort_unstable_by(f64::total_cmp);
+        boundaries.dedup_by(|a,b| *a==*b);
+        let wet = |t:f64| self.is_water_at(ax+(bx-ax)*t,az+(bz-az)*t);
+        for &t in &boundaries { if wet(t) && !visit(t,t) { return false; } }
+        for pair in boundaries.windows(2) {
+            if wet((pair[0]+pair[1])*0.5) && !visit(pair[0],pair[1]) { return false; }
+        }
+        true
+    }
+    pub fn from_json(json: &str) -> Option<Arc<Self>> {
+        Self::from_row(serde_json::from_str(json).ok()?).map(Arc::new)
+    }
     fn from_row(row: RiverNavigationRow) -> Option<Self> {
         if !(16..=512).contains(&row.resolution)
             || !row.start_x.is_finite()
@@ -1170,6 +1307,16 @@ impl RiverNavigationGrid {
             let low = hex_nibble(bytes[index + 1])?;
             wet_cells.push((high << 4) | low);
         }
+        let stride=row.resolution+1;
+        let mut wet_prefix=vec![0u32;stride*stride];
+        for z in 0..row.resolution {
+            let mut row_total=0;
+            for x in 0..row.resolution {
+                let i=z*row.resolution+x;
+                row_total += u32::from(wet_cells[i/8] & (1<<(i&7)) != 0);
+                wet_prefix[(z+1)*stride+x+1]=wet_prefix[z*stride+x+1]+row_total;
+            }
+        }
         Some(Self {
             resolution: row.resolution,
             start_x: row.start_x,
@@ -1177,6 +1324,7 @@ impl RiverNavigationGrid {
             span_x: row.span_x,
             span_z: row.span_z,
             wet_cells,
+            wet_prefix,
             heights: if row.heights.len() == row.resolution * row.resolution
                 && row.heights.iter().all(|h| h.is_finite() && h.abs() <= 10_000.0) { row.heights } else { Vec::new() },
         })
@@ -1208,6 +1356,42 @@ impl RiverNavigationGrid {
         (self.span_x / intervals)
             .max(self.span_z / intervals)
             .max(0.5)
+    }
+}
+
+fn clip_linear(value: f64, slope: f64, low: f64, high: f64, interval: &mut (f64,f64)) -> bool {
+    if slope.abs() <= 1e-12 { return value >= low && value <= high; }
+    let a = (low-value)/slope;
+    let b = (high-value)/slope;
+    interval.0 = interval.0.max(a.min(b));
+    interval.1 = interval.1.min(a.max(b));
+    interval.0 <= interval.1
+}
+
+fn circle_interval(a:[f64;2],b:[f64;2],center:[f64;2],radius:f64,output:&mut Vec<(f64,f64)>) {
+    let dx=b[0]-a[0]; let dz=b[1]-a[1];
+    let x=a[0]-center[0]; let z=a[1]-center[1];
+    let quadratic=dx*dx+dz*dz;
+    let linear=x*dx+z*dz;
+    let discriminant=linear*linear-quadratic*(x*x+z*z-radius*radius);
+    if discriminant < 0.0 || quadratic <= 1e-18 { return; }
+    let root=discriminant.sqrt();
+    let from=((-linear-root)/quadratic).max(0.0);
+    let to=((-linear+root)/quadratic).min(1.0);
+    if from <= to { output.push((from,to)); }
+}
+
+fn capsule_intervals(a:[f64;2],b:[f64;2],start:[f64;2],end:[f64;2],radius:f64,output:&mut Vec<(f64,f64)>) {
+    circle_interval(a,b,start,radius,output);
+    circle_interval(a,b,end,radius,output);
+    let dx=end[0]-start[0]; let dz=end[1]-start[1]; let length=dx.hypot(dz);
+    if length <= 1e-9 { return; }
+    let x=a[0]-start[0]; let z=a[1]-start[1];
+    let sx=b[0]-a[0]; let sz=b[1]-a[1];
+    let mut interval=(0.0,1.0);
+    if clip_linear((x*dx+z*dz)/length,(sx*dx+sz*dz)/length,0.0,length,&mut interval)
+        && clip_linear((x*dz-z*dx)/length,(sx*dz-sz*dx)/length,-radius,radius,&mut interval) {
+        output.push(interval);
     }
 }
 
@@ -1465,7 +1649,93 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 
 #[cfg(test)]
 mod tests {
-    use super::RoadNetwork;
+    use super::{RoadNetwork, RiverNavigationGrid};
+    use std::sync::Arc;
+
+    fn sparse_water_network(resolution:usize, wet: &[(usize,usize)], span:f64) -> RoadNetwork {
+        let mut bytes=vec![0u8;resolution*resolution/8];
+        for &(x,z) in wet { let i=z*resolution+x; bytes[i/8] |= 1 << (i&7); }
+        let hex:String=bytes.iter().map(|b|format!("{b:02x}")).collect();
+        RoadNetwork::from_snapshot_json(&serde_json::json!({"nodes":[],"edges":[],"riverNavigation":{
+            "resolution":resolution,"startX":0.0,"startZ":0.0,"spanX":span,"spanZ":span,"wetCellsHex":hex
+        }}).to_string()).unwrap()
+    }
+
+    #[test]
+    fn water_intersections_cover_giant_segments_tiny_corner_grazes_and_endpoints() {
+        let giant=sparse_water_network(512,&[(101,256)],12288.0);
+        let z=256.0*12288.0/511.0;
+        assert!(!giant.segment_avoids_open_water(-1000.0,z,14000.0,z));
+        assert!(!giant.segment_avoids_open_water(14000.0,z,-1000.0,z));
+        assert!(giant.segment_avoids_open_water(-1000.0,z+30.0,14000.0,z+30.0));
+        let corner=sparse_water_network(16,&[(8,8)],15.0);
+        assert!(!corner.segment_avoids_open_water(6.0,9.00001,9.00001,6.0));
+        assert!(corner.segment_avoids_open_water(6.0,8.99999,8.99999,6.0));
+        assert!(!corner.segment_avoids_open_water(7.5,7.5,7.0,7.0));
+        assert!(!corner.segment_avoids_open_water(8.0,8.0,8.0,8.0));
+        assert!(!corner.segment_avoids_open_water(f64::NAN,0.0,1.0,1.0));
+    }
+
+    #[test]
+    fn water_prefix_and_route_cache_are_exact_bounded_and_invalidated() {
+        let wet=[(1,1),(8,8),(14,12)];
+        let mut network=sparse_water_network(16,&wet,15.0);
+        let grid=network.river_navigation.as_ref().unwrap();
+        for x0 in 0..16 {for z0 in 0..16 {for x1 in x0..16 {for z1 in z0..16 {
+            let expected=wet.iter().any(|&(x,z)|x>=x0&&x<=x1&&z>=z0&&z<=z1);
+            assert_eq!(grid.bounds_have_water(x0 as f64,z0 as f64,x1 as f64,z1 as f64),expected);
+        }}}}
+        assert!(!grid.bounds_have_water(-20.0,-20.0,-5.0,-5.0));
+        assert!(grid.bounds_have_water(-20.0,-20.0,50.0,50.0));
+        assert!(!network.segment_avoids_open_water(0.0,8.0,15.0,8.0));
+        for _ in 0..100 {assert!(!network.segment_avoids_open_water(0.0,8.0,15.0,8.0));}
+        assert_eq!(network.water_segment_cache.borrow().len(),1);
+        for i in 0..9000 {assert!(network.segment_avoids_open_water(i as f64,30.0,i as f64+1.0,30.0));}
+        assert!(network.water_segment_cache.borrow().len()<=8192);
+        let dry=sparse_water_network(16,&[],15.0).river_navigation.unwrap();
+        network.set_river_navigation(dry);
+        assert!(network.water_segment_cache.borrow().is_empty());
+        assert!(network.segment_avoids_open_water(0.0,8.0,15.0,8.0));
+    }
+
+    #[test]
+    fn bridge_coverage_is_continuous_even_when_a_gap_is_smaller_than_sample_spacing() {
+        let mut network=sparse_water_network(16,&[(8,8)],15.0);
+        let water=network.river_navigation.clone().unwrap();
+        let snapshot=|end:f64| serde_json::json!({"nodes":[
+            {"id":"a","position":[7.0,0.0,8.0]},{"id":"b","position":[end,0.0,8.0]},
+            {"id":"c","position":[8.05,0.0,8.0]},{"id":"d","position":[9.0,0.0,8.0]}],
+            "edges":[{"startNodeId":"a","endNodeId":"b","width":0.02,"sampledPath":[[7.0,0.0,8.0],[end,0.0,8.0]]},
+                {"startNodeId":"c","endNodeId":"d","width":0.02,"sampledPath":[[8.05,0.0,8.0],[9.0,0.0,8.0]]}]
+        }).to_string();
+        network=RoadNetwork::from_snapshot_json(&snapshot(7.72)).unwrap(); network.set_river_navigation(water.clone());
+        // Road margins leave a 1 cm opening; sampling would easily miss it.
+        assert!(!network.segment_avoids_open_water(7.0,8.0,9.0,8.0));
+        network=RoadNetwork::from_snapshot_json(&snapshot(7.74)).unwrap(); network.set_river_navigation(water);
+        assert!(network.segment_avoids_open_water(7.0,8.0,9.0,8.0));
+        assert!(network.segment_avoids_open_water(9.0,8.0,7.0,8.0));
+        assert!(!network.segment_avoids_open_water(7.0,8.2,9.0,8.2));
+    }
+
+    #[test]
+    fn trusted_navigation_replaces_client_terrain_and_is_shared_by_clones() {
+        let dry = serde_json::json!({"nodes": [], "edges": [], "riverNavigation": {
+            "resolution": 16, "startX": 0.0, "startZ": 0.0, "spanX": 15.0, "spanZ": 15.0,
+            "wetCellsHex": "00".repeat(32), "heights": vec![0.0; 256] }});
+        let mut network = RoadNetwork::from_snapshot_json(&dry.to_string()).unwrap();
+        assert!(network.segment_avoids_open_water(2.0, 2.0, 8.0, 8.0));
+        let trusted = RiverNavigationGrid::from_json(&serde_json::json!({
+            "resolution": 16, "startX": 0.0, "startZ": 0.0, "spanX": 15.0, "spanZ": 15.0,
+            "wetCellsHex": "ff".repeat(32), "heights": vec![75.0; 256]
+        }).to_string()).unwrap();
+        network.snap_cache.borrow_mut().insert([2.0f64.to_bits(), 2.0f64.to_bits()], Some(vec!["old".into()]));
+        network.set_river_navigation(trusted.clone());
+        assert!(network.snap_cache.borrow().is_empty());
+        assert!(!network.segment_avoids_open_water(2.0, 2.0, 8.0, 8.0));
+        assert_eq!(network.combat_elevation(7.2, 9.4), 75.0);
+        assert!(Arc::ptr_eq(&trusted, network.clone().river_navigation.as_ref().unwrap()));
+        assert!(RiverNavigationGrid::from_json("{}").is_none());
+    }
     use std::time::Instant;
 
     #[test]

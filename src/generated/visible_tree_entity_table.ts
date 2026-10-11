@@ -15,6 +15,7 @@ import {
 
 
 export default __t.row({
+  chunkId: __t.u32().name("chunk_id"),
   treeId: __t.string().primaryKey().name("tree_id"),
   layoutIndex: __t.u32().name("layout_index"),
   phase: __t.string(),

@@ -51,6 +51,13 @@ export function createForestSpawnConfig(
 ): ForestSpawnConfig {
   const extent = playableSize * 0.5;
   const terrainExtent = terrainSize * 0.5;
+  if (terrainSize === 12_288) {
+    // The realm uses 243 authored groves. Scaling every decorative population
+    // by the empty world's area would create hundreds of thousands of props.
+    return { extent, terrainExtent, playableSize, terrainSize, treeTargetCount: 31_104,
+      hillEdgeTreeTargetCount: 0, rockTargetCount: 1_458, forestCoreCount: 243,
+      rockOutcropCount: 162, undergrowthTargetCount: 10_368, saplingTargetCount: 0 };
+  }
   const areaScale = (playableSize / LEGACY_PLAYABLE_SIZE) ** 2;
   const hillRingAreaScale =
     (terrainSize ** 2 - playableSize ** 2) / (LEGACY_TERRAIN_SIZE ** 2 - LEGACY_PLAYABLE_SIZE ** 2);
@@ -148,9 +155,18 @@ export function forestDensityAt(
   terrainExtent?: number,
 ): number {
   let density = 0;
-  for (const core of forestCores) {
+  const realm = extent === 6144 && forestCores.length === 243;
+  // Realm groves have support < 480 m inside 1280 m regions, so exactly
+  // three cores can affect a sample. This avoids 243 evaluations per vertex.
+  const slot = Math.max(0, Math.min(8, Math.round(z / 1280) + 4)) * 9
+    + Math.max(0, Math.min(8, Math.round(x / 1280) + 4));
+  const start = realm ? slot * 3 : 0;
+  const end = realm ? start + 3 : forestCores.length;
+  for (let i = start; i < end; i++) {
+    const core = forestCores[i];
     density = Math.max(density, forestCoreInfluence(x, z, core) * core.strength);
   }
+  if (realm) return saturate(density);
 
   const edgeDistance = Math.max(Math.abs(x), Math.abs(z));
   const playableSize = extent * 2;

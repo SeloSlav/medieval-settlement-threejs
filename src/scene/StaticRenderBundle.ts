@@ -65,11 +65,12 @@ export class StaticRenderBundle extends BundleGroup {
 export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): void {
   installShadowOverrideCache(renderer);
   type RenderObject = { object: THREE.Mesh; getDrawParameters(): { vertexCount: number; instanceCount: number } | null };
-  type BundleData = { renderObjects?: RenderObject[] };
+  type BundleData = { renderObjects?: RenderObject[]; version?: number };
   type ProjectionRenderer = {
     _projectObject(object: THREE.Object3D, camera: THREE.Camera, ...args: unknown[]): void;
     _renderBundle(bundle: { bundleGroup: StaticRenderBundle; camera: THREE.Camera }, ...args: unknown[]): void;
     _currentRenderContext: object;
+    _currentRenderBundle: unknown;
     _bundles: { get(group: THREE.Group, camera: THREE.Camera, context: object): object };
     backend: { get(bundle: object): BundleData };
     _bundleNeedsUpdate(group: THREE.Group, data: BundleData): boolean;
@@ -81,10 +82,25 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   const statistics = new WeakMap<BundleData, { draws: number; triangles: number }>();
   projectionRenderer._renderBundle = function(bundle, ...args) {
     if (!bundle.bundleGroup.isCityStaticRenderBundle) return renderBundle.call(this, bundle, ...args);
+    const parentBundle = this._currentRenderBundle;
     bundle.bundleGroup.selectView(bundle.camera);
+    const version = bundle.bundleGroup.version;
     const data = this.backend.get(this._bundles.get(bundle.bundleGroup, bundle.camera, this._currentRenderContext));
     const recording = this._bundleNeedsUpdate(bundle.bundleGroup, data);
-    renderBundle.call(this, bundle, ...args);
+    try {
+      renderBundle.call(this, bundle, ...args);
+      // Updating a light during the first color draw can render the same group
+      // with its shadow camera. Three then records the nested camera's version
+      // against the outer color commands. Preserve the version those commands
+      // actually describe, otherwise every subsequent color pass re-records.
+      if (recording) data.version = version;
+    } finally {
+      // A nested shadow bundle otherwise clears Three's outer recording owner,
+      // leaving all but the first color object's uniforms out of its refresh
+      // list. Keep every recorded object's wind, fog and instance data live.
+      this._currentRenderBundle = parentBundle;
+      bundle.bundleGroup.selectView(bundle.camera);
+    }
     let stats = statistics.get(data);
     if (recording || !stats) {
       stats = { draws: 0, triangles: 0 };

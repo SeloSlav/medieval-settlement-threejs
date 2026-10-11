@@ -84,6 +84,32 @@ export type DeliveryCartModelSource = {
   sourceHeight: number;
 };
 
+// Rigid carts borrow their source geometry and share the four authored canopy
+// palettes. The source owns these materials for its entire renderer lifetime.
+const cartMaterialVariants = new WeakMap<DeliveryCartModelSource, Map<THREE.Material, Map<number, THREE.Material>>>();
+
+function cartMaterialVariant(source: DeliveryCartModelSource, material: THREE.Material, paletteIndex: number): THREE.Material {
+  let materials = cartMaterialVariants.get(source);
+  if (!materials) cartMaterialVariants.set(source, materials = new Map());
+  let variants = materials.get(material);
+  if (!variants) materials.set(material, variants = new Map());
+  const materialName = material.name.toLowerCase();
+  const key = materialName === 'red' || materialName === 'beige' ? paletteIndex : -1;
+  let variant = variants.get(key);
+  if (variant) return variant;
+  variant = material.clone();
+  const standard = variant as THREE.MeshStandardMaterial;
+  const palette = CANOPY_PALETTES[paletteIndex]!;
+  if (standard.color && materialName === 'red') standard.color.setHex(palette.primary);
+  if (standard.color && materialName === 'beige') standard.color.setHex(palette.cloth);
+  if (standard.color) {
+    standard.roughness = 0.9;
+    standard.metalness = materialName.includes('stone') ? 0.08 : 0;
+  }
+  variants.set(key, variant);
+  return variant;
+}
+
 export type DeliveryCartMeshOptions = {
   appearanceSeed?: number;
   source?: DeliveryCartModelSource | null;
@@ -1467,6 +1493,10 @@ export function disposeDeliveryCartModelSource(source: DeliveryCartModelSource):
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
   const textures = new Set<THREE.Texture>();
+  for (const variants of cartMaterialVariants.get(source)?.values() ?? []) {
+    for (const material of variants.values()) materials.add(material);
+  }
+  cartMaterialVariants.delete(source);
   source.scene.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (mesh.geometry) geometries.add(mesh.geometry);
@@ -1491,29 +1521,14 @@ function addQuaterniusCart(
 ): void {
   const model = source.scene.clone(true);
   model.name = 'Quaternius medieval canopy cart';
-  const palette = CANOPY_PALETTES[
-    Math.abs(appearanceSeed) % CANOPY_PALETTES.length
-  ] ?? CANOPY_PALETTES[0];
-  const ownedMaterials: THREE.Material[] = [];
+  const paletteIndex = Math.abs(appearanceSeed) % CANOPY_PALETTES.length;
 
   model.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.geometry = mesh.geometry.clone();
+    mesh.userData.sharedGeometry = true;
     const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const materials = sourceMaterials.map((material) => {
-      const clone = material.clone();
-      const standard = clone as THREE.MeshStandardMaterial;
-      const materialName = material.name.toLowerCase();
-      if (standard.color && materialName === 'red') standard.color.setHex(palette.primary);
-      if (standard.color && materialName === 'beige') standard.color.setHex(palette.cloth);
-      if (standard.color) {
-        standard.roughness = 0.9;
-        standard.metalness = materialName.includes('stone') ? 0.08 : 0;
-      }
-      ownedMaterials.push(clone);
-      return clone;
-    });
+    const materials = sourceMaterials.map((material) => cartMaterialVariant(source, material, paletteIndex));
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0]!;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1523,7 +1538,7 @@ function addQuaterniusCart(
   const scale = MODEL_TARGET_HEIGHT / source.sourceHeight;
   model.scale.setScalar(scale);
   model.position.y = -source.bounds.min.y * scale + 0.01;
-  group.userData.ownedCartMaterials = ownedMaterials;
+  group.userData.deliveryCartModel = model;
   group.add(model);
 }
 

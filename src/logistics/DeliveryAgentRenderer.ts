@@ -54,7 +54,7 @@ import type { GameSpeed } from '../world/gameSpeed.ts';
 import {
   SIM_REALTIME_RATE,
   WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
-} from '../generated/gameBalance.ts';
+} from '../world/runtimeGameBalance.ts';
 import { agentPacedDelta } from '../world/agentPacing.ts';
 import {
   createSelectedAgentRoute,
@@ -64,6 +64,9 @@ import {
   updateSelectedAgentRoute,
 } from '../scene/SelectedAgentRoute.ts';
 import { advanceDeliveryDisplayProgress } from './deliveryPresentationMotion.ts';
+import { ExactMountedAttachmentBatch } from '../settlement/ExactMountedAttachmentBatch.ts';
+import { DeliveryWorkerBatches } from './DeliveryWorkerBatches.ts';
+import { isWithinCrowdView } from '../settlement/crowdView.ts';
 
 type TripVisual = {
   mesh: THREE.Group;
@@ -107,6 +110,7 @@ export class DeliveryAgentRenderer {
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly isOnRoadSurface: ((x: number, z: number) => boolean) | null;
   private readonly group = new THREE.Group();
+  private readonly cartBatches: ExactMountedAttachmentBatch;
   private readonly visuals = new Map<string, TripVisual>();
   private readonly selectedRoute: SelectedAgentRoute;
   private readonly latestTrips = new Map<string, DeliveryTripState>();
@@ -118,6 +122,7 @@ export class DeliveryAgentRenderer {
   private selectedTripId: string | null = null;
   private cartSource: DeliveryCartModelSource | null = null;
   private workerSources: DeliveryCartWorkerSources | null = null;
+  private workerBatches: DeliveryWorkerBatches | null = null;
   private disposed = false;
 
   constructor(options: DeliveryAgentRendererOptions) {
@@ -129,6 +134,7 @@ export class DeliveryAgentRenderer {
     this.selectedRoute = createSelectedAgentRoute('Selected delivery destination route');
     this.group.add(this.selectedRoute);
     options.parent.add(this.group);
+    this.cartBatches = new ExactMountedAttachmentBatch(this.group, { name: 'Exact delivery cart bodies' });
     void this.loadCartSource();
     void this.loadWorkerSources();
   }
@@ -185,6 +191,7 @@ export class DeliveryAgentRenderer {
     if (this.selectedTripId && !this.nextTripIds.has(this.selectedTripId)) {
       this.selectDeliveryAgent(null);
     }
+    this.reserveWorkerBatches();
   }
 
   /** Front-of-cart attachment used by the ox reserved on this delivery trip. */
@@ -222,11 +229,12 @@ export class DeliveryAgentRenderer {
     return this.buildRemainingRoute(visual);
   }
 
-  update(dt: number, _view?: CrowdViewState): void {
+  update(dt: number, view?: CrowdViewState): void {
     const realDt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
     const gameSpeed = trailerClock.active ? trailerClock.speed : this.getGameSpeed();
     const simulationDt = realDt * gameSpeed * SIM_REALTIME_RATE;
     const animationDt = agentPacedDelta(realDt, gameSpeed);
+    this.workerBatches?.begin();
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
         ? samplePolylineXZ(
@@ -271,10 +279,13 @@ export class DeliveryAgentRenderer {
       }
 
       const y = this.resolveGroundY(x, z) + 0.05;
+      visual.mesh.visible = isWithinCrowdView(x, z, view);
       visual.mesh.position.set(x, y, z);
       visual.mesh.rotation.y = visual.phase === 'inbound'
         ? yaw + Math.PI
         : yaw;
+      const model = visual.mesh.userData.deliveryCartModel as THREE.Group | undefined;
+      if (model) model.visible = visual.mesh.visible;
       const moving = this.isVisualMoving(visual);
       visual.movementSpeed = moving ? surfaceTravelSpeed : 0;
       for (const worker of visual.workers) {
@@ -284,9 +295,12 @@ export class DeliveryAgentRenderer {
           moving,
           surfaceTravelSpeed / WORKFORCE_MOVEMENT_SPEED_MULTIPLIER,
         );
+        if (visual.mesh.visible && worker.root.visible) this.workerBatches?.add(worker);
       }
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
     }
+    this.cartBatches.update();
+    this.workerBatches?.finish();
   }
 
   applyTripStates(trips: Iterable<DeliveryTripState>): void {
@@ -381,6 +395,8 @@ export class DeliveryAgentRenderer {
     for (const id of [...this.visuals.keys()]) {
       this.removeTrip(id);
     }
+    this.cartBatches.dispose();
+    this.workerBatches?.dispose();
     if (this.cartSource) disposeDeliveryCartModelSource(this.cartSource);
     if (this.workerSources) disposeDeliveryCartWorkerSources(this.workerSources);
     this.cartSource = null;
@@ -449,6 +465,7 @@ export class DeliveryAgentRenderer {
     replacement.rotation.copy(visual.mesh.rotation);
     for (const worker of visual.workers) worker.root.removeFromParent();
     this.group.remove(visual.mesh);
+    this.unregisterCartBody(visual.mesh);
     disposeDeliveryCartMesh(visual.mesh);
     for (const worker of visual.workers) replacement.add(worker.root);
     this.group.add(replacement);
@@ -460,9 +477,11 @@ export class DeliveryAgentRenderer {
     const visual = this.visuals.get(id);
     if (!visual) return;
     for (const worker of visual.workers) {
+      this.workerBatches?.unregister(worker);
       disposeDeliveryCartWorkerVisual(worker);
     }
     visual.workers.length = 0;
+    this.unregisterCartBody(visual.mesh);
     disposeDeliveryCartMesh(visual.mesh);
     visual.mesh.removeFromParent();
     this.visuals.delete(id);
@@ -491,12 +510,20 @@ export class DeliveryAgentRenderer {
     if (trip.destinationKind === 'fire') {
       return createFireBucketCarrierMesh();
     }
-    return createDeliveryCartMesh(trip.cargoKind, {
+    const mesh = createDeliveryCartMesh(trip.cargoKind, {
       appearanceSeed: hashStringSeed(`delivery-cart:${trip.id}`),
       source: this.cartSource,
       regionalImport: isRegionalImportTrip(trip),
       loaded: deliveryTripHasVisibleCargo(trip),
     });
+    const model = mesh.userData.deliveryCartModel as THREE.Group | undefined;
+    if (model) this.cartBatches.registerTool(model);
+    return mesh;
+  }
+
+  private unregisterCartBody(mesh: THREE.Group): void {
+    const model = mesh.userData.deliveryCartModel as THREE.Group | undefined;
+    if (model) this.cartBatches.unregisterTool(model);
   }
 
   private ensureWorkerCrew(visual: TripVisual, trip: DeliveryTripState): void {
@@ -504,13 +531,14 @@ export class DeliveryAgentRenderer {
     const desiredLeadRole = trip.oxId ? 'guide' : 'hauler';
     if (visual.workers[0] && visual.workers[0].role !== desiredLeadRole) {
       for (const worker of visual.workers) {
+        this.workerBatches?.unregister(worker);
         disposeDeliveryCartWorkerVisual(worker);
       }
       visual.workers.length = 0;
     }
     while (visual.workers.length > desiredCrewSize) {
       const worker = visual.workers.pop();
-      if (worker) disposeDeliveryCartWorkerVisual(worker);
+      if (worker) { this.workerBatches?.unregister(worker); disposeDeliveryCartWorkerVisual(worker); }
     }
     if (!this.cartSource || !this.workerSources) return;
     while (visual.workers.length < desiredCrewSize) {
@@ -523,6 +551,7 @@ export class DeliveryAgentRenderer {
       );
       visual.workers.push(worker);
       visual.mesh.add(worker.root);
+      this.workerBatches?.register(worker);
     }
   }
 
@@ -626,13 +655,21 @@ export class DeliveryAgentRenderer {
         return;
       }
       this.workerSources = sources;
+      this.workerBatches = new DeliveryWorkerBatches(this.group, sources);
       for (const [id, trip] of this.latestTrips) {
         const visual = this.visuals.get(id);
         if (visual) this.ensureWorkerCrew(visual, trip);
       }
+      this.reserveWorkerBatches();
     } catch (error) {
       console.warn('[Delivery carts] Rigged cart workers failed to load.', error);
     }
+  }
+
+  private reserveWorkerBatches(): void {
+    let count = 0;
+    for (const visual of this.visuals.values()) count += visual.workers.length;
+    this.workerBatches?.reserve(count);
   }
 }
 

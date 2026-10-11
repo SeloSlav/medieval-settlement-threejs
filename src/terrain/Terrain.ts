@@ -117,12 +117,14 @@ export class Terrain {
 
   setDirtZoomGate(value: number): void {
     const array = this.dirtZoomGateAttr.array as Float32Array;
+    if (array[0] === Math.fround(value)) return;
     array.fill(value);
     this.dirtZoomGateAttr.needsUpdate = true;
   }
 
   setRainColorMode(enabled: boolean): void {
-    this.mesh.geometry.setAttribute('color', enabled ? this.rainColorAttr : this.fairColorAttr);
+    const color = enabled ? this.rainColorAttr : this.fairColorAttr;
+    if (this.mesh.geometry.getAttribute('color') !== color) this.mesh.geometry.setAttribute('color', color);
   }
 
   dispose(): void {

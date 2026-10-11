@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { StorageInstancedBufferAttribute } from 'three/webgpu';
 import { authoredGpuObservedMounts } from '../scene/AuthoredGpuAnimation.ts';
 
 export const EXACT_MOUNTED_ATTACHMENT_INITIAL_CAPACITY = 8;
@@ -440,7 +441,7 @@ export class ExactMountedAttachmentBatch {
   ): LineBatch {
     const geometry = new THREE.BufferGeometry();
     const position = new THREE.BufferAttribute(new Float32Array(segmentCapacity * 6), 3);
-    position.setUsage(THREE.DynamicDrawUsage);
+    position.setUsage(THREE.StaticDrawUsage);
     geometry.setAttribute('position', position);
     geometry.setDrawRange(0, 0);
     const line = new THREE.LineSegments(geometry, material);
@@ -460,7 +461,7 @@ export class ExactMountedAttachmentBatch {
   private resizeLineBatch(batch: LineBatch, requiredSegments: number): void {
     const segmentCapacity = grownCapacity(batch.segmentCapacity, requiredSegments);
     const position = new THREE.BufferAttribute(new Float32Array(segmentCapacity * 6), 3);
-    position.setUsage(THREE.DynamicDrawUsage);
+    position.setUsage(THREE.StaticDrawUsage);
     batch.geometry.setAttribute('position', position);
     batch.position = position;
     batch.segmentCapacity = segmentCapacity;
@@ -603,7 +604,8 @@ function configureMeshBatchObject(
   target.layers.mask = source.layers.mask;
   target.count = 0;
   target.visible = false;
-  target.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  target.instanceMatrix = new StorageInstancedBufferAttribute(target.instanceMatrix.count, 16);
+  target.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   target.userData.exactMountedAttachmentBatch = true;
   target.userData.sourceGeometryUuid = source.geometry.uuid;
   target.userData.sourceMaterialUuids = Array.isArray(source.material)

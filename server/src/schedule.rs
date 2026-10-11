@@ -10,6 +10,9 @@ pub struct SimTickSchedule {
 }
 
 #[reducer]
-pub fn tick_sim(ctx: &ReducerContext, schedule: SimTickSchedule) {
+pub fn tick_sim(ctx: &ReducerContext, schedule: SimTickSchedule) -> Result<(), String> {
+    // The scheduled reducer is not a player-accessible time-advance command.
+    if ctx.sender() != ctx.database_identity() { return Err("Only the server can advance the shared simulation.".into()); }
     crate::reducers::simulation::run_sim_tick(ctx, schedule);
+    Ok(())
 }

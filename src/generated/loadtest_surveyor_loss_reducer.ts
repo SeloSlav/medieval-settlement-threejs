@@ -10,11 +10,7 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.row({
-  quarryId: __t.string().primaryKey().name("quarry_id"),
-  x: __t.f64(),
-  z: __t.f64(),
-  maxYield: __t.f64().name("max_yield"),
-  remaining: __t.f64(),
-  isRich: __t.bool().name("is_rich"),
-});
+export default {
+  settlementId: __t.u64(),
+  removeAnchors: __t.bool(),
+};

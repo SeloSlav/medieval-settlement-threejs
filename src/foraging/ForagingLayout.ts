@@ -67,6 +67,9 @@ export const BERRY_PATCH_WATER_CLEARANCE = BERRY_PATCH_MAX_SPAWN_RADIUS + 6;
 export const MUSHROOM_PATCH_WATER_CLEARANCE = MUSHROOM_PATCH_MAX_SPAWN_RADIUS + 6;
 
 export class ForagingLayout {
+  static fromSites(seed: number, sites: ForagingSite[]): ForagingLayout {
+    return new ForagingLayout(seed, sites, sites.filter(site => site.kind === 'game').map(({ x, z }) => ({ x, z })));
+  }
   readonly sites: ForagingSite[];
   readonly gameRespawnCandidates: Array<{ x: number; z: number }>;
   readonly seed: number;

@@ -12,6 +12,7 @@ use crate::world_entities::clear_global_world_entities;
 
 #[reducer]
 pub fn reset_world(ctx: &ReducerContext) -> Result<(), String> {
+    crate::realm::require_single_player("Reset world")?;
     let owner = ctx.sender();
     clear_owner_settlement(ctx, owner);
     clear_global_world_entities(ctx);
@@ -260,6 +261,7 @@ fn reset_world_progress(ctx: &ReducerContext) {
     if let Some(config) = ctx.db.world_config().id().find(&0) {
         ctx.db.world_config().id().update(WorldConfig {
             sim_tick: 0,
+            household_tick: 0,
             next_building_id: 1,
             game_speed: 1,
             conflict_enabled: false,

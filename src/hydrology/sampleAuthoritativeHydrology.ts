@@ -1,8 +1,8 @@
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
 import { DROUGHT_GROUNDWATER_MULTIPLIER } from '../generated/gameBalance.ts';
 
-// Covers the current large-map playable half (about 1,155.4 m) with a small guard margin.
-const MAX_SUPPORTED_WORLD_HALF = 1_156;
+// Shared sampler covers the largest world; placement enforces each mode's bounds.
+const MAX_SUPPORTED_WORLD_HALF = 6_144;
 export const UNIFORM_GROUNDWATER_SCORE = 1;
 
 /**

@@ -1333,6 +1333,6 @@ export async function syncRoadNetwork(snapshotJson: string): Promise<void> {
 }
 
 export function countServerRows(connection: DbConnection, tableName: 'tree_entity' | 'quarry'): number {
-  const table = connection.db[tableName];
+  const table = tableName === 'tree_entity' ? connection.db.visible_tree_entity : connection.db.visible_quarry;
   return table ? [...table.iter()].length : 0;
 }

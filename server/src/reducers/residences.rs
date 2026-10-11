@@ -70,6 +70,9 @@ pub fn place_burgage_zone(
     frontage_edge: u8,
     plot_count: u32,
 ) -> Result<(), String> {
+    for (x, z) in [(corner_ax, corner_az), (corner_bx, corner_bz), (corner_cx, corner_cz), (corner_dx, corner_dz)] {
+        crate::realm::validate_construction(ctx, x, z)?;
+    }
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
 
@@ -286,6 +289,8 @@ pub fn place_burgage_zone(
             remedy_stock: 0.0,
             deaths_total: 0,
             comfort_deficit_ticks: 0,
+            comfort_deficit_tick: 0,
+            comfort_deficit_rate: 0,
             vacancy_ticks: 0,
             condition: 0,
             last_starvation_death_hunger_ticks: 0,

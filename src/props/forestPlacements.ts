@@ -16,6 +16,7 @@ import {
   type ForestSpawnConfig,
 } from './forestField.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
+import { realmTrees } from '../multiplayer/realmLandscape.ts';
 
 const TAU = Math.PI * 2;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -698,6 +699,7 @@ export function computeForestTreePlacements(
   isBlockedAt?: (x: number, z: number) => boolean,
   options?: { treeSeed?: number; densityScale?: number; forestCores?: ForestCore[] },
 ): ForestTreePlacement[] {
+  if (terrainSize === 12_288) return realmTrees(isBlockedAt);
   const rng = mulberry32(options?.treeSeed ?? 0x5eedf0a5);
   const spawnConfig = createForestSpawnConfig(playableSize, terrainSize, options?.densityScale ?? 1);
   const forestCores = options?.forestCores ?? createForestCores(rng, spawnConfig);

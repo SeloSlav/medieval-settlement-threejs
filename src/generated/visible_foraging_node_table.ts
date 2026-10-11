@@ -11,10 +11,14 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.u64().primaryKey(),
-  residenceId: __t.u64().name("residence_id"),
-  needKind: __t.u8().name("need_kind"),
-  stock: __t.f64(),
-  deficitTicks: __t.u32().name("deficit_ticks"),
-  sourceKind: __t.u16().name("source_kind"),
+  chunkId: __t.u32().name("chunk_id"),
+  nodeId: __t.string().primaryKey().name("node_id"),
+  nodeKind: __t.string().name("node_kind"),
+  x: __t.f64(),
+  z: __t.f64(),
+  maxYield: __t.f64().name("max_yield"),
+  remaining: __t.f64(),
+  respawnCooldown: __t.f64().name("respawn_cooldown"),
+  anchorX: __t.f64().name("anchor_x"),
+  anchorZ: __t.f64().name("anchor_z"),
 });

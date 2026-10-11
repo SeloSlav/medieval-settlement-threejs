@@ -1,5 +1,6 @@
-// Covers the current large-map playable half (about 1,155.4 m) with a small guard margin.
-const MAX_SUPPORTED_WORLD_HALF: f64 = 1_156.0;
+// Covers the persistent realm as well as every single-player map. Placement
+// owns the selected map's smaller bounds; groundwater must span the whole realm.
+const MAX_SUPPORTED_WORLD_HALF: f64 = 6_144.0;
 pub const UNIFORM_GROUNDWATER_SCORE: f64 = 1.0;
 
 /// Applies the opt-in spatial-aquifer rule used by the authoritative simulation.
@@ -11,7 +12,7 @@ pub fn sample_world_well_groundwater_score(
     world_hydrology: u8,
     well_aquifer_networks_enabled: bool,
 ) -> f64 {
-    if x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
+    if !x.is_finite() || !z.is_finite() || x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
         return 0.0;
     }
     if !well_aquifer_networks_enabled {
@@ -25,7 +26,7 @@ pub fn sample_world_well_groundwater_score(
 /// ponds, lakes, shore distance, and every other surface-water representation. Keep
 /// this in parity with the client `sampleWorldGroundwaterScore` implementation.
 pub fn sample_world_groundwater_score(x: f64, z: f64, world_seed: u64, world_hydrology: u8) -> f64 {
-    if x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
+    if !x.is_finite() || !z.is_finite() || x.abs() > MAX_SUPPORTED_WORLD_HALF || z.abs() > MAX_SUPPORTED_WORLD_HALF {
         return 0.0;
     }
     let aquifer = sample_aquifer_potential(x, z, world_seed as u32);
@@ -100,6 +101,20 @@ mod tests {
         sample_world_well_groundwater_score, DROUGHT_GROUNDWATER_MULTIPLIER,
         UNIFORM_GROUNDWATER_SCORE,
     };
+
+    #[test]
+    fn groundwater_covers_realm_corners_and_rejects_invalid_coordinates() {
+        for x in [-6_143.0, 0.0, 6_143.0] {
+            for z in [-6_143.0, 0.0, 6_143.0] {
+                assert_eq!(sample_world_well_groundwater_score(x, z, 42, 50, false), 1.0);
+                assert!(sample_world_groundwater_score(x, z, 42, 50) > 0.0);
+            }
+        }
+        for x in [6_145.0, f64::NAN, f64::INFINITY] {
+            assert_eq!(sample_world_well_groundwater_score(x, 0.0, 42, 50, false), 0.0);
+            assert_eq!(sample_world_groundwater_score(x, 0.0, 42, 50), 0.0);
+        }
+    }
 
     #[test]
     fn groundwater_score_is_bounded() {

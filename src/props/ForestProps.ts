@@ -241,14 +241,18 @@ export async function createForestProps(
               : options.visualOnlyHeightAt!(x, z),
         }
       : terrain;
-    const seedThreeForest = await seedThree.createSeedThreeForest(
+    const realmForest = terrain.generationSize === 12288
+      ? await (await import('../multiplayer/RealmForestStream.ts')).createRealmForestStream(
+        renderTreePlacements, seedThreeTerrain, maxAnisotropy, options.treeSeed ?? 0x5eedf0a5, options.webgpuRenderer as WebGPURenderer)
+      : null;
+    const seedThreeForest = realmForest ? null : await seedThree.createSeedThreeForest(
       renderTreePlacements,
       seedThreeTerrain,
       maxAnisotropy,
       options?.treeSeed ?? 0x5eedf0a5,
       options.webgpuRenderer as WebGPURenderer,
     );
-    const seedThreeController = seedThree.createSeedThreeForestController(seedThreeForest);
+    const seedThreeController = realmForest?.controller ?? seedThree.createSeedThreeForestController(seedThreeForest!);
     const treeInstances = createStubForestInstances(allTreePlacements);
     const rockField = createRockField(
       rockPlacements,
@@ -261,7 +265,7 @@ export async function createForestProps(
       materials.shadowDepth,
       rng,
     );
-    forest.add(seedThreeForest.group);
+    forest.add((realmForest ?? seedThreeForest!).group);
     forest.add(rockField.group);
     forest.add(undergrowth.group);
     forest.add(forestFloorIvy.group);

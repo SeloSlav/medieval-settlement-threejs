@@ -3,7 +3,7 @@ import {
   REGIONAL_EXCHANGE_INTERVAL_SECONDS,
   SIM_REALTIME_RATE,
   STOREHOUSE_HAUL_PER_WORKER,
-} from '../../generated/gameBalance.ts';
+} from '../../world/runtimeGameBalance.ts';
 import {
   formatRegionalExchangeCountdown,
   tradingPostExchangeDue,
