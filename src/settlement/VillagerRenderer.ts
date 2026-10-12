@@ -82,6 +82,7 @@ import {
 } from '../audio/CombatAudio.ts';
 import {
   CROWD_SIM_DT,
+  initialCrowdSimulationPhase,
   isPeopleRenderingEnabled,
   isWithinCrowdView,
   type CrowdViewState,
@@ -1167,7 +1168,7 @@ export class VillagerRenderer {
           avoidanceOffsetZ: 0,
           y: 0,
           yaw: residence.yaw,
-          simAccumulator: 0,
+          simAccumulator: initialCrowdSimulationPhase(id),
           frozen: false,
         };
         this.agents.set(id, agent);
@@ -1267,7 +1268,7 @@ export class VillagerRenderer {
             avoidanceOffsetZ: 0,
             y: 0,
             yaw: residence.yaw,
-            simAccumulator: 0,
+            simAccumulator: initialCrowdSimulationPhase(id),
             frozen: false,
           };
           this.agents.set(id, agent);
@@ -1396,7 +1397,7 @@ export class VillagerRenderer {
           avoidanceOffsetZ: 0,
           y: this.resolveGroundY(origin.x, origin.z) + 0.02,
           yaw: 'yaw' in origin ? origin.yaw : 0,
-          simAccumulator: 0,
+          simAccumulator: initialCrowdSimulationPhase(assignment.id),
           frozen: false,
         };
         this.agents.set(assignment.id, agent);
@@ -1536,7 +1537,7 @@ export class VillagerRenderer {
           avoidanceOffsetZ: 0,
           y: 0,
           yaw: 0,
-          simAccumulator: 0,
+          simAccumulator: initialCrowdSimulationPhase(id),
           frozen: false,
         };
         this.agents.set(id, agent);

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { AuthoredSkinnedInstanceBatch } from '../src/scene/AuthoredSkinnedInstanceBatch.ts';
+import { createAuthoredCharacterDetail } from '../src/scene/AuthoredCharacterDetail.ts';
 
 const browserGlobal = globalThis as typeof globalThis & {
   self?: typeof globalThis;
@@ -48,6 +49,26 @@ let totalFixedDrawCalls = 0;
 let totalSubmittedTriangles = 0;
 for (const [label, path] of assets) {
   const gltf = await parseGlb(path);
+  const originalIndices = new Map<THREE.BufferGeometry, number[]>();
+  gltf.scene.traverse(object => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (mesh.isSkinnedMesh && mesh.geometry.index) originalIndices.set(mesh.geometry, Array.from(mesh.geometry.index.array));
+  });
+  const details = await createAuthoredCharacterDetail(gltf.scene, gltf.animations.slice(0, 8));
+  for (const detail of details) {
+    const batch = new AuthoredSkinnedInstanceBatch({ parent: new THREE.Group(), sourceRoot: gltf.scene, detailGeometry: detail, capacity: 1 });
+    batch.setCount(1);
+    const diagnostic = batch.diagnostics();
+    assert.ok(diagnostic.sourceVertexAttributeIdentityPreserved, `${label}: skin weights, normals, UVs and positions retained`);
+    assert.ok(diagnostic.sourcePbrMapIdentityPreserved);
+    assert.ok(diagnostic.submittedTriangles <= diagnostic.sourceTrianglesPerInstance);
+    assert.ok(diagnostic.sourceBoneLayoutValidated && diagnostic.sourceTransformLayoutValidated);
+    for (const [original, geometry] of detail) {
+      assert.deepEqual(Array.from(original.index!.array), originalIndices.get(original), 'Original topology is immutable');
+      assert.deepEqual(geometry.groups.map(group => group.materialIndex), original.groups.length ? original.groups.map(group => group.materialIndex) : [0]);
+    }
+    batch.dispose();
+  }
   const sourceMeshes: THREE.SkinnedMesh[] = [];
   gltf.scene.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;

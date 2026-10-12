@@ -97,6 +97,56 @@ a claim that the whole repository's CI passes.
 
 **60 FPS is still unverified in both populated modes.**
 
+## Later native measurements and remaining limits
+
+The marker cascade overrode the browser's `[hidden]` rule with `display: grid`
+or `flex`. About 500 fog-hidden resource markers continued composing blurred
+layers. Explicit hidden selectors and projection-owned visibility fix that
+rendering and information-leak bug. Twelve browser cases pass in both modes,
+including hidden fog markers, revealed and remembered resources, projection
+occlusion, stationary mutation counts and panel restoration. The subsequent
+production realm cohort averaged 25.56 ms, P95 54.5 ms; first playable was
+40.26 seconds with no browser errors. A paired diagnostic after the fix shows
+roughly 22–24 ms with normal UI and with its filters disabled. Earlier disabling
+filters changed roughly 81 ms to 45 ms. These diagnostics are separate from
+the formal frame-budget cohort.
+
+Static route legs now share a bounded exact-endpoint cache. Static disk
+overlap queries also cache exact coordinates/radii until collider invalidation.
+Water and dynamic hazards remain uncached. The navigation tests cover negative
+results, copied return values, signed zero, eviction and collider invalidation;
+150 reachable synthetic detours preserve their routes. The captured realm's
+160 requests were all unreachable before and after caching, which is a fixture
+problem rather than evidence of 160 successful paths. The disk cache matches
+40,090 exhaustive comparisons. Deterministic civilian accumulator phases keep
+15 Hz simulation but spread 500 agents across frames: peak fixed-step work
+changes from 500 to 134 agents, with 30 steps per agent over two seconds.
+
+The new production realm cohort (519 population, 509 rendered civilian agents)
+averages 29.78 ms, P95 42.6 ms, with no browser errors. Navigation accounts for
+761.9 ms over the 12-second diagnostic, versus about 1.86 seconds in the earlier
+leg-only run. This demonstrates less navigation work, not a proven FPS gain:
+the sequential frame means remain affected by live workload and thermal state.
+Evidence: `artifacts/realm-browser-phased-collision-cache/`.
+
+The later large offline single-player cohort has a 47.44 ms stationary mean
+and 46.73 ms cleared moving-camera mean. It submits about 14.48 million colour
+triangles and 27.49 million triangles on refreshed-shadow frames. Timestamp
+measurements give 16.17 ms for the main pass, 16.94 ms for refreshed shadows
+(86 of 260 frames), and about 3.04 ms total authored-animation compute. The
+GPU reports 87 °C with software thermal slowdown active. These numbers cannot
+be attributed solely to the CPU-cache change or directly compared with the
+earlier cooler pass timings. The fixture still has its documented connection
+404 and therefore does not validate the single-player server economy.
+Evidence: `artifacts/city-performance/sp-phased-collision-cache/`.
+
+The current realm server also misses its simulation cadence: nine measured
+heartbeats average 2.70 seconds, with 2.61 seconds in the economy. Its existing
+maximum catch-up allowance is two seconds per reducer; retained clock debt
+therefore grows. The test realm has no farm fields, pastures or graveyards,
+and is not yet a sustainable full-production benchmark. The five-minute shared
+day and complete economy require further server work and a viable fixture.
+
 Moving authored rigs were the largest measured settlement cost. Buildings also
 add submission work, and the full terrain/post-processing scene has a separate
 rendering cost. The stable walls disappearing during camera movement were a

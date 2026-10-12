@@ -6,6 +6,7 @@ import {
   routeAgentPolylineWithDeferredObstacle,
 } from '../../settlement/agentNavigation.ts';
 import type { PointXZ, RockObstacle } from '../../utils/pathGeometry.ts';
+import { AgentLegRouteCache,agentNavigationPointKey } from '../../settlement/AgentLegRouteCache.ts';
 import type { FpWalkProbePhase } from './fpAirborneWalkPolicy.ts';
 
 const STATIC_CELL_SIZE_M = 8;
@@ -15,6 +16,7 @@ const PLAYER_COLLISION_SKIN_M = 0.012;
 const LANDING_LIP_M = 0.16;
 const MAX_RESOLVE_ITERATIONS = 3;
 const MAX_AGENT_ROUTE_CACHE = 2048;
+const MAX_STATIC_DISK_QUERY_CACHE = 65_536;
 
 type TreeCollisionState = {
   phase: TreePhase;
@@ -123,6 +125,7 @@ export class FpCollisionWorld {
   private hasPreparedDynamic = false;
   private staticDirty = true;
   private readonly agentRoutes = new Map<string, PointXZ[] | null>();
+  private readonly staticAgentLegs = new AgentLegRouteCache();
   private lastAgentNavigationVersion: unknown;
 
   constructor(config: FpCollisionWorldConfig) {
@@ -132,6 +135,7 @@ export class FpCollisionWorld {
   invalidateStatic(): void {
     this.staticDirty = true;
     this.agentRoutes.clear();
+    this.staticAgentLegs.clear();
   }
 
   /**
@@ -151,7 +155,7 @@ export class FpCollisionWorld {
     // An unversioned custom hazard can move independently of static geometry.
     const canCache = (!this.config.isAgentNavigationBlocked || !!this.config.getAgentNavigationVersion)
       && Number.isFinite(radius) && path.every(point => Number.isFinite(point.x) && Number.isFinite(point.z));
-    const key = canCache ? `${radius}|${path.map(point => `${point.x},${point.z}`).join(';')}` : '';
+    const key = canCache ? `${radius}|${path.map(agentNavigationPointKey).join(';')}` : '';
     if (canCache && this.agentRoutes.has(key)) {
       const cached = this.agentRoutes.get(key)!;
       this.agentRoutes.delete(key); this.agentRoutes.set(key, cached);
@@ -163,7 +167,11 @@ export class FpCollisionWorld {
     const mayNavigationPathBeBlocked = this.config.mayAgentNavigationPathBeBlocked;
     const isStaticSegmentClear = (start: PointXZ, end: PointXZ): boolean =>
       this.staticIndex.segmentIsClear(start, end, radius);
-    const route = !isNavigationBlocked ? routeAgentPolyline(path, isStaticBlocked, isStaticSegmentClear) : routeAgentPolylineWithDeferredObstacle(
+    // Only static legs are shared. A changing, unversioned water/hazard probe
+    // still validates the assembled route and replans with both obstacles.
+    const resolveStaticLeg = (start: PointXZ,end: PointXZ,solve: () => PointXZ[] | null) =>
+      this.staticAgentLegs.resolve(start,end,radius,solve);
+    const route = !isNavigationBlocked ? routeAgentPolyline(path, isStaticBlocked, isStaticSegmentClear, resolveStaticLeg) : routeAgentPolylineWithDeferredObstacle(
       path,
       isStaticBlocked,
       (x, z) => isNavigationBlocked(x, z, radius),
@@ -171,6 +179,7 @@ export class FpCollisionWorld {
         ? (candidate) => mayNavigationPathBeBlocked(candidate, radius)
         : undefined,
       isStaticSegmentClear,
+      resolveStaticLeg,
     );
     if (canCache) {
       if (this.agentRoutes.size >= MAX_AGENT_ROUTE_CACHE) this.agentRoutes.delete(this.agentRoutes.keys().next().value!);
@@ -408,14 +417,20 @@ export class StaticColliderIndex {
   private readonly cells = new Map<number, Map<number, FpCollider[]>>();
   private readonly querySeen = new Set<FpCollider>();
   private readonly colliders = new Set<FpCollider>();
+  private readonly diskQueryCache = new Map<number,Map<number,Map<number,boolean>>>();
+  private diskQueryEntries = 0;
+  diskQueryHits = 0;
+  diskQueryMisses = 0;
 
   clear(): void {
     this.cells.clear();
     this.colliders.clear();
     this.querySeen.clear();
+    this.diskQueryCache.clear(); this.diskQueryEntries = 0;
   }
 
   add(collider: FpCollider): void {
+    this.diskQueryCache.clear(); this.diskQueryEntries = 0;
     this.colliders.add(collider);
     const bounds = colliderBoundsXZ(collider);
     const minCellX = Math.floor(bounds.minX / STATIC_CELL_SIZE_M);
@@ -458,6 +473,24 @@ export class StaticColliderIndex {
   }
 
   diskOverlaps(x: number, z: number, radius: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(radius) || radius < 0) {
+      return this.diskOverlapsUncached(x,z,radius);
+    }
+    let plane = this.diskQueryCache.get(radius),row = plane?.get(x);
+    const previous = row?.get(z);
+    if (previous !== undefined) { this.diskQueryHits++; return previous; }
+    this.diskQueryMisses++;
+    const value = this.diskOverlapsUncached(x,z,radius);
+    if (this.diskQueryEntries >= MAX_STATIC_DISK_QUERY_CACHE) {
+      this.diskQueryCache.clear(); this.diskQueryEntries = 0; plane = undefined; row = undefined;
+    }
+    if (!plane) { plane = new Map(); this.diskQueryCache.set(radius,plane); }
+    if (!row) { row = new Map(); plane.set(x,row); }
+    row.set(z,value); this.diskQueryEntries++;
+    return value;
+  }
+
+  private diskOverlapsUncached(x: number,z: number,radius: number): boolean {
     const minCellX = Math.floor((x - radius) / STATIC_CELL_SIZE_M);
     const maxCellX = Math.floor((x + radius) / STATIC_CELL_SIZE_M);
     const minCellZ = Math.floor((z - radius) / STATIC_CELL_SIZE_M);

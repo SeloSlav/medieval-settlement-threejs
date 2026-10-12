@@ -1,4 +1,5 @@
 import type { PointXZ } from '../utils/pathGeometry.ts';
+import type { AgentLegRouteResolver } from './AgentLegRouteCache.ts';
 
 const NAV_GRID_STEP_M = 0.65;
 const NAV_SEARCH_PADDING_M = 9;
@@ -94,8 +95,9 @@ export function routeAgentPolylineWithDeferredObstacle(
   isDeferredBlocked: AgentObstacleTest,
   mayDeferredObstacleAffectPath?: (path: readonly PointXZ[]) => boolean,
   isPrimarySegmentClear?: AgentSegmentTest,
+  resolvePrimaryLeg?: AgentLegRouteResolver,
 ): PointXZ[] | null {
-  const primaryRoute = routeAgentPolyline(path, isPrimaryBlocked, isPrimarySegmentClear);
+  const primaryRoute = routeAgentPolyline(path, isPrimaryBlocked, isPrimarySegmentClear, resolvePrimaryLeg);
   if (
     !primaryRoute
     || (mayDeferredObstacleAffectPath
@@ -135,6 +137,7 @@ export function routeAgentPolyline(
   path: readonly PointXZ[],
   isBlocked: AgentObstacleTest,
   isSegmentClear?: AgentSegmentTest,
+  resolveLeg?: AgentLegRouteResolver,
 ): PointXZ[] | null {
   if (path.length < 2) return path.map(copyPoint);
 
@@ -144,7 +147,9 @@ export function routeAgentPolyline(
     for (let index = 0; index < path.length - 1; index++) {
       const start = path[index];
       const end = path[index + 1];
-      const leg = routeAgentLeg(start, end, isBlocked, workspace, isSegmentClear, !!isSegmentClear);
+      const leg = resolveLeg
+        ? resolveLeg(start,end,() => routeAgentLeg(start,end,isBlocked,workspace,isSegmentClear,!!isSegmentClear))
+        : routeAgentLeg(start,end,isBlocked,workspace,isSegmentClear,!!isSegmentClear);
       if (!leg) return null;
       for (const point of leg) {
         pushDistinct(routed, point);

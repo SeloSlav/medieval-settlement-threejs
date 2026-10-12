@@ -87,6 +87,7 @@ export class RealmNeighbors {
     if (agents.length && !this.crowd) this.crowd = new SettlementCrowdRenderer({ parent: this.group });
     const view = buildCrowdViewState(this.target.x, this.target.z, this.camera.getOrbitDistance());
     view.renderCamera = this.scene.camera;
+    view.renderPixelHeight = this.scene.renderer.domElement.height;
     this.crowd?.syncAgents(agents, view, dt);
     // Hidden appearances form a bounded LRU; leaving sight removes them immediately.
     const hidden = [...this.cache.entries()].filter(([id]) => !ids.has(id)).sort((a, b) => a[1].lastUsed - b[1].lastUsed);

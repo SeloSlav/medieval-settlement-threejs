@@ -110,6 +110,8 @@ export type AuthoredSkinnedInstanceBatchOptions = {
   name?: string;
   castShadow?: boolean;
   receiveShadow?: boolean;
+  /** Optional index-only character detail; rig and source attributes stay intact. */
+  detailGeometry?: ReadonlyMap<THREE.BufferGeometry, THREE.BufferGeometry>;
 };
 
 export type AuthoredSkinnedInstanceBatchDiagnostic = {
@@ -130,6 +132,7 @@ export type AuthoredSkinnedInstanceBatchDiagnostic = {
   gpuEvaluatedInstances: number;
   resizeCount: number;
   sourceGeometryIdentityPreserved: boolean;
+  sourceVertexAttributeIdentityPreserved: boolean;
   sourceTextureIdentityPreserved: boolean;
   sourcePbrMapIdentityPreserved: boolean;
   sourceAlphaStatePreserved: boolean;
@@ -182,7 +185,8 @@ type PosedCloneBinding = {
  * The source GLB vertex buffers are submitted directly as InstancedMesh layers.
  * A storage-buffer palette contains one complete authored skeleton per instance;
  * the vertex shader selects `instanceIndex * boneCount + skinIndex`. This avoids
- * duplicate geometry, per-agent draw calls, and any proxy/LOD representation.
+ * duplicate vertex buffers and per-agent draw calls. A caller may supply reduced
+ * index buffers for distant characters without changing their authored rigs.
  *
  * Animation evaluation is intentionally outside this renderer. Callers may feed
  * exact AnimationMixer skeleton matrices, a sampled authored-clip cache, or a
@@ -517,7 +521,9 @@ export class AuthoredSkinnedInstanceBatch {
       sourceVerticesPerInstance,
       sourceTrianglesPerInstance,
       submittedVertices: sourceVerticesPerInstance * this.countValue,
-      submittedTriangles: sourceTrianglesPerInstance * this.countValue,
+      submittedTriangles: this.submittedLayers.reduce((sum, layer) =>
+        sum + (layer.mesh.geometry.index?.count ?? layer.mesh.geometry.getAttribute('position').count) / 3,
+      0) * this.countValue,
       posePaletteBytes: this.posePalette.array.byteLength,
       transformBytes: this.instanceMatrices.array.byteLength,
       colorBytes: this.instanceColors.array.byteLength,
@@ -527,6 +533,9 @@ export class AuthoredSkinnedInstanceBatch {
       sourceGeometryIdentityPreserved: this.submittedLayers.every(
         (layer) => layer.mesh.geometry === layer.source.geometry,
       ),
+      sourceVertexAttributeIdentityPreserved: this.submittedLayers.every(layer =>
+        Object.entries(layer.source.geometry.attributes).every(([name, attribute]) =>
+          layer.mesh.geometry.getAttribute(name) === attribute)),
       sourceTextureIdentityPreserved: sourcePbrMapIdentityPreserved,
       sourcePbrMapIdentityPreserved,
       sourceAlphaStatePreserved: this.submittedLayers.every((layer) =>
@@ -618,7 +627,8 @@ export class AuthoredSkinnedInstanceBatch {
       const material: AuthoredNodeMaterial | AuthoredNodeMaterial[] = materials.length === 1
         ? materials[0]!
         : materials;
-      const mesh = new THREE.InstancedMesh(source.geometry, material, capacity);
+      const geometry = this.options.detailGeometry?.get(source.geometry) ?? source.geometry;
+      const mesh = new THREE.InstancedMesh(geometry, material, capacity);
       for (const paletteMaterial of materials as PaletteSkinningMaterial[]) {
         paletteMaterial.bindPaletteShadowPosition(mesh);
       }

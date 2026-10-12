@@ -2,6 +2,8 @@ import type { Camera } from 'three';
 export type CrowdViewState = {
   /** Rendering only: off-screen actors continue their normal local simulation. */
   renderCamera?: Camera;
+  /** Physical drawing-buffer height; detail selection respects resolution/DPR. */
+  renderPixelHeight?: number;
   centerX: number;
   centerZ: number;
   viewRadius: number;
@@ -14,6 +16,15 @@ export type CrowdViewState = {
 
 export const CROWD_SIM_HZ = 15;
 export const CROWD_SIM_DT = 1 / CROWD_SIM_HZ;
+/** Stable phases spread fixed-rate civilian work without reducing its cadence. */
+export function initialCrowdSimulationPhase(id: string): number {
+  let hash = 2166136261;
+  for (let i=0;i<id.length;i++) hash = Math.imul(hash ^ id.charCodeAt(i),16777619);
+  hash = Math.imul(hash ^ (hash >>> 16),0x7feb352d);
+  hash = Math.imul(hash ^ (hash >>> 15),0x846ca68b);
+  hash ^= hash >>> 16;
+  return (((hash >>> 0) & 0xffff) + 0.5) / 65536 * CROWD_SIM_DT;
+}
 export const FRUSTUM_SIM_MARGIN = 40;
 
 export function buildCrowdViewState(

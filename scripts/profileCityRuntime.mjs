@@ -148,6 +148,33 @@ try {
   });
   writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
+  const geometryInventory = await page.evaluate(async () => {
+    const { THREE } = await import('/scripts/fixtures/webgpuTestImports.ts');
+    const manager = window.__cityApp.sceneManager;
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(
+      new THREE.Matrix4().multiplyMatrices(manager.camera.projectionMatrix, manager.camera.matrixWorldInverse),
+      manager.camera.coordinateSystem, manager.camera.reversedDepth);
+    const rows = [];
+    manager.scene.traverseVisible(object => {
+      if (!object.isMesh || !object.layers.test(manager.camera.layers)
+        || (object.frustumCulled && !frustum.intersectsObject(object))) return;
+      const geometry = object.geometry;
+      const indexCount = geometry.index?.count ?? geometry.getAttribute('position')?.count ?? 0;
+      const first = Math.max(0, geometry.drawRange.start);
+      const last = Math.min(indexCount, first + geometry.drawRange.count);
+      const instances = geometry.isInstancedBufferGeometry ? geometry.instanceCount : object.count ?? 1;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      let count = 0;
+      if (Array.isArray(object.material)) for (const group of geometry.groups) {
+        if (materials[group.materialIndex]?.visible) count += Math.max(0, Math.min(last, group.start + group.count) - Math.max(first, group.start));
+      } else if (materials[0]?.visible) count = Math.max(0, last - first);
+      if (!count || !instances) return;
+      const ancestors = []; for (let parent = object.parent; parent; parent = parent.parent) if (parent.name) ancestors.unshift(parent.name);
+      rows.push({ name: object.name, ancestors, instances, triangles: count / 3 * instances, castShadow: object.castShadow });
+    });
+    return { note: 'Logical visible geometry inventory, not GPU timing; shader discard and primitive clipping are excluded.', rows: rows.sort((a,b) => b.triangles-a.triangles) };
+  });
+  writeFileSync(`${output}/geometry-inventory.json`, JSON.stringify(geometryInventory, null, 2));
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
   if (process.argv.includes('--gpu-passes')) {
     await page.evaluate(async () => {
@@ -158,6 +185,14 @@ try {
     const costs = await page.evaluate(() => window.__cityFinishGpuPassCosts());
     writeFileSync(`${output}/gpu-passes.json`,JSON.stringify(costs,null,2));
     console.log('GPU pass costs',JSON.stringify(costs));
+  }
+  if (process.argv.includes('--detail-ab')) {
+    const detailCosts = await page.evaluate(async () => {
+      const { measureCharacterDetailCosts } = await import('/scripts/fixtures/characterDetailCosts.js');
+      return measureCharacterDetailCosts(window.__cityApp);
+    });
+    writeFileSync(`${output}/character-detail-costs.json`, JSON.stringify(detailCosts, null, 2));
+    console.log('CHARACTER_DETAIL_COSTS', JSON.stringify(detailCosts));
   }
   if (process.argv.includes('--trace')) {
     const { captureBrowserFrameTrace } = await import('./fixtures/browserFrameTrace.mjs');

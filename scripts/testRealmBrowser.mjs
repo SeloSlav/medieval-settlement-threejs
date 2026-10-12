@@ -237,6 +237,8 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
           shadowBatches: root?.userData.realmInstanceBatches?.stats(true) };
       })(),
       stats: window.__medievalRoadStats, startup: window.__medievalRoadStartup, buildings: app.gameState.buildings.size,
+      population: [...app.gameState.residences.values()].reduce((total,home)=>total+home.population,0),
+      civilianAgents: app.villagers?.agents?.size,
       meshes: meshes.sort((a, b) => b.triangles - a.triangles).slice(0, 25),
       profile: window.__visualPerf?.getReport() ?? null,
       profileStatus: document.documentElement.dataset.visualProfileStatus,
@@ -283,6 +285,10 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
     const collision = window.__realmApp.firstPersonController?.config.collisionWorld;
     if (!collision) throw Error('Crowd collision world unavailable for navigation diagnostics');
     const navigate = collision.routeAgentPath;
+    const legCache = collision.staticAgentLegs;
+    const initialLegCache = legCache ? {hits:legCache.hits,misses:legCache.misses} : null;
+    const diskIndex = collision.staticIndex;
+    const initialDiskCache = {hits:diskIndex.diskQueryHits??0,misses:diskIndex.diskQueryMisses??0};
     const navigation = { calls: 0, ms: 0, longestMs: 0, groups: [] };
     let group;
     collision.routeAgentPath = function(path, radius = 0.28) {
@@ -297,7 +303,14 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
       if (navigation.calls <= 160) group.routes.push({ path: path.map(p => ({ x: p.x, z: p.z })), radius });
       return result;
     };
-    window.__realmFinishNavigation = () => { collision.routeAgentPath = navigate; return navigation; };
+    window.__realmFinishNavigation = () => {
+      collision.routeAgentPath = navigate;
+      if (legCache && initialLegCache) navigation.staticLegCache = {hits:legCache.hits-initialLegCache.hits,
+        misses:legCache.misses-initialLegCache.misses,entries:legCache.size};
+      navigation.staticDiskCache = {hits:(diskIndex.diskQueryHits??0)-initialDiskCache.hits,
+        misses:(diskIndex.diskQueryMisses??0)-initialDiskCache.misses,entries:diskIndex.diskQueryEntries??0};
+      return navigation;
+    };
     const backend = renderer.backend, queue = backend.device.queue;
     const uniformCosts = window.__realmUniformCosts = { updates: 0, nativeWrites: 0, actualWrites: 0, ms: 0 };
     const updateBinding = backend.updateBinding, writeBuffer = queue.writeBuffer;
@@ -352,7 +365,8 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
   const navigationCosts = await page.evaluate(() => window.__realmFinishNavigation());
   writeFileSync(`${output}/navigation-workload.json`, JSON.stringify(navigationCosts));
   console.log('Navigation',JSON.stringify({ calls: navigationCosts.calls, ms: navigationCosts.ms,
-    longestMs: navigationCosts.longestMs, groups: navigationCosts.groups.length }));
+    longestMs: navigationCosts.longestMs, groups: navigationCosts.groups.length, staticLegCache:navigationCosts.staticLegCache,
+    staticDiskCache:navigationCosts.staticDiskCache }));
   writeFileSync(`${output}/uniform-costs.json`,JSON.stringify(uniformCosts,null,2));
   console.log('Uniform uploads',JSON.stringify(uniformCosts));
   writeFileSync(`${output}/cpu.cpuprofile`, JSON.stringify(profile));

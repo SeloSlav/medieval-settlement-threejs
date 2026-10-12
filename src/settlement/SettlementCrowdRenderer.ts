@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AuthoredRigEvaluatorGroup } from '../scene/AuthoredRigEvaluatorGroup.ts';
+import { createAuthoredCharacterDetail, selectCharacterDetail, type CharacterDetail, type CharacterDetailGeometry } from '../scene/AuthoredCharacterDetail.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
@@ -147,6 +148,7 @@ type AnimatedVillager = {
   combatRig: CombatWeaponRig | null;
   mountedRig: MountedRidingRig | null;
   skeleton: THREE.Skeleton;
+  detail: CharacterDetail;
   /** Last locomotion speed already published to the three authored leg cycles. */
   movementSpeed: number;
   /** Stable per-actor cadence multiplier; never sampled on the frame loop. */
@@ -165,12 +167,6 @@ function variantsShareModelSource(
   b: VillagerSourceKey,
 ): boolean {
   return String(MODEL_URLS[a]) === String(MODEL_URLS[b]);
-}
-
-function uniqueAuthoredBatches(
-  batches: Record<VillagerSourceKey, AuthoredSkinnedInstanceBatch>,
-): AuthoredSkinnedInstanceBatch[] {
-  return [...new Set(Object.values(batches))];
 }
 
 function uniqueSourceScenes(
@@ -268,6 +264,7 @@ export type AuthoredCrowdDiagnostic = {
   submittedInstances: number;
   proxyAgents: 0;
   batches: Readonly<Record<VillagerSourceKey, AuthoredSkinnedInstanceBatchDiagnostic>>;
+  detailBatches: readonly AuthoredSkinnedInstanceBatchDiagnostic[];
   attachments: ExactMountedAttachmentBatchDiagnostic;
   standards: CompanyStandardDiagnostic;
   performance: {
@@ -389,10 +386,11 @@ export function seatedVillagerContactHeight(
 }
 
 /**
- * Renders every visible person with the original rigged GLB geometry,
+ * Renders every visible person with the original rigged GLB vertex attributes,
  * materials, textures and animation pose. CPU rigs evaluate gameplay-specific
  * motion while native-WebGPU storage palettes submit each source model in a
- * bounded number of instanced draws. Camera distance never changes asset class.
+ * bounded number of instanced draws. Small distant figures use reduced index
+ * buffers; close figures retain the complete original topology.
  */
 export class SettlementCrowdRenderer {
   private readonly renderProjection = new THREE.Matrix4();
@@ -422,6 +420,8 @@ export class SettlementCrowdRenderer {
   private sources: Record<VillagerSourceKey, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
   private authoredBatches: Record<VillagerSourceKey, AuthoredSkinnedInstanceBatch> | null = null;
+  private authoredDetailBatches: Record<VillagerSourceKey, readonly [AuthoredSkinnedInstanceBatch, AuthoredSkinnedInstanceBatch, AuthoredSkinnedInstanceBatch]> | null = null;
+  private readonly detailGeometry = new Set<THREE.BufferGeometry>();
   private readonly authoredBatchList: AuthoredSkinnedInstanceBatch[] = [];
   private readonly authoredBatchRequired = new Map<AuthoredSkinnedInstanceBatch, number>();
   private readonly authoredBatchNextSlot = new Map<AuthoredSkinnedInstanceBatch, number>();
@@ -560,7 +560,7 @@ export class SettlementCrowdRenderer {
       count: number;
     }> = [];
     if (!this.authoredBatches) return { objects: [], restore: () => {} };
-    for (const batch of uniqueAuthoredBatches(this.authoredBatches)) {
+    for (const batch of this.authoredBatchList) {
       batch.group.traverse((object) => {
         const mesh = object as THREE.InstancedMesh;
         if (!mesh.isInstancedMesh || mesh.count > 0) return;
@@ -600,8 +600,6 @@ export class SettlementCrowdRenderer {
       || !this.authoredBatches
       || seeds.length === 0
     ) return 0;
-    const authoredBatches = this.authoredBatches;
-
     const desiredByVariant = new Map<VillagerModelVariant, VillagerRigPoolSeed[]>();
     for (const seed of seeds) {
       const desired = desiredByVariant.get(seed.variant) ?? [];
@@ -641,7 +639,7 @@ export class SettlementCrowdRenderer {
         active: false,
       };
       const visual = this.createAnimatedVillager(agent);
-      authoredBatches[seed.variant].prepareCloneBinding(visual.model);
+      for (const batch of this.authoredDetailBatches![seed.variant]) batch.prepareCloneBinding(visual.model);
       visual.mixer.stopAllAction();
       visual.root.visible = false;
       const poolKey = animatedPoolKey(seed.variant, null);
@@ -683,7 +681,7 @@ export class SettlementCrowdRenderer {
   getRenderedBodyHeight(id: string): number | null {
     const visual = this.animated.get(id);
     if (!this.group.visible || !visual?.root.visible || !this.sources
-      || !this.authoredBatches?.[visual.sourceKey].count) return null;
+      || !this.authoredDetailBatches?.[visual.sourceKey][visual.detail].count) return null;
     return this.sources[visual.sourceKey].sourceHeight * visual.model.scale.y;
   }
 
@@ -707,6 +705,7 @@ export class SettlementCrowdRenderer {
       ),
       proxyAgents: 0,
       batches: diagnostics,
+      detailBatches: this.authoredBatchList.map(batch => batch.diagnostics()),
       attachments: this.mountedAttachments.diagnostics(),
       standards: this.companyStandards.diagnostics(),
       performance: {
@@ -737,9 +736,12 @@ export class SettlementCrowdRenderer {
     this.idlePooledVisualCount = 0;
 
     if (this.authoredBatches) {
-      for (const batch of uniqueAuthoredBatches(this.authoredBatches)) batch.dispose();
+      for (const batch of this.authoredBatchList) batch.dispose();
       this.authoredBatches = null;
     }
+    this.authoredDetailBatches = null;
+    for (const geometry of this.detailGeometry) geometry.dispose();
+    this.detailGeometry.clear();
     this.authoredBatchList.length = 0;
     this.authoredBatchRequired.clear();
     this.authoredBatchNextSlot.clear();
@@ -806,19 +808,45 @@ export class SettlementCrowdRenderer {
       // than leaving every camp conversation in standing_relax.
       installWorkerSocialClips(cleric, man);
       if (woman.scene !== man.scene) installWorkerSocialClips(cleric, woman);
+      const detailByScene = new Map<THREE.Object3D, CharacterDetailGeometry>();
+      for (const source of [man, woman, cleric, raider]) {
+        if (!detailByScene.has(source.scene)) {
+          const detail = await createAuthoredCharacterDetail(source.scene, [
+            source.clips.walk, source.clips.chop, source.clips.mine, source.clips.sit,
+            source.clips.talk, source.clips.flee, source.clips.hurt, source.clips.fight,
+          ], source === cleric || source === raider ? [0.002, 0.002] : undefined);
+          detailByScene.set(source.scene, detail);
+          for (const map of detail) for (const geometry of map.values()) this.detailGeometry.add(geometry);
+        }
+      }
+      if (this.disposed) {
+        for (const geometry of this.detailGeometry) geometry.dispose();
+        this.detailGeometry.clear();
+        for (const scene of uniqueSourceScenes({ man, woman, cleric, raider })) disposeModelResources(scene);
+        disposeWorkerToolSources(tools);
+        return false;
+      }
       this.sources = { man, woman, cleric, raider };
       this.toolSources = tools;
       this.battlefieldWeaponDrops.configureSources(tools);
-      const manBatch = this.createAuthoredBatch('man', man);
-      this.authoredBatches = {
-        man: manBatch,
-        woman: variantsShareModelSource('man', 'woman')
-          ? manBatch
-          : this.createAuthoredBatch('woman', woman),
-        cleric: this.createAuthoredBatch('cleric', cleric),
-        raider: this.createAuthoredBatch('raider', raider),
+      const createDetailBatches = (key: VillagerSourceKey, source: VillagerSource) => {
+        const detail = detailByScene.get(source.scene)!;
+        return [this.createAuthoredBatch(key, source),
+          this.createAuthoredBatch(key, source, detail[0], 1),
+          this.createAuthoredBatch(key, source, detail[1], 2)] as const;
       };
-      this.authoredBatchList.push(...uniqueAuthoredBatches(this.authoredBatches));
+      const manBatches = createDetailBatches('man', man);
+      this.authoredDetailBatches = {
+        man: manBatches,
+        woman: variantsShareModelSource('man', 'woman') ? manBatches : createDetailBatches('woman', woman),
+        cleric: createDetailBatches('cleric', cleric),
+        raider: createDetailBatches('raider', raider),
+      };
+      this.authoredBatches = {
+        man: manBatches[0], woman: this.authoredDetailBatches.woman[0],
+        cleric: this.authoredDetailBatches.cleric[0], raider: this.authoredDetailBatches.raider[0],
+      };
+      this.authoredBatchList.push(...new Set(Object.values(this.authoredDetailBatches).flat()));
       for (const batch of this.authoredBatchList) {
         this.authoredBatchRequired.set(batch, 0);
         this.authoredBatchNextSlot.set(batch, 0);
@@ -868,6 +896,15 @@ export class SettlementCrowdRenderer {
       }
 
       visual.root.position.set(agent.x, agent.y, agent.z);
+      const camera = this.lastView?.renderCamera;
+      const pixelHeight = this.lastView?.renderPixelHeight;
+      if (camera && pixelHeight) {
+        const e = this.renderProjection.elements;
+        const w = e[3]! * agent.x + e[7]! * (agent.y + 0.9) + e[11]! * agent.z + e[15]!;
+        const height = this.sources![sourceKey].targetHeight * villagerHeightJitter(agent.appearanceSeed);
+        const projectedHeight = w > 0 ? Math.abs(camera.projectionMatrix.elements[5]!) * height * pixelHeight / (2 * w) : Number.POSITIVE_INFINITY;
+        visual.detail = selectCharacterDetail(projectedHeight, visual.detail);
+      } else visual.detail = 0;
       visual.root.rotation.y = agent.yaw + MODEL_YAW_OFFSET;
       if (visual.combatRig) restoreCombatWeaponPose(visual.combatRig);
       restoreMountedRidingPose(visual.mountedRig);
@@ -894,7 +931,7 @@ export class SettlementCrowdRenderer {
         this.lastLocomotionRateRefreshes += 1;
       }
       if (dt >= 0) {
-        this.authoredBatches![sourceKey].updateAnimation(
+        this.authoredDetailBatches![sourceKey][visual.detail].updateAnimation(
           visual.model, visual.mixer, dt,
           (!agent.tool || !isMilitaryEquipmentKind(agent.tool)) && !agent.mounted && !agent.companyStandard,
         );
@@ -1013,7 +1050,7 @@ export class SettlementCrowdRenderer {
     // Register after binding so the nocked ammunition joins the shared batches.
     if (tool) this.mountedAttachments.registerTool(tool);
     if (tool && agent.tool && !isMilitaryEquipmentKind(agent.tool)) {
-      this.authoredBatches![sourceKey].registerAnimationAttachments(model, tool);
+      for (const batch of this.authoredDetailBatches![sourceKey]) batch.registerAnimationAttachments(model, tool);
     }
 
     const mixer = new THREE.AnimationMixer(model);
@@ -1084,6 +1121,7 @@ export class SettlementCrowdRenderer {
       combatRig,
       mountedRig: agent.variant === 'man' ? bindMountedRidingRig(model) : null,
       skeleton,
+      detail: 0,
       movementSpeed: agent.movementSpeed,
       animationRateScale,
     };
@@ -1283,10 +1321,12 @@ export class SettlementCrowdRenderer {
   private createAuthoredBatch(
     variant: VillagerSourceKey,
     source: VillagerSource,
+    detailGeometry?: ReadonlyMap<THREE.BufferGeometry, THREE.BufferGeometry>,
+    level: CharacterDetail = 0,
   ): AuthoredSkinnedInstanceBatch {
     // Keep the established outdoor response while retaining the authored PBR
     // asset itself. The instanced node materials borrow every source texture;
-    // they do not bake, simplify, atlas, or replace the GLB material inputs.
+    // they do not bake, atlas, or replace the GLB material inputs.
     if (!source.scene.userData.villagerLightingConfigured) {
       source.scene.traverse((object) => {
         const mesh = object as THREE.Mesh;
@@ -1308,7 +1348,8 @@ export class SettlementCrowdRenderer {
       sourceRoot: source.scene,
       animations: Object.values(source.clips),
       capacity: INITIAL_AUTHORED_BATCH_CAPACITY,
-      name: `${variant} exact authored crowd`,
+      name: `${variant} authored crowd detail ${level}`,
+      detailGeometry,
       castShadow: true,
       receiveShadow: true,
     });
@@ -1327,7 +1368,8 @@ export class SettlementCrowdRenderer {
     for (const batch of this.authoredBatchList) required.set(batch, 0);
     for (const agent of agents) {
       if (!this.animated.has(agent.id)) continue;
-      const batch = batches[sourceKeyForAgent(agent)];
+      const visual = this.animated.get(agent.id)!;
+      const batch = this.authoredDetailBatches![sourceKeyForAgent(agent)][visual.detail];
       required.set(batch, (required.get(batch) ?? 0) + 1);
     }
     for (const [batch, count] of required) {
@@ -1340,7 +1382,7 @@ export class SettlementCrowdRenderer {
     for (const agent of agents) {
       const visual = this.animated.get(agent.id);
       if (!visual) continue;
-      const batch = batches[sourceKeyForAgent(agent)];
+      const batch = this.authoredDetailBatches![sourceKeyForAgent(agent)][visual.detail];
       const slot = nextSlot.get(batch) ?? 0;
       nextSlot.set(batch, slot + 1);
 

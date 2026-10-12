@@ -725,6 +725,7 @@ const expectedWorkplaces = [
   'charcoal_burner',
   'smithy',
   'potter_kiln',
+  'stone_mason',
   'well',
   'hunters_hall',
   'foragers_shed',
@@ -882,8 +883,8 @@ const boundedWatchRoster = allocateProductionWorkers(
 );
 assert.equal(
   boundedWatchRoster.assignments.length,
-  1024,
-  'visible tower posts must respect the existing settlement crowd budget',
+  1200,
+  'every staffed tower post must remain represented without the retired global crowd cap',
 );
 const materialScaleSites = Array.from({ length: 20_000 }, (_, index) =>
   building(
@@ -909,8 +910,8 @@ const boundedMaterialRoster = allocateProductionWorkers(
 const materialScaleElapsedMs = performance.now() - materialScaleStartedAt;
 assert.equal(
   boundedMaterialRoster.assignments.length,
-  1024,
-  'large industrial settlements must retain the shared visible-agent budget',
+  2000,
+  'large industrial settlements must retain every available worker without the retired global crowd cap',
 );
 assert.ok(
   materialScaleElapsedMs < 1_500,

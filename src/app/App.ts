@@ -1072,7 +1072,8 @@ export class App {
     }
     this.realmPresentation?.update(time);
     const crowdView = this.buildCrowdViewState();
-    if (this.realmPresentation) crowdView.renderCamera = this.sceneManager?.camera;
+    crowdView.renderCamera = this.sceneManager?.camera;
+    crowdView.renderPixelHeight = this.sceneManager?.renderer.domElement.height;
     if (this.snapshotApplierDeps) {
       tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,
