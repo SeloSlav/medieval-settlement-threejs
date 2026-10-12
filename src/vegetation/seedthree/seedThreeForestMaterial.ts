@@ -379,8 +379,14 @@ export function applySeedThreeForestBarkMotion(
 export function stabilizeSeedThreeForestCardMaterial(
   material: THREE.Material,
 ): THREE.Material {
-  const physicalMaterial = material as THREE.Material & { specularIntensity?: number };
+  const physicalMaterial = material as THREE.Material & { specularIntensity?: number; mrtNode?: unknown };
   let changed = false;
+  // SeedThree's viewer writes its own N8AO normal/mask attachments. The game
+  // owns render-target outputs, including single-color and shadow targets.
+  if (physicalMaterial.mrtNode != null) {
+    physicalMaterial.mrtNode = null;
+    changed = true;
+  }
   if (!material.alphaToCoverage) {
     material.alphaToCoverage = true;
     changed = true;

@@ -19,14 +19,14 @@ const DATABASE_VERSION = 1;
 const STORE_NAME = 'branch-cards';
 const TRANSMIT = [0.42, 0.62, 0.24] as const;
 
-type CachedTextureChannels = {
+export type CachedTextureChannels = {
   albedo: Blob;
   normal: Blob;
   rough: Blob;
   trans: Blob;
 };
 
-type CachedVariant = {
+export type CachedVariant = {
   attributes: Record<string, {
     values: number[] | Float32Array;
     itemSize: number;
@@ -38,14 +38,14 @@ type CachedVariant = {
   textures: CachedTextureChannels;
 };
 
-type CachedSet = {
+export type CachedSet = {
   key: string;
   foliageOnly: boolean;
   noFlutter: boolean;
   variants: CachedVariant[];
 };
 
-type CacheRecord = {
+export type CacheRecord = {
   key: string;
   sets: CachedSet[];
 };
@@ -61,7 +61,15 @@ export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedTh
       database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key),
     );
     if (!record?.sets.length) return null;
+    return await restoreSeedThreeBranchCardRecord(record);
+  } catch (error) {
+    console.warn('[SeedThree] persisted branch-card cache could not be restored:', error);
+    return null;
+  }
+}
 
+/** Hydrates shipped and browser-cached records through the same material path. */
+export async function restoreSeedThreeBranchCardRecord(record: CacheRecord): Promise<SeedThreeBranchCards | null> {
     const restoredSets = await Promise.all(record.sets.map(async (cachedSet) => {
       const centerUniform = uniform(new THREE.Vector3()) as unknown as { value: THREE.Vector3 };
       // Every cached atlas is immutable. Decode all variants together instead
@@ -97,10 +105,6 @@ export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedTh
     const near = [...byLevel.values()][0];
     if (!near) return null;
     return { byLevel, variants: near.variants, centerUniform: near.centerUniform };
-  } catch (error) {
-    console.warn('[SeedThree] persisted branch-card cache could not be restored:', error);
-    return null;
-  }
 }
 
 export async function writeSeedThreeBranchCards(
@@ -205,7 +209,8 @@ function restoreIndex(values: CachedVariant['indices']): Uint16Array | Uint32Arr
 }
 
 async function textureFromBlob(blob: Blob, srgb: boolean): Promise<THREE.Texture> {
-  const bitmap = await createImageBitmap(blob);
+  // Albedo and data channels retain the baker's exact unpremultiplied bytes.
+  const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none',colorSpaceConversion: 'none' });
   const result = new THREE.Texture(bitmap);
   result.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   result.anisotropy = 8;

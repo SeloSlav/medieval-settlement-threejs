@@ -1,7 +1,7 @@
 //! Persistent realm admission and server-owned exploration. Production has no bot reducer.
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use spacetimedb::{Identity, ReducerContext, ViewContext};
+use spacetimedb::{Identity, Query, ReducerContext, ViewContext};
 use crate::db::*;
 use crate::realm_policy::*;
 
@@ -130,8 +130,8 @@ fn scout_roads_empty() -> crate::roads::RoadNetwork {
 }
 
 #[spacetimedb::view(accessor = my_realm_scout, public, primary_key = settlement_id)]
-pub fn my_realm_scout(ctx: &ViewContext) -> Vec<RealmScout> {
-    ctx.db.realm_scout().owner().filter(ctx.sender()).collect()
+pub fn my_realm_scout(ctx: &ViewContext) -> impl Query<RealmScout> {
+    ctx.from.realm_scout().r#where(|row| row.owner.eq(ctx.sender()))
 }
 
 #[spacetimedb::reducer]
@@ -276,10 +276,9 @@ pub struct RealmEntity {
 
 #[spacetimedb::view(accessor = visible_realm_entity, public, primary_key = id)]
 pub fn visible_realm_entity(ctx: &ViewContext) -> Vec<RealmEntity> {
-    let fog: BTreeMap<_, _> = ctx.db.realm_fog().owner().filter(ctx.sender()).map(|f| (f.chunk, f.visible)).collect();
-    interested_chunks(ctx).into_iter().flat_map(|chunk| ctx.db.realm_entity().chunk().filter(chunk))
-        .filter(|entity| entity.owner != ctx.sender() && fog_bit(entity.x, entity.z)
-            .is_some_and(|(chunk, bit)| fog.get(&chunk).is_some_and(|mask| mask & bit != 0))).collect()
+    let visibility = view_visibility(ctx);
+    visibility.chunks().flat_map(|chunk| ctx.db.realm_entity().chunk().filter(chunk))
+        .filter(|entity| entity.owner != ctx.sender() && visibility.contains(entity.x, entity.z)).collect()
 }
 
 pub fn refresh_entities(ctx: &ReducerContext) {
@@ -326,13 +325,13 @@ fn refresh_entities_inner(ctx: &ReducerContext, include_static: bool) {
 }
 
 #[spacetimedb::view(accessor = my_realm_member, public, primary_key = owner)]
-pub fn my_realm_member(ctx: &ViewContext) -> Option<RealmMember> {
-    ctx.db.realm_member().owner().find(ctx.sender())
+pub fn my_realm_member(ctx: &ViewContext) -> impl Query<RealmMember> {
+    ctx.from.realm_member().r#where(|row| row.owner.eq(ctx.sender()))
 }
 
 #[spacetimedb::view(accessor = my_realm_fog, public, primary_key = id)]
-pub fn my_realm_fog(ctx: &ViewContext) -> Vec<RealmFog> {
-    ctx.db.realm_fog().owner().filter(ctx.sender()).collect()
+pub fn my_realm_fog(ctx: &ViewContext) -> impl Query<RealmFog> {
+    ctx.from.realm_fog().r#where(|row| row.owner.eq(ctx.sender()))
 }
 
 /// Fixed-size camera interest affects replication only, never exploration.
@@ -429,20 +428,40 @@ fn refresh_owner_fog(ctx: &ReducerContext, owner: Identity) {
     }
 }
 
-pub fn visible_to(ctx: &ViewContext, x: f64, z: f64) -> bool {
-    if !ENABLED { return true; }
-    let Some((chunk, bit)) = fog_bit(x, z) else { return false; };
-    ctx.db.realm_fog().id().find(format!("{}:{chunk}", ctx.sender()))
-        .is_some_and(|fog| fog.visible & bit != 0)
+/// One view evaluation uses one identity-scoped fog snapshot. This cache is
+/// local to the call, so another player's view or a later fog update cannot
+/// reuse it. Resource rows no longer deserialize a fog row per tree or node.
+#[derive(Default)]
+pub(crate) struct ViewVisibility {
+    chunks: Vec<u32>,
+    visible: BTreeMap<u32, u64>,
 }
 
-/// Interest is bounded to 9x9 chunks. Only explored chunks can replicate resources.
-pub fn interested_chunks(ctx: &ViewContext) -> Vec<u32> {
-    let Some(interest) = ctx.db.realm_interest().owner().find(ctx.sender()) else { return vec![]; };
-    let cx = (interest.chunk % CHUNKS_PER_SIDE) as i32;
-    let cz = (interest.chunk / CHUNKS_PER_SIDE) as i32;
-    ctx.db.realm_fog().owner().filter(ctx.sender()).filter(|f| f.explored != 0
-        && ((f.chunk % CHUNKS_PER_SIDE) as i32 - cx).abs() <= 4
-        && ((f.chunk / CHUNKS_PER_SIDE) as i32 - cz).abs() <= 4)
-        .map(|f| f.chunk).collect()
+impl ViewVisibility {
+    pub fn chunks(&self) -> impl Iterator<Item = u32> + '_ {
+        self.chunks.iter().copied()
+    }
+
+    pub fn contains(&self, x: f64, z: f64) -> bool {
+        if !ENABLED { return true; }
+        fog_bit(x, z).is_some_and(|(chunk, bit)|
+            self.visible.get(&chunk).is_some_and(|mask| mask & bit != 0))
+    }
+}
+
+pub(crate) fn view_visibility(ctx: &ViewContext) -> ViewVisibility {
+    if !ENABLED { return ViewVisibility::default(); }
+    let camera = ctx.db.realm_interest().owner().find(ctx.sender()).map(|interest|
+        ((interest.chunk % CHUNKS_PER_SIDE) as i32, (interest.chunk / CHUNKS_PER_SIDE) as i32));
+    let mut visibility = ViewVisibility::default();
+    for fog in ctx.db.realm_fog().owner().filter(ctx.sender()) {
+        if fog.visible != 0 { visibility.visible.insert(fog.chunk, fog.visible); }
+        if fog.explored != 0 && camera.is_some_and(|(cx, cz)|
+            ((fog.chunk % CHUNKS_PER_SIDE) as i32 - cx).abs() <= 4
+            && ((fog.chunk / CHUNKS_PER_SIDE) as i32 - cz).abs() <= 4)
+        {
+            visibility.chunks.push(fog.chunk);
+        }
+    }
+    visibility
 }

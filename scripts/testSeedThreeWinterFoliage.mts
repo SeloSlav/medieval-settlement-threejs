@@ -6,6 +6,7 @@ import {
   BRANCH_CARD_BAKE_REVISION,
   BRANCH_CARD_COVERAGE_CONTENT_REVISION,
   branchCardCoverageRngSeed,
+  buildCardFoliage,
   forestCardMaterial,
   planBranchCardCoverage,
   planBranchCardCrownUnderlay,
@@ -13,6 +14,7 @@ import {
   setForestCardSnowCoverage,
   setForestCardSeason,
 } from '../vendor/seedthree/src/core/branch-cards.js';
+import { Rng } from '../vendor/seedthree/src/core/rng.js';
 import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
 import {
   SEEDTHREE_CROWN_UNDERLAY_MODE,
@@ -63,7 +65,7 @@ assert.equal(gorskiKotarSpeciesIsDeciduous('larch'), true, 'European larch must 
 assert.equal(gorskiKotarSpeciesIsDeciduous('silverFir'), false, 'silver fir sharing the proxy must stay evergreen');
 assert.equal(gorskiKotarSpeciesIsDeciduous('norwaySpruce'), false, 'spruce must stay evergreen');
 assert.deepEqual(autumnFoliageColorForPreset('redMaple'), [0.95, 0.18, 0.04]);
-assert.equal(BRANCH_CARD_BAKE_REVISION, 5);
+assert.equal(BRANCH_CARD_BAKE_REVISION, 6);
 assert.equal(
   BRANCH_CARD_COVERAGE_CONTENT_REVISION,
   4,
@@ -544,11 +546,31 @@ assert.match(
   /createSeedThreeOverviewFadeMaterial\(\s*baseForestMaterial,\s*options\.seasonalDeciduous === true[\s\S]*options\.overviewCards === true[\s\S]*applySeedThreeWholeCardDormancy\(fmat\)/,
   'both crown underlays and zoomed-out overview cards must use stable clustered dormancy',
 );
-assert.match(
-  forkSource,
-  /const radialPlanes = geometryRadialPlanes\(variant\.geometry\);[\s\S]*const copies = opts\.crossed && radialPlanes < 2 \? 2 : 1;[\s\S]*new InstancedMesh\(variant\.geometry, variant\.material, list\.length \* copies\)/,
-  'two-plane cards must remain one instanced mesh entry instead of multiplying runtime instances or draws',
-);
+const crossedGeometry = new THREE.BufferGeometry();
+crossedGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+  -1, 0, 0, 1, 0, 0, 1, 2, 0, -1, 2, 0,
+  0, 0, -1, 0, 0, 1, 0, 2, 1, 0, 2, -1,
+], 3));
+crossedGeometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+for (const name of ['aWindVec', 'aAnchorPos']) {
+  crossedGeometry.setAttribute(name, new THREE.InstancedBufferAttribute(new Float32Array(12), 3));
+}
+crossedGeometry.setAttribute('aThickness', new THREE.InstancedBufferAttribute(new Float32Array(4).fill(1), 1));
+const crossedMaterial = new THREE.MeshBasicMaterial();
+const crossedStems = Array.from({ length: 3 }, (_, id) => ({
+  id, points: [new THREE.Vector3(id * 3, 0, 0), new THREE.Vector3(id * 3, 2, 0)], winds: [0.4, 0.7],
+}));
+const crossedCards = buildCardFoliage(crossedStems, {
+  variants: [{ geometry: crossedGeometry, material: crossedMaterial, chordLen: 2 }],
+  centerUniform: { value: new THREE.Vector3() },
+}, new Rng('two-plane-cards'), { crossed: true, growScale: 1 });
+assert.equal(crossedCards.children.length, 1, 'two-plane cards remain one draw');
+assert.equal(crossedCards.children[0].count, crossedStems.length,
+  'crossed placement must not duplicate instances when each card already owns two planes');
+assert.equal(crossedCards.children[0].geometry.index.count / 3, 4, 'both authored planes remain present');
+crossedCards.children[0].dispose();
+crossedGeometry.dispose();
+crossedMaterial.dispose();
 assert.match(
   cardAdapterSource,
   /planBranchCardCrownUnderlay\(species\.foliage, 1\)[\s\S]*key: '0:underlay'[\s\S]*preserveFoliageLayout: true/,

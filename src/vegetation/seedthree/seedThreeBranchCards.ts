@@ -10,8 +10,10 @@ import {
 import type { SeedThreeSpeciesAssets, SeedThreeSpeciesPreset } from './seedThreeAssets.ts';
 import {
   readSeedThreeBranchCards,
+  restoreSeedThreeBranchCardRecord,
   writeSeedThreeBranchCards,
 } from './seedThreeBranchCardCache.ts';
+import { readBakedSeedThreeBranchCardRecord } from './seedThreeBakedBranchCards.ts';
 import { SEEDTHREE_BRANCH_CARD_BAKE_REVISION } from './seedThreeBranchCardPolicy.ts';
 
 export type SeedThreeBranchCards = {
@@ -28,7 +30,7 @@ export type SeedThreeBranchCardBuildOptions = {
 export type SeedThreeBranchCardStartupTiming = {
   key: string;
   species: string;
-  source: 'memory' | 'persistent' | 'baked' | 'unavailable';
+  source: 'memory' | 'persistent' | 'asset' | 'baked' | 'unavailable';
   restoreMs: number;
   bakeMs: number;
   totalMs: number;
@@ -95,7 +97,7 @@ export async function ensureSeedThreeBranchCards(
     startupTimings.set(key, {
       key,
       species: species.name,
-      source: prior?.source === 'persistent' ? 'persistent' : 'memory',
+      source: prior?.source === 'persistent' || prior?.source === 'asset' ? prior.source : 'memory',
       restoreMs: prior?.restoreMs ?? 0,
       bakeMs: prior?.bakeMs ?? 0,
       totalMs: prior?.totalMs ?? 0,
@@ -306,12 +308,24 @@ async function restoreSeedThreeBranchCards(
   const startedAt = performance.now();
   const requestGeneration = cardCacheGeneration;
   const request = (async () => {
-    // A previous world may have queued this exact immutable key immediately
-    // before disposal. Let that durable snapshot land before deciding the new
-    // world has a cache miss and starting a redundant GPU bake.
+    // Shipped content is the current recipe. Browser-generated snapshots are
+    // used only when that asset is absent/unavailable (for example, authoring).
+    const baked = await readBakedSeedThreeBranchCardRecord(key);
+    if (baked) {
+      try {
+        const cards = await restoreSeedThreeBranchCardRecord(baked);
+        if (cards) return { cards,source: 'asset' as const };
+      } catch (error) {
+        console.warn('[SeedThree] baked branch-card textures could not be decoded:',error);
+      }
+    }
+    // Wait for an exact-key snapshot queued by a disposing authoring world
+    // before declaring a miss and starting another renderer-exclusive bake.
     await persistenceJobsByKey.get(key);
-    return readSeedThreeBranchCards(key);
-  })().then((persisted) => {
+    const persisted = await readSeedThreeBranchCards(key);
+    return persisted ? { cards: persisted,source: 'persistent' as const } : null;
+  })().then((restored) => {
+    const persisted = restored?.cards ?? null;
     if (requestGeneration !== cardCacheGeneration) {
       if (persisted) disposeBranchCards(persisted);
       return null;
@@ -323,7 +337,7 @@ async function restoreSeedThreeBranchCards(
       startupTimings.set(key, {
         key,
         species: speciesName,
-        source: 'persistent',
+        source: restored!.source,
         restoreMs: durationMs,
         bakeMs: 0,
         totalMs: durationMs,

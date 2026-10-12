@@ -116,7 +116,7 @@ const rustTables = parseRustTables(`${readFileSync(rustTablesPath, 'utf8')}\n${r
 const structs = new Map([...rustTables.values()].map(table => [table.structName, table]));
 const publicRows = new Map([...rustTables].filter(([, table]) => table.public));
 const viewsSource = `${readFileSync(`${workspaceRoot}server/src/client_views.rs`, 'utf8')}\n${realmSource}`;
-for (const view of viewsSource.matchAll(/#\[spacetimedb::view\(accessor\s*=\s*(\w+),\s*public[^\]]*\)\]\s*pub fn \w+\(ctx: &ViewContext\) -> (?:Vec|Option)<(\w+)>/g)) {
+for (const view of viewsSource.matchAll(/#\[spacetimedb::view\(accessor\s*=\s*(\w+),\s*public[^\]]*\)\]\s*pub fn \w+\(ctx: &ViewContext\) -> (?:Vec|Option|impl Query)<(\w+)>/g)) {
   const row = structs.get(view[2]);
   assert.ok(row, `view ${view[1]} has an unknown row type ${view[2]}`);
   publicRows.set(view[1], row);

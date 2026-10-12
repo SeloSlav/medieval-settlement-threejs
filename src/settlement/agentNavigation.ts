@@ -29,6 +29,7 @@ type SearchNode = GridPoint & {
 };
 
 export type AgentObstacleTest = (x: number, z: number) => boolean;
+export type AgentSegmentTest = (start: PointXZ, end: PointXZ) => boolean;
 export type AgentFootprintObstacleTest = (
   x: number,
   z: number,
@@ -92,8 +93,9 @@ export function routeAgentPolylineWithDeferredObstacle(
   isPrimaryBlocked: AgentObstacleTest,
   isDeferredBlocked: AgentObstacleTest,
   mayDeferredObstacleAffectPath?: (path: readonly PointXZ[]) => boolean,
+  isPrimarySegmentClear?: AgentSegmentTest,
 ): PointXZ[] | null {
-  const primaryRoute = routeAgentPolyline(path, isPrimaryBlocked);
+  const primaryRoute = routeAgentPolyline(path, isPrimaryBlocked, isPrimarySegmentClear);
   if (
     !primaryRoute
     || (mayDeferredObstacleAffectPath
@@ -105,6 +107,10 @@ export function routeAgentPolylineWithDeferredObstacle(
   return routeAgentPolyline(
     path,
     (x, z) => isPrimaryBlocked(x, z) || isDeferredBlocked(x, z),
+    isPrimarySegmentClear
+      ? (start, end) => isPrimarySegmentClear(start, end)
+        && segmentIsClear(start, end, isDeferredBlocked)
+      : undefined,
   );
 }
 
@@ -128,6 +134,7 @@ export function polylineTouchesObstacle(
 export function routeAgentPolyline(
   path: readonly PointXZ[],
   isBlocked: AgentObstacleTest,
+  isSegmentClear?: AgentSegmentTest,
 ): PointXZ[] | null {
   if (path.length < 2) return path.map(copyPoint);
 
@@ -137,7 +144,7 @@ export function routeAgentPolyline(
     for (let index = 0; index < path.length - 1; index++) {
       const start = path[index];
       const end = path[index + 1];
-      const leg = routeAgentLeg(start, end, isBlocked, workspace);
+      const leg = routeAgentLeg(start, end, isBlocked, workspace, isSegmentClear, !!isSegmentClear);
       if (!leg) return null;
       for (const point of leg) {
         pushDistinct(routed, point);
@@ -154,11 +161,13 @@ function routeAgentLeg(
   end: PointXZ,
   isBlocked: AgentObstacleTest,
   workspace: NavSearchWorkspace,
+  isSegmentClear: AgentSegmentTest = (a, b) => segmentIsClear(a, b, isBlocked),
+  checkGridEdges = false,
 ): PointXZ[] | null {
   if (
     !isBlocked(start.x, start.z)
     && !isBlocked(end.x, end.z)
-    && segmentIsClear(start, end, isBlocked)
+    && isSegmentClear(start, end)
   ) {
     return [copyPoint(start), copyPoint(end)];
   }
@@ -174,6 +183,8 @@ function routeAgentLeg(
       isBlocked,
       padding,
       workspace,
+      isSegmentClear,
+      checkGridEdges,
     );
     if (route) return route;
   }
@@ -186,6 +197,8 @@ function routeAgentLegWithinBounds(
   isBlocked: AgentObstacleTest,
   padding: number,
   workspace: NavSearchWorkspace,
+  isSegmentClear: AgentSegmentTest,
+  checkGridEdges: boolean,
 ): PointXZ[] | null {
   const originX = Math.floor((Math.min(start.x, end.x) - padding) / NAV_GRID_STEP_M)
     * NAV_GRID_STEP_M;
@@ -229,7 +242,7 @@ function routeAgentLegWithinBounds(
     height,
     startBlocked
       ? undefined
-      : (point) => segmentIsClear(start, gridToWorld(point), isBlocked),
+      : (point) => isSegmentClear(start, gridToWorld(point)),
   );
   const gridEnd = nearestOpenGridPoint(
     requestedEnd,
@@ -238,11 +251,11 @@ function routeAgentLegWithinBounds(
     height,
     endBlocked
       ? undefined
-      : (point) => segmentIsClear(end, gridToWorld(point), isBlocked),
+      : (point) => isSegmentClear(end, gridToWorld(point)),
   );
   if (!gridStart || !gridEnd) return null;
 
-  const gridPath = findGridPath(
+  let gridPath = findGridPath(
     gridStart,
     gridEnd,
     gridBlocked,
@@ -252,8 +265,15 @@ function routeAgentLegWithinBounds(
   );
   if (!gridPath) return null;
 
-  const worldPath = gridPath.map(gridToWorld);
-  const smoothed = smoothGridPath(worldPath, isBlocked);
+  let smoothed = smoothGridPath(gridPath.map(gridToWorld), isSegmentClear, checkGridEdges);
+  // Endpoint occupancy suffices for ordinary open grid edges. Only a route
+  // whose final sweep catches a thin barrier needs edge-constrained A*.
+  if (!smoothed && checkGridEdges) {
+    gridPath = findGridPath(gridStart, gridEnd, gridBlocked, width, height, workspace,
+      (a, b) => isSegmentClear(gridToWorld(a), gridToWorld(b)));
+    if (gridPath) smoothed = smoothGridPath(gridPath.map(gridToWorld), isSegmentClear, true);
+  }
+  if (!smoothed) return null;
   const result: PointXZ[] = [startBlocked ? gridToWorld(gridStart) : copyPoint(start)];
   for (const point of smoothed) pushDistinct(result, point);
   pushDistinct(result, endBlocked ? gridToWorld(gridEnd) : end);
@@ -267,6 +287,7 @@ function findGridPath(
   width: number,
   height: number,
   workspace: NavSearchWorkspace,
+  isSegmentClear?: (a: GridPoint, b: GridPoint) => boolean,
 ): GridPoint[] | null {
   const cellCount = width * height;
   const { gScores, parents, closed, open } = workspace.prepareSearch(cellCount);
@@ -303,6 +324,7 @@ function findGridPath(
       if (closed[nextKey]) continue;
       const nextG = current.g + direction.cost;
       if (nextG + 1e-8 >= gScores[nextKey]) continue;
+      if (isSegmentClear && !isSegmentClear(current, { x: nextX, z: nextZ })) continue;
       gScores[nextKey] = nextG;
       parents[nextKey] = current.key;
       open.push(
@@ -355,16 +377,21 @@ function nearestOpenGridPoint(
 
 function smoothGridPath(
   path: readonly PointXZ[],
-  isBlocked: AgentObstacleTest,
-): PointXZ[] {
-  if (path.length <= 2) return path.map(copyPoint);
+  isSegmentClear: AgentSegmentTest,
+  validateAdjacent: boolean,
+): PointXZ[] | null {
+  if (path.length <= 2) {
+    if (validateAdjacent && path.length === 2 && !isSegmentClear(path[0], path[1])) return null;
+    return path.map(copyPoint);
+  }
   const smoothed: PointXZ[] = [copyPoint(path[0])];
   let anchor = 0;
   while (anchor < path.length - 1) {
     let next = path.length - 1;
-    while (next > anchor + 1 && !segmentIsClear(path[anchor], path[next], isBlocked)) {
+    while (next > anchor + 1 && !isSegmentClear(path[anchor], path[next])) {
       next -= 1;
     }
+    if (validateAdjacent && next === anchor + 1 && !isSegmentClear(path[anchor], path[next])) return null;
     smoothed.push(copyPoint(path[next]));
     anchor = next;
   }

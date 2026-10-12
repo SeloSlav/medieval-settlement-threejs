@@ -3,6 +3,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
 const output = process.env.REALM_BROWSER_OUTPUT || 'artifacts/realm-browser';
 const forestBatches = process.env.REALM_BROWSER_FOREST_BATCHES !== '0';
+const uniformUploads = process.env.REALM_BROWSER_UNIFORM_UPLOADS !== '0';
+const navigationSweeps = process.env.REALM_BROWSER_NAVIGATION_SWEEPS !== '0';
+const settleVegetationCache = process.env.REALM_BROWSER_WAIT_FOR_CACHE === '1';
+const frameProfiling = process.env.REALM_BROWSER_FRAME_PROFILE !== '0';
+const staleVegetationCache = process.env.REALM_BROWSER_STALE_CARD_CACHE === '1';
 mkdirSync(output, { recursive: true });
 const { tokens } = JSON.parse(readFileSync('.tmp-realm-test-clients.json', 'utf8'));
 const database = process.env.REALM_TEST_DB || 'city-builder-realm-loadtest';
@@ -30,9 +35,29 @@ page.on('console', message => { if (message.type() === 'error') { errors.push(me
 await context.addInitScript(({ token, database }) => {
   localStorage.setItem(`medieval-road-system:spacetime-token:${database}`, token);
 }, { token: tokens[0], database });
+if (staleVegetationCache) {
+  const catalogSource = readFileSync('src/vegetation/seedthree/seedThreeBakedBranchCardCatalog.ts','utf8');
+  const catalog = JSON.parse(catalogSource.match(/= (\{[\s\S]*\});/)?.[1] || '{}');
+  if (Object.keys(catalog).length !== 7) throw Error('Stale-cache fixture requires the production baked catalog');
+  await context.addInitScript(keys => {
+    window.__realmStaleCardCachePromise = new Promise((resolve,reject) => {
+      const request = indexedDB.open('medieval-road-system-generated-vegetation',1);
+      request.onupgradeneeded = ()=>request.result.createObjectStore('branch-cards',{ keyPath: 'key' });
+      request.onerror = ()=>reject(request.error);
+      request.onsuccess = ()=>{
+        const db = request.result,transaction = db.transaction('branch-cards','readwrite');
+        for (const key of keys) transaction.objectStore('branch-cards').put({ key,
+          sets: [{ key: '2:fol',foliageOnly: true,noFlutter: false,variants: [] }] });
+        transaction.oncomplete = ()=>{ db.close(); resolve(); };
+        transaction.onerror = ()=>reject(transaction.error);
+      };
+    });
+  },Object.keys(catalog));
+}
 await page.route('**/src/main.ts*', async route => {
   const response = await route.fetch();
-  await route.fulfill({ response, body: (await response.text()).replace('const app = new App(root);', 'const app = new App(root); window.__realmApp = app;') });
+  await route.fulfill({ response, body: (await response.text()).replace('const app = new App(root);',
+    'await (window.__realmStaleCardCachePromise || Promise.resolve()); const app = new App(root); window.__realmApp = app;') });
 });
 if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*', async route => {
   const response = await route.fetch(), source = await response.text();
@@ -40,15 +65,30 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
   if (!source.includes(registration)) throw Error('Forest reference route no longer matches the production registration');
   await route.fulfill({ response, body: source.replace(registration, '') });
 });
+if (!uniformUploads) await page.route('**/src/scene/RendererBackend.ts*', async route => {
+  const response = await route.fetch(), source = await response.text();
+  const installation = 'installUniformUploadCoalescing(renderer);';
+  if (!source.includes(installation)) throw Error('Uniform upload reference route no longer matches production');
+  await route.fulfill({ response, body: source.replace(installation, '') });
+});
+if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*', async route => {
+  const response = await route.fetch(), source = await response.text();
+  const binding = 'const isStaticSegmentClear =';
+  const invocation = 'const route = !isNavigationBlocked ?';
+  if (!source.includes(binding) || !source.includes(invocation)) throw Error('Navigation reference no longer matches production');
+  await route.fulfill({ response, body: source.replace(binding, 'const unusedStaticSegmentClear =')
+    .replace(invocation, `const isStaticSegmentClear = undefined; ${invocation}`) });
+});
   const address = new URL(process.env.REALM_BROWSER_URL || 'http://127.0.0.1:5190/');
   if (!['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw Error('Local browser test only');
-  address.searchParams.set('mode', 'multiplayer'); address.searchParams.set('visualProfile', '1');
+  address.searchParams.set('mode', 'multiplayer'); address.searchParams.set('visualProfile', frameProfiling ? '1' : '0');
   await page.goto(address.href, { timeout: 120_000 });
   for (let i = 0; i < 90; i++) {
     const state = await page.evaluate(() => ({
       loading: document.querySelector('[data-loading-label]')?.textContent,
       detail: document.querySelector('[data-loading-detail]')?.textContent,
-      ready: !!window.__visualPerf,
+      ready: !!window.__visualPerf || (window.__medievalRoadStats?.frames > 10
+        && (!document.getElementById('app-loading') || !!document.querySelector('#app-loading.is-dismissed'))),
     }));
     if (i % 5 === 0) console.log('Startup', JSON.stringify(state));
     if (state.ready) break;
@@ -65,6 +105,15 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
       && forest?.resident > 0 && forest.loading === 0 && forest.queued === 0;
   }, undefined, { timeout: 120000 });
   await page.waitForTimeout(5000);
+  const vegetationCache = await page.evaluate(async settle => {
+    const cache = await import('/src/vegetation/seedthree/seedThreeBranchCards.ts');
+    const started = performance.now();
+    if (settle) await cache.waitForSeedThreeBranchCardPersistence();
+    return { settledBeforeCohort: settle, waitMs: performance.now()-started,
+      timings: cache.getSeedThreeBranchCardStartupTimings() };
+  }, settleVegetationCache);
+  if (vegetationCache.timings.length !== 7 || vegetationCache.timings.some(t=>t.source!=='asset' || t.persistenceQueued))
+    throw Error('Production forest did not use shipped atlases without background persistence');
   const berryDraws = await page.evaluate(() => {
     const root = window.__realmApp.sceneManager.getBerryPatchRoot();
     const sources = [], draws = [];
@@ -80,12 +129,12 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
     throw Error(`Late-loaded world berry instances were not compacted: ${JSON.stringify(berryDraws)}`);
   }
   await page.evaluate(() => {
-    window.__visualPerf.deferDomPublicationUntilReady();
-    window.__visualPerf.restartTrace();
+    window.__visualPerf?.deferDomPublicationUntilReady();
+    window.__visualPerf?.restartTrace();
   });
   const report = await page.evaluate(async () => {
     const app = window.__realmApp;
-    if (!app?.sceneManager || !window.__visualPerf) throw new Error('Realm presentation did not become ready');
+    if (!app?.sceneManager) throw new Error('Realm presentation did not become ready');
     const samples = [];
     let previous = performance.now();
     await new Promise(resolve => {
@@ -111,11 +160,12 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
       })(),
       stats: window.__medievalRoadStats, buildings: app.gameState.buildings.size,
       meshes: meshes.sort((a, b) => b.triangles - a.triangles).slice(0, 25),
-      profile: window.__visualPerf.getReport(),
+      profile: window.__visualPerf?.getReport() ?? null,
       profileStatus: document.documentElement.dataset.visualProfileStatus,
       profileIntegrityError: document.documentElement.dataset.visualProfileIntegrityError,
       camera: app.cameraController.getTargetPosition().toArray() };
   });
+  if (frameProfiling) {
   await page.waitForFunction(() => window.__visualPerf.getReport()?.status === 'ready'
     || document.documentElement.dataset.visualProfileIntegrityError, undefined, { timeout: 90000 });
   const completedProfile = await page.evaluate(() => ({ profile: window.__visualPerf.getReport(),
@@ -124,19 +174,66 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
   if (completedProfile.profile?.status !== 'ready' || completedProfile.profileIntegrityError) {
     throw Error(`The performance cohort did not pass integrity checks: ${completedProfile.profileIntegrityError}`);
   }
-  if (load.exitCode !== null) throw Error('Computer load exited before the measured cohort finished');
   Object.assign(report, completedProfile);
+  }
+  if (load.exitCode !== null) throw Error('Computer load exited before the measured cohort finished');
   report.berryDraws = berryDraws;
   report.clients = loadClients + 1;
   report.forestBatchesEnabled = forestBatches;
+  report.uniformUploadsCoalesced = uniformUploads;
   report.terrainBuffers = await page.evaluate(() => window.__realmApp.realmPresentation.terrainStream.stats);
   report.frameBudget = { targetMs: 1000 / 60, passed: report.p95Ms <= 1000 / 60,
     criterion: '95% of measured frame intervals at or below 16.67 ms' };
+  report.navigationSweeps = navigationSweeps;
+  report.vegetationCache = vegetationCache;
+  report.frameProfiling = frameProfiling;
+  report.staleVegetationCache = staleVegetationCache;
   writeFileSync(`${output}/report.json`, JSON.stringify({ ...report, errors }, null, 2));
   console.log(JSON.stringify({ ...report, errors }, null, 2));
   await page.evaluate(() => {
     const scene = window.__realmApp.sceneManager.scene;
     const renderer = window.__realmApp.sceneManager.renderer;
+    const collision = window.__realmApp.firstPersonController?.config.collisionWorld;
+    if (!collision) throw Error('Crowd collision world unavailable for navigation diagnostics');
+    const navigate = collision.routeAgentPath;
+    const navigation = { calls: 0, ms: 0, longestMs: 0, groups: [] };
+    let group;
+    collision.routeAgentPath = function(path, radius = 0.28) {
+      const dirty = this.staticDirty;
+      const start = performance.now();
+      const result = navigate.call(this,path,radius);
+      const duration = performance.now()-start;
+      navigation.calls++; navigation.ms += duration; navigation.longestMs = Math.max(navigation.longestMs,duration);
+      if (navigation.calls <= 160 && (!group || dirty)) {
+        group = { colliders: [...this.staticIndex.colliders], routes: [] }; navigation.groups.push(group);
+      }
+      if (navigation.calls <= 160) group.routes.push({ path: path.map(p => ({ x: p.x, z: p.z })), radius });
+      return result;
+    };
+    window.__realmFinishNavigation = () => { collision.routeAgentPath = navigate; return navigation; };
+    const backend = renderer.backend, queue = backend.device.queue;
+    const uniformCosts = window.__realmUniformCosts = { updates: 0, nativeWrites: 0, actualWrites: 0, ms: 0 };
+    const updateBinding = backend.updateBinding, writeBuffer = queue.writeBuffer;
+    let inUniformUpload = false;
+    backend.updateBinding = function(binding) {
+      const uniform = binding.isUniformBuffer && binding.isUniformsGroup;
+      if (!uniform) return updateBinding.call(this,binding);
+      uniformCosts.updates++;
+      const ranges = binding.updateRanges;
+      uniformCosts.nativeWrites += ranges.length ? ranges.reduce((count,range,index) =>
+        count + Number(index === ranges.length-1 || range.start + range.count !== ranges[index+1].start),0) : 1;
+      const start = performance.now(); inUniformUpload = true;
+      try { return updateBinding.call(this,binding); }
+      finally { inUniformUpload = false; uniformCosts.ms += performance.now()-start; }
+    };
+    queue.writeBuffer = function(...args) {
+      if (inUniformUpload) uniformCosts.actualWrites++;
+      return writeBuffer.apply(this,args);
+    };
+    window.__realmFinishUniformCosts = () => {
+      backend.updateBinding = updateBinding; queue.writeBuffer = writeBuffer;
+      return uniformCosts;
+    };
     const drawCosts = window.__realmDrawCosts = new Map();
     const draw = renderer._renderObjectDirect;
     renderer._renderObjectDirect = function(object, ...args) {
@@ -164,6 +261,13 @@ if (!forestBatches) await page.route('**/src/multiplayer/RealmForestStream.ts*',
   await profiler.send('Profiler.enable'); await profiler.send('Profiler.start');
   await page.waitForTimeout(12000);
   const { profile } = await profiler.send('Profiler.stop');
+  const uniformCosts = await page.evaluate(() => window.__realmFinishUniformCosts());
+  const navigationCosts = await page.evaluate(() => window.__realmFinishNavigation());
+  writeFileSync(`${output}/navigation-workload.json`, JSON.stringify(navigationCosts));
+  console.log('Navigation',JSON.stringify({ calls: navigationCosts.calls, ms: navigationCosts.ms,
+    longestMs: navigationCosts.longestMs, groups: navigationCosts.groups.length }));
+  writeFileSync(`${output}/uniform-costs.json`,JSON.stringify(uniformCosts,null,2));
+  console.log('Uniform uploads',JSON.stringify(uniformCosts));
   writeFileSync(`${output}/cpu.cpuprofile`, JSON.stringify(profile));
   const counts = new Map();
   for (const id of profile.samples || []) counts.set(id, (counts.get(id) || 0) + 1);

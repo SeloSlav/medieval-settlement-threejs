@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { FireLighting } from '../fires/FireLighting.ts';
 import { installStaticRenderBundlePreparation } from './StaticRenderBundle.ts';
+import { installUniformUploadCoalescing } from './UniformUploadCoalescing.ts';
 
 type WebGPUPowerPreference = 'low-power' | 'high-performance';
 
@@ -199,6 +200,7 @@ export async function createPreferredRenderer(
     if (!isNativeWebGPU(renderer)) {
       throw new Error('Three.js initialized a non-WebGPU renderer backend.');
     }
+    installUniformUploadCoalescing(renderer);
 
     return {
       adapterEvidence: webGPU.adapterEvidence,

@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict';
+import { chromium } from '@playwright/test';
+import { createServer } from 'vite';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { packSeedThreeBranchCards } from './packSeedThreeBranchCards.mjs';
+
+const server = await createServer({ server: { host: '127.0.0.1', port: 0, hmr: false } });
+await server.listen();
+let browser;
+try {
+  browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : undefined,
+    headless: true, args: ['--enable-unsafe-webgpu'] });
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  // The generator must use a fresh native bake, even after assets are shipped.
+  await page.route('**/seedThreeBakedBranchCardCatalog.ts*', route => route.fulfill({
+    contentType: 'text/javascript', body: 'export const BAKED_BRANCH_CARD_ASSETS = {};',
+  }));
+  await page.route('**/branch-card-asset-bake?*', route => route.fulfill({
+    contentType: 'text/html', body: '<html><body></body></html>',
+  }));
+  await page.goto(new URL('branch-card-asset-bake?mode=multiplayer', server.resolvedUrls.local[0]).href);
+  const count = await page.evaluate(async () => {
+    const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
+    const { createSeedThreeForest, createSeedThreeForestController } = await import('/src/vegetation/seedthree/seedThreeForestBuilder.ts');
+    const { waitForSeedThreeBranchCardPersistence } = await import('/src/vegetation/seedthree/seedThreeBranchCards.ts');
+    const { renderer } = await createPreferredRenderer();
+    renderer.setSize(64,64);
+    const forest = await createSeedThreeForest([
+      'beech','sessileOak','sycamoreMaple','ash','silverFir','norwaySpruce','scotsPine',
+    ].map((species,index)=>({ x: index*30, z: 0, species, form: 'broad', scale: 1 })),
+    { generationSize: 12288, getHeightAt: ()=>0 },4,4193,renderer);
+    await waitForSeedThreeBranchCardPersistence();
+    const database = await new Promise((resolve,reject) => {
+      const request = indexedDB.open('medieval-road-system-generated-vegetation',1);
+      request.onsuccess = ()=>resolve(request.result); request.onerror = ()=>reject(request.error);
+    });
+    const records = await new Promise((resolve,reject) => {
+      const request = database.transaction('branch-cards','readonly').objectStore('branch-cards').getAll();
+      request.onsuccess = ()=>resolve(request.result); request.onerror = ()=>reject(request.error);
+    });
+    database.close();
+    window.__bakedBranchCardRecords = records;
+    createSeedThreeForestController(forest).dispose(); renderer.dispose();
+    return records.length;
+  });
+  assert.equal(count,7,'all seven production forest presets must have a baked record');
+  const catalog = {}, report = [];
+  for (let index=0; index<count; index++) {
+    const record = await page.evaluate(async index => {
+      const record = window.__bakedBranchCardRecords[index];
+      const encode = bytes => {
+        let binary = '';
+        for (let i=0; i<bytes.length; i+=16384) binary += String.fromCharCode(...bytes.subarray(i,i+16384));
+        return btoa(binary);
+      };
+      return { key: record.key, sets: await Promise.all(record.sets.map(async set => ({
+        key: set.key, foliageOnly: set.foliageOnly, noFlutter: set.noFlutter,
+        variants: await Promise.all(set.variants.map(async variant => ({
+          chordLen: variant.chordLen,
+          attributes: Object.fromEntries(Object.entries(variant.attributes).map(([name,attribute])=>[name,{
+            ...attribute, values: encode(new Uint8Array(attribute.values.buffer,
+              attribute.values.byteOffset,attribute.values.byteLength)),
+          }])),
+          indices: { type: variant.indices instanceof Uint32Array ? 'u32' : 'u16',
+            values: encode(new Uint8Array(variant.indices.buffer,variant.indices.byteOffset,variant.indices.byteLength)) },
+          textures: Object.fromEntries(await Promise.all(Object.entries(variant.textures).map(async ([channel,blob])=>
+            [channel,encode(new Uint8Array(await blob.arrayBuffer()))]))),
+        }))),
+      }))) };
+    },index);
+    const packed = packSeedThreeBranchCards(record);
+    const directory = resolve('public/assets/vegetation/branch-cards',packed.digest);
+    mkdirSync(directory,{ recursive: true });
+    for (const file of packed.files) writeFileSync(resolve(directory,file.name),file.bytes);
+    catalog[packed.key] = `/assets/vegetation/branch-cards/${packed.digest}`;
+    report.push({ key: packed.key, files: packed.files.length, bytes: packed.byteLength });
+    console.log('Packed preset',JSON.stringify(report.at(-1)));
+  }
+  assert.deepEqual(errors,[]);
+  writeFileSync('src/vegetation/seedthree/seedThreeBakedBranchCardCatalog.ts',
+    `// Generated by scripts/generateSeedThreeBranchCardAssets.mjs.\nexport const BAKED_BRANCH_CARD_ASSETS: Readonly<Record<string,string>> = ${JSON.stringify(catalog,null,2)};\n`);
+  mkdirSync('artifacts/vegetation',{ recursive: true });
+  writeFileSync('artifacts/vegetation/baked-branch-cards.json',JSON.stringify(report,null,2));
+} finally {
+  await browser?.close(); await server.close();
+}

@@ -161,13 +161,16 @@ export class FpCollisionWorld {
       this.staticIndex.diskOverlaps(x, z, radius);
     const isNavigationBlocked = this.config.isAgentNavigationBlocked;
     const mayNavigationPathBeBlocked = this.config.mayAgentNavigationPathBeBlocked;
-    const route = !isNavigationBlocked ? routeAgentPolyline(path, isStaticBlocked) : routeAgentPolylineWithDeferredObstacle(
+    const isStaticSegmentClear = (start: PointXZ, end: PointXZ): boolean =>
+      this.staticIndex.segmentIsClear(start, end, radius);
+    const route = !isNavigationBlocked ? routeAgentPolyline(path, isStaticBlocked, isStaticSegmentClear) : routeAgentPolylineWithDeferredObstacle(
       path,
       isStaticBlocked,
       (x, z) => isNavigationBlocked(x, z, radius),
       mayNavigationPathBeBlocked
         ? (candidate) => mayNavigationPathBeBlocked(candidate, radius)
         : undefined,
+      isStaticSegmentClear,
     );
     if (canCache) {
       if (this.agentRoutes.size >= MAX_AGENT_ROUTE_CACHE) this.agentRoutes.delete(this.agentRoutes.keys().next().value!);
@@ -401,15 +404,19 @@ function copyAgentRoute(route: readonly PointXZ[] | null): PointXZ[] | null {
   return route?.map(point => ({ x: point.x, z: point.z })) ?? null;
 }
 
-class StaticColliderIndex {
+export class StaticColliderIndex {
   private readonly cells = new Map<number, Map<number, FpCollider[]>>();
   private readonly querySeen = new Set<FpCollider>();
+  private readonly colliders = new Set<FpCollider>();
 
   clear(): void {
     this.cells.clear();
+    this.colliders.clear();
+    this.querySeen.clear();
   }
 
   add(collider: FpCollider): void {
+    this.colliders.add(collider);
     const bounds = colliderBoundsXZ(collider);
     const minCellX = Math.floor(bounds.minX / STATIC_CELL_SIZE_M);
     const maxCellX = Math.floor(bounds.maxX / STATIC_CELL_SIZE_M);
@@ -470,6 +477,63 @@ class StaticColliderIndex {
       }
     }
     return false;
+  }
+
+  /** Sweeps the whole body through indexed cells, including thin fence contact. */
+  segmentIsClear(start: PointXZ, end: PointXZ, radius: number): boolean {
+    if (!Number.isFinite(start.x) || !Number.isFinite(start.z)
+      || !Number.isFinite(end.x) || !Number.isFinite(end.z)
+      || !Number.isFinite(radius) || radius < 0) return false;
+    if (this.colliders.size === 0) return true;
+    let cellX = Math.floor(start.x / STATIC_CELL_SIZE_M);
+    let cellZ = Math.floor(start.z / STATIC_CELL_SIZE_M);
+    const endCellX = Math.floor(end.x / STATIC_CELL_SIZE_M);
+    const endCellZ = Math.floor(end.z / STATIC_CELL_SIZE_M);
+    const reach = Math.max(1, Math.ceil(radius / STATIC_CELL_SIZE_M));
+    const cellsAlongPath = Math.abs(endCellX - cellX) + Math.abs(endCellZ - cellZ) + 1;
+    // Very long paths or unusually large bodies must not enumerate an enormous grid.
+    if (cellsAlongPath * (2 * reach + 1) ** 2 > this.colliders.size * 4) {
+      for (const collider of this.colliders) {
+        if (agentCapsuleOverlapsCollider(start, end, radius, collider)) return false;
+      }
+      return true;
+    }
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const stepX = Math.sign(dx);
+    const stepZ = Math.sign(dz);
+    const deltaX = dx === 0 ? Infinity : STATIC_CELL_SIZE_M / Math.abs(dx);
+    const deltaZ = dz === 0 ? Infinity : STATIC_CELL_SIZE_M / Math.abs(dz);
+    let nextX = dx === 0 ? Infinity
+      : ((cellX + (stepX > 0 ? 1 : 0)) * STATIC_CELL_SIZE_M - start.x) / dx;
+    let nextZ = dz === 0 ? Infinity
+      : ((cellZ + (stepZ > 0 ? 1 : 0)) * STATIC_CELL_SIZE_M - start.z) / dz;
+    this.querySeen.clear();
+    while (true) {
+      for (let x = cellX - reach; x <= cellX + reach; x++) {
+        const row = this.cells.get(x);
+        if (!row) continue;
+        for (let z = cellZ - reach; z <= cellZ + reach; z++) {
+          const bucket = row.get(z);
+          if (!bucket) continue;
+          for (const collider of bucket) {
+            if (this.querySeen.has(collider)) continue;
+            this.querySeen.add(collider);
+            if (agentCapsuleOverlapsCollider(start, end, radius, collider)) return false;
+          }
+        }
+      }
+      if (cellX === endCellX && cellZ === endCellZ) return true;
+      if (cellX === endCellX) nextX = Infinity;
+      if (cellZ === endCellZ) nextZ = Infinity;
+      if (nextX <= nextZ) {
+        cellX += stepX;
+        nextX += deltaX;
+      } else {
+        cellZ += stepZ;
+        nextZ += deltaZ;
+      }
+    }
   }
 }
 
@@ -770,6 +834,74 @@ function diskOverlapsCollider(
   const closestX = THREE.MathUtils.clamp(localX, -collider.halfX, collider.halfX);
   const closestZ = THREE.MathUtils.clamp(localZ, -collider.halfZ, collider.halfZ);
   return (localX - closestX) ** 2 + (localZ - closestZ) ** 2 <= radius ** 2;
+}
+
+/** Exact 2D capsule against a cylinder or the rounded expansion of a yawed box. */
+export function agentCapsuleOverlapsCollider(
+  start: PointXZ,
+  end: PointXZ,
+  radius: number,
+  collider: FpCollider,
+): boolean {
+  if (collider.shape === 'cylinder') {
+    return segmentPointDistanceSq(start.x, start.z, end.x, end.z, collider.x, collider.z)
+      <= (radius + collider.radius) ** 2;
+  }
+  const cos = collider.cosYaw ?? Math.cos(collider.yaw);
+  const sin = collider.sinYaw ?? Math.sin(collider.yaw);
+  const startDx = start.x - collider.centerX;
+  const startDz = start.z - collider.centerZ;
+  const endDx = end.x - collider.centerX;
+  const endDz = end.z - collider.centerZ;
+  const ax = startDx * cos - startDz * sin;
+  const az = startDx * sin + startDz * cos;
+  const bx = endDx * cos - endDz * sin;
+  const bz = endDx * sin + endDz * cos;
+  const hx = collider.halfX;
+  const hz = collider.halfZ;
+  if (segmentIntersectsRectangle(ax, az, bx, bz, hx + radius, hz)
+    || segmentIntersectsRectangle(ax, az, bx, bz, hx, hz + radius)) return true;
+  const r2 = radius * radius;
+  return segmentPointDistanceSq(ax, az, bx, bz, -hx, -hz) <= r2
+    || segmentPointDistanceSq(ax, az, bx, bz, hx, -hz) <= r2
+    || segmentPointDistanceSq(ax, az, bx, bz, hx, hz) <= r2
+    || segmentPointDistanceSq(ax, az, bx, bz, -hx, hz) <= r2;
+}
+
+function segmentPointDistanceSq(
+  ax: number, az: number, bx: number, bz: number, x: number, z: number,
+): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const lengthSq = dx * dx + dz * dz;
+  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / lengthSq));
+  return (ax + dx * t - x) ** 2 + (az + dz * t - z) ** 2;
+}
+
+function segmentIntersectsRectangle(
+  ax: number, az: number, bx: number, bz: number, halfX: number, halfZ: number,
+): boolean {
+  let enter = 0;
+  let exit = 1;
+  const dx = bx - ax;
+  const dz = bz - az;
+  if (dx === 0) {
+    if (Math.abs(ax) > halfX) return false;
+  } else {
+    const t1 = (-halfX - ax) / dx;
+    const t2 = (halfX - ax) / dx;
+    enter = Math.max(enter, Math.min(t1, t2));
+    exit = Math.min(exit, Math.max(t1, t2));
+  }
+  if (dz === 0) {
+    if (Math.abs(az) > halfZ) return false;
+  } else {
+    const t1 = (-halfZ - az) / dz;
+    const t2 = (halfZ - az) / dz;
+    enter = Math.max(enter, Math.min(t1, t2));
+    exit = Math.min(exit, Math.max(t1, t2));
+  }
+  return enter <= exit;
 }
 
 function bodyOverlapsVertically(
