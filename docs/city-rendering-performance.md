@@ -1,5 +1,102 @@
 # City rendering investigation — 2026-09-06
 
+## Resumed SeedThree review — 2026-10-12
+
+The upstream merge and the game's material-output ownership fix remain intact.
+The current seven shipped branch-card families use upstream bake revision 6.
+The saved native comparison covers 12 season/wind/camera cases with identical
+pixels, draw counts and triangles. The production client build and 21 upstream
+species/LOD/material tests pass.
+
+Further changes are shared by single-player and multiplayer:
+
+- Deposit footprint queries now look up nearby immutable footprints. A rotated
+  ellipse remains the exact narrow-phase test. 71,009 query comparisons preserve
+  stone depressions, terrain blending, prop/grass exclusion and rich-clay values,
+  including negative cell boundaries and non-finite diagnostic inputs. The
+  100,000-point realm workload changed from 1,952–1,985 ms to 21–30 ms. Its stone
+  candidate count changed from 8,100,000 to 2,088. This is a placement/terrain
+  query improvement; it is not a claim of an equivalent steady-frame gain.
+- Distant-water height sampling now indexes immutable path segments. The lookup
+  retains every nearest competitor within the global maximum carving radius,
+  so a nearer narrow channel still suppresses a farther wide one. 22,084 exact
+  carving comparisons cover source-order ties, varying widths, degeneracies,
+  cell edges and non-finite probes. A 20,000-query workload changed from 832 ms
+  to 3.22 ms, with the same 122 carved points. The coastal horizon join test
+  still passes. This addresses a previously profiled startup full scan.
+- Small repeated opaque building geometry expands into bounded spatial material
+  draws. Each shared shape is limited to 65,536 expanded vertices; larger repeated
+  shapes retain instancing. The varied 100-home contract now submits 48 objects
+  and 48 native draws instead of 355 objects. All 283,356 triangles remain. Its
+  rendered geometry is 33,098,160 bytes and retained editing/render geometry is
+  63,891,272 bytes, within the existing 64 MiB contract. Sixty native building and
+  shadow comparisons pass the existing raster-edge tolerance (maximum 273 of
+  307,200 pixels). The threshold was not loosened.
+- Road clearance indexes sampled centerline segments once per road snapshot.
+  Tree, undergrowth, ivy, nettle, twig and rock clearance retain the original
+  distance calculations, source paths and left-to-right threshold arithmetic.
+  106,286 queries match the exhaustive scan; oversized diagnostic margins fall
+  back to that scan. A 20,000-query test changed from 1,968 ms to 6.78 ms,
+  selecting the same 62 points and 10 decorative rocks. The existing rock
+  clearance fixture was updated with its missing terrain material and passes.
+
+The production startup CPU capture identifies a much larger road-clearance
+problem than the earlier short startup profile could reach: forest-floor
+`refreshBlockedMask` occupies about 451.6 seconds of a 514.3-second capture,
+mostly exhaustive polyline distance queries. The long startup also reproduced
+with the ordinary renderer after removing the shared-buffer experiment. The
+road-segment index targets that measured stall; a new native run verifies it.
+
+The large single-player visual fixture retains terrain, shadows and post effects,
+with 100 workplaces, 100 tier-one homes, 500 civilians, 100 dogs and 30 oxen.
+With frame instrumentation disabled, populated stationary means changed from
+20.04 to 19.16 ms, and the cleared moving-camera case from 25.29 to 22.83 ms.
+P95 remains above 16.67 ms. These are sequential runs with system-load variance,
+not a paired estimate of the batching change. This fixture edits offline visual
+state; the absent `city-builder` database on port 3000 produces a recorded 404
+connection error, so this is not an end-to-end economy validation.
+
+The 50-client multiplayer run with the production bundle averages 58.77 ms,
+P95 66.8 ms, with no browser errors. All seven card families load from shipped
+assets even with deliberately stale browser records. Fog, parchment and terrain
+cache checks complete; the frame-budget gate fails. Evidence is under
+`artifacts/realm-browser-production-expanded/`.
+
+Single-player pass-local timestamps additionally include direct authored-animation
+compute submissions. The large cleared fixture averages about 6.41 ms for its
+main pass, 6.53 ms for a refreshed shadow pass (111 of 609 frames), and about
+1.47 ms total authored compute per frame. These execution times exclude CPU
+submission and queue gaps. The compute work alone does not explain missed frames.
+
+A mapped-staging upload experiment passed byte and pixel parity but increased
+the terrain-only frame mean to 46.25 ms. That implementation was removed. It is
+not part of the game. A shared-buffer alternative also passed 24 native pixel
+comparisons but did not improve the large single-player frame cohort (cleared
+moving-camera mean 24.95 ms, P95 30.4 ms). Its production multiplayer probe
+stalled during startup and was terminated after more than ten minutes. That
+implementation was removed too; no shared-buffer hooks remain in the renderer.
+
+Optional post-cohort browser traces include main-thread, GPU-process and
+presentation scheduling. Use `--trace` with `profileCityRuntime.mjs` or
+`REALM_BROWSER_TRACE=1` with `testRealmBrowser.mjs`. These captures are separate
+from the reported frame intervals and address queue/scheduling time that
+pass-local GPU timestamps cannot account for.
+
+The single-player scheduling capture contains 233 animation callbacks in 5.05 s,
+averaging 20.65 ms of callback wall time. Its GPU-process WebGPU decoder events
+cover 2.01 s during the capture. These nested trace durations are not hardware
+GPU execution times or CPU utilization. The run also reports thermal throttling
+at 86–87 °C; sequential frame means ranged substantially. Preserve that limitation
+when comparing runs. The trace is in
+`artifacts/city-performance/resumed-sp-browser-trace/`.
+
+The rich-stone and mineral suites currently fail older Rust source-pattern
+assertions for direct support-timber requests; those server files are unchanged
+by this work. Rich-clay checks and the new exact-footprint test pass. This is not
+a claim that the whole repository's CI passes.
+
+**60 FPS is still unverified in both populated modes.**
+
 Moving authored rigs were the largest measured settlement cost. Buildings also
 add submission work, and the full terrain/post-processing scene has a separate
 rendering cost. The stable walls disappearing during camera movement were a

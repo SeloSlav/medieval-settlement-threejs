@@ -17,6 +17,7 @@ import {
   RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
 } from '../resources/physicalDepositProtection.ts';
 import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
+import { StaticFootprintIndex, ellipticalFootprintBounds } from '../utils/StaticFootprintIndex.ts';
 
 export type MineralDepositResource = 'iron' | 'salt';
 export type MineralDepositGrade = 'ordinary' | 'rich';
@@ -89,10 +90,12 @@ export class MineralDepositLayout {
   }
   readonly sites: readonly MineralDepositSite[];
   readonly seed: number;
+  private readonly footprintIndex: StaticFootprintIndex<MineralDepositSite>;
 
   private constructor(seed: number, sites: MineralDepositSite[]) {
     this.seed = seed;
     this.sites = sites;
+    this.footprintIndex = new StaticFootprintIndex(sites, site => ellipticalFootprintBounds(site, 1.16));
   }
 
   static create(options: MineralDepositLayoutOptions): MineralDepositLayout {
@@ -134,11 +137,11 @@ export class MineralDepositLayout {
   }
 
   isBlockedForProps(x: number, z: number): boolean {
-    return this.sites.some((site) => siteBlend(x, z, site, 1.08) > 0);
+    return this.footprintIndex.at(x, z).some((site) => siteBlend(x, z, site, 1.08) > 0);
   }
 
   isBlockedForGrass(x: number, z: number): boolean {
-    return this.sites.some((site) => siteBlend(x, z, site, 1.16) > 0);
+    return this.footprintIndex.at(x, z).some((site) => siteBlend(x, z, site, 1.16) > 0);
   }
 }
 

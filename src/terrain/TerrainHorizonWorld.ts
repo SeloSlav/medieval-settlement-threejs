@@ -26,6 +26,7 @@ import {
 import { createRiverWaterMaterial } from '../rivers/RiverWaterMaterial.ts';
 import { waterSurfaceProfileForPreset } from '../rivers/WaterSurfaceProfile.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
+import { HorizonWaterPathIndex } from './HorizonWaterPathIndex.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { forestFloorBlendAtPosition } from './terrainGeometryData.ts';
 
@@ -95,6 +96,7 @@ export class TerrainHorizonWorld {
   private readonly sampleBaseHeight: (x: number, z: number) => number;
   private readonly sampleSourceForestBlend: (x: number, z: number) => number;
   readonly waterPaths: HorizonWaterPath[];
+  private readonly waterPathIndex: HorizonWaterPathIndex;
   readonly lakes: HorizonLake[];
   private readonly forestCores: readonly ForestCore[];
   private readonly forestPlacementIndex: SpatialHash2D<ForestTreePlacement>;
@@ -115,6 +117,7 @@ export class TerrainHorizonWorld {
 
     const pathSkeletons = createOuterWaterPathSkeletons(options);
     this.waterPaths = pathSkeletons.map((corridor) => this.resolveWaterPath(corridor));
+    this.waterPathIndex = new HorizonWaterPathIndex(this.waterPaths);
     this.lakes = createOuterLakes(options, (x, z) => this.sampleUncarvedHeight(x, z));
     this.outerRiverLayout = createOuterRiverLayout(options, this.waterPaths, this.lakes);
     this.forestCores = createHorizonForestCores(this);
@@ -183,7 +186,7 @@ export class TerrainHorizonWorld {
     if (this.outerRiverLayout) {
       height -= this.outerRiverLayout.getValleyDepression(x, z);
     }
-    const path = nearestWaterPathSample(this.waterPaths, x, z);
+    const path = this.waterPathIndex.sample(x,z);
     if (path && path.distance < path.halfWidth * 0.86) {
       const bedDepth = THREE.MathUtils.lerp(
         Math.max(1.15, path.channelDepth * 0.54),
@@ -981,42 +984,6 @@ function resolveVisibleForestOuter(world: TerrainHorizonWorld): number {
     world.outerHalfExtent - 40,
     world.innerHalfExtent + Math.min(560, world.extensionDistance * 0.38),
   );
-}
-
-function nearestWaterPathSample(
-  paths: readonly HorizonWaterPath[],
-  x: number,
-  z: number,
-): {
-  distance: number;
-  halfWidth: number;
-  channelDepth: number;
-  surfaceY: number;
-} | null {
-  let best: ReturnType<typeof nearestWaterPathSample> = null;
-  for (const path of paths) {
-    for (let index = 0; index < path.points.length - 1; index++) {
-      const a = path.points[index]!;
-      const b = path.points[index + 1]!;
-      const vx = b.x - a.x;
-      const vz = b.z - a.z;
-      const lengthSquared = vx * vx + vz * vz;
-      const t = lengthSquared <= 1e-6
-        ? 0
-        : THREE.MathUtils.clamp(((x - a.x) * vx + (z - a.z) * vz) / lengthSquared, 0, 1);
-      const px = THREE.MathUtils.lerp(a.x, b.x, t);
-      const pz = THREE.MathUtils.lerp(a.z, b.z, t);
-      const distance = Math.hypot(x - px, z - pz);
-      if (best && distance >= best.distance) continue;
-      best = {
-        distance,
-        halfWidth: THREE.MathUtils.lerp(a.halfWidth, b.halfWidth, t),
-        channelDepth: THREE.MathUtils.lerp(a.channelDepth, b.channelDepth, t),
-        surfaceY: THREE.MathUtils.lerp(a.surfaceY, b.surfaceY, t),
-      };
-    }
-  }
-  return best;
 }
 
 function appendWaterVertex(

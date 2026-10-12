@@ -6,6 +6,11 @@ import { BuildingStockInstances } from './BuildingStockInstances.ts';
 import { StaticRenderBundle } from '../scene/StaticRenderBundle.ts';
 
 const COLLAPSED_INSTANCE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
+// A small repeated mesh is cheaper as part of its material's spatial draw
+// than as another render object with its own uniforms and cached commands.
+// Bound expanded geometry per shared shape; large repeated structures retain
+// their instanced storage. No vertices or material features are removed.
+const MAX_EXPANDED_STATIC_VERTICES = 65_536;
 
 type SharedPackedGeometry = {
   geometryId: number | null;
@@ -305,9 +310,8 @@ export class BuildingStaticBatches {
           // Tiny or rarely repeated pieces cost more separate draw/uniform
           // updates than their exact expanded vertices. Frequent large pieces
           // retain instancing and its geometry-memory advantage.
-          const expand = this.sourceGroupName === 'Residence static batches'
-            && (instanced.entries.length <= 8
-              || instanced.entries.length * instanced.mesh.geometry.getAttribute('position').count <= 2048);
+          const expand = instanced.entries.length <= 8
+            || instanced.entries.length * instanced.mesh.geometry.getAttribute('position').count <= MAX_EXPANDED_STATIC_VERTICES;
           instanced.mesh.visible = !expand;
           if (expand) parts.push({ source: instanced.mesh, geometry: instanced.mesh.geometry, matrix: state.matrix });
           continue;

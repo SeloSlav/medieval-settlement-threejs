@@ -6,6 +6,15 @@
   transition: opacity 0.18s ease;
 }
 
+/* Author display rules override the browser's default hidden rule. These
+ * markers must leave both hit testing and composition when fog or projection
+ * hides them; otherwise hundreds of invisible-world blur layers still draw. */
+.quarry-map-icon[hidden],
+.foraging-map-icon[hidden],
+.settlement-map-icon[hidden] {
+  display: none !important;
+}
+
 .quarry-map-icon {
   --resource-stock-angle: 360deg;
   --resource-stock-color: var(--resource-wheel-stone);

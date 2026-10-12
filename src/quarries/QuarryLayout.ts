@@ -7,6 +7,7 @@ import {
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
 import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
+import { StaticFootprintIndex, ellipticalFootprintBounds } from '../utils/StaticFootprintIndex.ts';
 
 export type QuarryKind = 'large' | 'small';
 
@@ -50,10 +51,12 @@ const DRAIN_AVOIDANCE_RADIUS = 130;
 export class QuarryLayout {
   readonly sites: QuarrySite[];
   readonly seed: number;
+  private readonly footprintIndex: StaticFootprintIndex<QuarrySite>;
 
   private constructor(seed: number, sites: QuarrySite[]) {
     this.seed = seed;
     this.sites = sites;
+    this.footprintIndex = new StaticFootprintIndex(sites, site => ellipticalFootprintBounds(site, 1.12));
   }
 
   static create(options: QuarryLayoutOptions): QuarryLayout {
@@ -106,7 +109,7 @@ export class QuarryLayout {
 
   getPitDepression(x: number, z: number): number {
     let depression = 0;
-    for (const site of this.sites) {
+    for (const site of this.footprintIndex.at(x, z)) {
       const blend = sampleSiteBlend(x, z, site, 0.08, 1.02);
       if (blend <= 0) continue;
       const bowl = blend * blend * site.pitDepth;
@@ -117,7 +120,7 @@ export class QuarryLayout {
 
   getPadBlend(x: number, z: number): number {
     let blend = 0;
-    for (const site of this.sites) {
+    for (const site of this.footprintIndex.at(x, z)) {
       const inner = site.kind === 'large' ? 0.08 : 0.12;
       const outer = site.kind === 'large' ? 1.06 : 1.08;
       blend = Math.max(blend, sampleSiteBlend(x, z, site, inner, outer));
@@ -126,7 +129,7 @@ export class QuarryLayout {
   }
 
   isBlockedForProps(x: number, z: number): boolean {
-    for (const site of this.sites) {
+    for (const site of this.footprintIndex.at(x, z)) {
       const margin = site.kind === 'large' ? 1.04 : 1.06;
       if (sampleSiteBlend(x, z, site, 0, margin) >= 0.42) return true;
     }
@@ -134,7 +137,7 @@ export class QuarryLayout {
   }
 
   isBlockedForGrass(x: number, z: number): boolean {
-    for (const site of this.sites) {
+    for (const site of this.footprintIndex.at(x, z)) {
       const margin = site.kind === 'large' ? 1.08 : 1.12;
       if (sampleSiteBlend(x, z, site, 0, margin) >= 0.28) return true;
     }

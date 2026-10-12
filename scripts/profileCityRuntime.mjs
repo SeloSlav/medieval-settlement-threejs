@@ -5,8 +5,17 @@ import { createInterface } from 'node:readline';
 
 const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`;
 const large = process.argv.includes('--large');
+const normalFrames = process.argv.includes('--normal');
 mkdirSync(output, { recursive: true });
-const server = await createServer({ cacheDir: 'artifacts/city-performance/vite-cache', server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false } });
+const server = await createServer({
+  cacheDir: 'artifacts/city-performance/vite-cache',
+  server: { host: '127.0.0.1', port: 5191, strictPort: true, hmr: false },
+  plugins: [{ name: 'local-city-benchmark-handle', enforce: 'pre', transform(code,id) {
+    if (id.replaceAll('\\','/').split('?')[0].endsWith('/src/main.ts')) {
+      return code.replace('const app = new App(root);', 'const app = new App(root); window.__cityApp = app;');
+    }
+  } }],
+});
 await server.listen();
 const browser = await chromium.launchPersistentContext('artifacts/city-performance/world-browser-cache', { channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'], viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
@@ -14,6 +23,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 // restore old game tabs from it; those must not compete with the measured page.
 console.log('probe context pages',JSON.stringify(browser.pages().map(p=>p.url())));
 for (const other of browser.pages()) if (other !== page) await other.close();
+console.log('probe browser ready');
 const cdp = process.argv.includes('--profile') ? await page.context().newCDPSession(page) : null;
 await page.exposeFunction('__cityProfileStart', async () => { if(cdp){await cdp.send('Profiler.enable');await cdp.send('Profiler.start');} });
 await page.exposeFunction('__cityProfileEnd', async () => { if(cdp){const {profile}=await cdp.send('Profiler.stop');writeFileSync(`${output}/cpu-profile.json`,JSON.stringify(profile));} });
@@ -21,19 +31,21 @@ await page.exposeFunction('__cityProbeProgress', progress => console.log('city p
 const errors = [];
 page.on('pageerror', e => { errors.push(e.message); console.log('pageerror', e.message); });
 page.on('console', e => { if (e.type() === 'error') { errors.push(e.text()); console.log('browser error',e.text()); } });
-await page.route('**/src/main.ts*', async route => {
-  const response = await route.fetch();
-  const body = (await response.text()).replace('const app = new App(root);', 'const app = new App(root); window.__cityApp = app;');
-  await route.fulfill({ response, body });
-});
 try {
-  await page.goto('http://127.0.0.1:5191/?visualQa=daylight&visualProfile=1', { timeout: 120000 });
+  console.log('probe navigating');
+  await page.goto(`http://127.0.0.1:5191/?mode=singleplayer&visualQa=daylight&visualProfile=${normalFrames ? 0 : 1}`,
+    { timeout: 120000, waitUntil: 'domcontentloaded' });
+  console.log('probe document loaded');
   for (let i = 0; i < 90; i++) {
     for(const name of [/Continue to Heraldry/, /Continue to Map Generation/, /^Start world$/]) {
       const button=page.getByRole('button',{name});
       if(await button.isVisible())await button.click();
     }
-    const state = await page.evaluate(() => ({ ready: !!window.__visualPerf, loading: document.querySelector('[data-loading-label]')?.textContent }));
+    const state = await page.evaluate(() => ({
+      ready: !!window.__visualPerf || (window.__medievalRoadStartup?.firstPlayableMs !== undefined
+        && window.__medievalRoadStats?.frames > 10),
+      loading: document.querySelector('[data-loading-label]')?.textContent,
+    }));
     if (/failed/i.test(state.loading ?? '')) throw new Error(`City probe startup failed: ${errors.at(-1) ?? state.loading}`);
     if (state.ready) break;
     if (i % 5 === 0) console.log('loading', JSON.stringify(state), await page.locator('body').innerText().then(x=>x.slice(0,160)));
@@ -134,9 +146,23 @@ try {
     const mean=times.reduce((a,b)=>a+b,0)/times.length;
     return {arm,meanFrameMs:mean,averageFps:1000/mean,medianFrameMs:times[Math.floor(times.length*.5)],p95FrameMs:times[Math.floor(times.length*.95)],meanRenderCpuMs:samples.reduce((a,b)=>a+b.render,0)/samples.length,stats};
   });
-  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
+  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   console.log('gameplay phases',JSON.stringify(measured.map(x=>({arm:x.arm,stats:x.stats,average:Object.fromEntries(Object.keys(x.samples[0]).map(k=>[k,x.samples.reduce((s,v)=>s+(v[k]??0),0)/x.samples.length]))}))));
+  if (process.argv.includes('--gpu-passes')) {
+    await page.evaluate(async () => {
+      const { beginGpuPassCosts } = await import('/scripts/fixtures/gpuPassCosts.js');
+      window.__cityFinishGpuPassCosts = beginGpuPassCosts(window.__cityApp.sceneManager.renderer);
+    });
+    await page.waitForTimeout(12000);
+    const costs = await page.evaluate(() => window.__cityFinishGpuPassCosts());
+    writeFileSync(`${output}/gpu-passes.json`,JSON.stringify(costs,null,2));
+    console.log('GPU pass costs',JSON.stringify(costs));
+  }
+  if (process.argv.includes('--trace')) {
+    const { captureBrowserFrameTrace } = await import('./fixtures/browserFrameTrace.mjs');
+    await captureBrowserFrameTrace(page, `${output}/browser-frame-trace.json`);
+  }
   if(process.argv.includes('--parity')) {
     const parity=await page.evaluate(async()=> (await import('/scripts/fixtures/citySceneParity.js')).checkCitySceneParity());
     for(const frame of parity) {

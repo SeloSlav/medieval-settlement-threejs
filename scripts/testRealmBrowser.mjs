@@ -1,6 +1,10 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fork } from 'node:child_process';
+import { build, createServer, preview } from 'vite';
+import { createInterface } from 'node:readline';
+import { beginGpuPassCosts } from './fixtures/gpuPassCosts.js';
+import { measureUiCompositionCosts } from './fixtures/uiCompositionCosts.js';
 const output = process.env.REALM_BROWSER_OUTPUT || 'artifacts/realm-browser';
 const forestBatches = process.env.REALM_BROWSER_FOREST_BATCHES !== '0';
 const uniformUploads = process.env.REALM_BROWSER_UNIFORM_UPLOADS !== '0';
@@ -8,6 +12,7 @@ const navigationSweeps = process.env.REALM_BROWSER_NAVIGATION_SWEEPS !== '0';
 const settleVegetationCache = process.env.REALM_BROWSER_WAIT_FOR_CACHE === '1';
 const frameProfiling = process.env.REALM_BROWSER_FRAME_PROFILE !== '0';
 const staleVegetationCache = process.env.REALM_BROWSER_STALE_CARD_CACHE === '1';
+const productionBuild = process.env.REALM_BROWSER_PRODUCTION === '1';
 mkdirSync(output, { recursive: true });
 const { tokens } = JSON.parse(readFileSync('.tmp-realm-test-clients.json', 'utf8'));
 const database = process.env.REALM_TEST_DB || 'city-builder-realm-loadtest';
@@ -24,14 +29,76 @@ const loadClients = await new Promise((resolve, reject) => {
 });
 console.log(`Browser load: ${loadClients} computer clients plus the measured browser`);
 let browser;
+let server;
+let startupProfileTimer;
 try {
+const realmDefine = {
+  'import.meta.env.VITE_MULTIPLAYER_DB_NAME': JSON.stringify(database),
+  'import.meta.env.VITE_MULTIPLAYER_URI': JSON.stringify(process.env.REALM_TEST_URI || 'http://127.0.0.1:3100'),
+};
+if (productionBuild) {
+  if (!forestBatches || !uniformUploads || !navigationSweeps) throw Error('Production benchmark requires all gameplay optimizations');
+  await build({ define: realmDefine, logLevel: 'warn', build: { outDir: `${output}/client` }, plugins: [{
+    name: 'local-realm-benchmark-handles', enforce: 'pre', transform(code,id) {
+      const file = id.replaceAll('\\','/').split('?')[0];
+      if (file.endsWith('/src/main.ts')) return code.replace('const app = new App(root);',
+        'await (window.__realmStaleCardCachePromise || Promise.resolve()); const app = new App(root); window.__realmApp = app;');
+      if (file.endsWith('/src/vegetation/seedthree/seedThreeBranchCards.ts')) return `${code}\nwindow.__realmBranchCardCache = {
+        waitForSeedThreeBranchCardPersistence, getSeedThreeBranchCardStartupTimings
+      };`;
+    },
+  }] });
+  server = await preview({ build: { outDir: `${output}/client` }, preview: { host: '127.0.0.1',port: 0 } });
+} else if (!process.env.REALM_BROWSER_URL) {
+  server = await createServer({
+    cacheDir: 'artifacts/realm-browser-vite-cache',
+    define: realmDefine,
+    server: { host: '127.0.0.1', port: 0, hmr: false },
+  });
+  await server.listen();
+}
 const channel = process.env.REALM_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined);
-browser = await chromium.launch({ channel, headless: true, args: ['--enable-unsafe-webgpu'] });
-const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+browser = await chromium.launchPersistentContext(process.env.REALM_BROWSER_CACHE || 'artifacts/realm-browser-cache', {
+  channel, headless: true, args: ['--enable-unsafe-webgpu'],
+  viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1,
+});
+const context = browser;
 const page = await context.newPage();
+for (const other of context.pages()) if (other !== page) await other.close();
+let startupProfileCapture = Promise.resolve();
+if (process.env.REALM_BROWSER_STARTUP_PROFILE === '1') {
+  const startupProfiler = await context.newCDPSession(page);
+  await startupProfiler.send('Profiler.enable');
+  await startupProfiler.send('Profiler.start');
+  startupProfileCapture = new Promise(resolve => {
+    startupProfileTimer = setTimeout(async () => {
+      try {
+        const { profile } = await startupProfiler.send('Profiler.stop');
+        writeFileSync(`${output}/startup-cpu.cpuprofile`, JSON.stringify(profile));
+        console.log('Startup CPU profile captured');
+      } catch (error) { console.log('Startup CPU capture unavailable', String(error)); }
+      finally { resolve(); }
+    }, 45000);
+  });
+}
 const errors = [];
+const forestStartupRecords = [];
+const forestStartupReads = [];
 page.on('pageerror', error => { errors.push(error.stack || error.message); console.log('pageerror', error.stack || error.message); });
-page.on('console', message => { if (message.type() === 'error') { errors.push(message.text()); console.log(message.text().slice(0, 800)); } });
+page.on('console', message => {
+  if (message.type() === 'error') { errors.push(message.text()); console.log(message.text().slice(0, 800)); }
+  if (message.text().startsWith('[Startup] SeedThree forest stages')) {
+    forestStartupReads.push(message.args()[1].jsonValue().then(record => forestStartupRecords.push(record)));
+  }
+});
+// Read the cache module used by the running game. A raw dynamic import can
+// create a second Vite module instance after an HMR edit.
+await page.route('**/src/vegetation/seedthree/seedThreeBranchCards.ts*', async route => {
+  const response = await route.fetch();
+  await route.fulfill({ response, body: `${await response.text()}\nwindow.__realmBranchCardCache = {
+    waitForSeedThreeBranchCardPersistence, getSeedThreeBranchCardStartupTimings
+  };` });
+});
 await context.addInitScript(({ token, database }) => {
   localStorage.setItem(`medieval-road-system:spacetime-token:${database}`, token);
 }, { token: tokens[0], database });
@@ -79,10 +146,12 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
   await route.fulfill({ response, body: source.replace(binding, 'const unusedStaticSegmentClear =')
     .replace(invocation, `const isStaticSegmentClear = undefined; ${invocation}`) });
 });
-  const address = new URL(process.env.REALM_BROWSER_URL || 'http://127.0.0.1:5190/');
+  const address = new URL(productionBuild ? server.resolvedUrls.local[0]
+    : process.env.REALM_BROWSER_URL || server.resolvedUrls.local[0]);
   if (!['localhost', '127.0.0.1', '[::1]'].includes(address.hostname)) throw Error('Local browser test only');
   address.searchParams.set('mode', 'multiplayer'); address.searchParams.set('visualProfile', frameProfiling ? '1' : '0');
-  await page.goto(address.href, { timeout: 120_000 });
+  console.log('Browser address', address.href);
+  await page.goto(address.href, { timeout: 120_000, waitUntil: 'domcontentloaded' });
   for (let i = 0; i < 90; i++) {
     const state = await page.evaluate(() => ({
       loading: document.querySelector('[data-loading-label]')?.textContent,
@@ -105,15 +174,24 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
       && forest?.resident > 0 && forest.loading === 0 && forest.queued === 0;
   }, undefined, { timeout: 120000 });
   await page.waitForTimeout(5000);
+  await startupProfileCapture;
   const vegetationCache = await page.evaluate(async settle => {
-    const cache = await import('/src/vegetation/seedthree/seedThreeBranchCards.ts');
+    const cache = window.__realmBranchCardCache;
+    if (!cache) throw Error('Running forest cache module unavailable');
     const started = performance.now();
     if (settle) await cache.waitForSeedThreeBranchCardPersistence();
     return { settledBeforeCohort: settle, waitMs: performance.now()-started,
       timings: cache.getSeedThreeBranchCardStartupTimings() };
   }, settleVegetationCache);
-  if (vegetationCache.timings.length !== 7 || vegetationCache.timings.some(t=>t.source!=='asset' || t.persistenceQueued))
-    throw Error('Production forest did not use shipped atlases without background persistence');
+  await Promise.all(forestStartupReads);
+  // Replacing the initial forest clears global timings; streamed chunks can
+  // reuse prototypes without loading cards again. Preserve the actual initial
+  // build evidence instead of treating that empty diagnostics map as a miss.
+  vegetationCache.initialBuild = forestStartupRecords.find(record => record.branchCards?.length === 7);
+  writeFileSync(`${output}/vegetation-startup.json`, JSON.stringify({ vegetationCache, forestStartupRecords },null,2));
+  const initialCards = vegetationCache.initialBuild?.branchCards;
+  if (initialCards?.length !== 7 || initialCards.some(t=>t.source!=='asset' || t.persistenceQueued))
+    throw Error(`Production forest did not use shipped atlases without background persistence; see ${output}/vegetation-startup.json`);
   const berryDraws = await page.evaluate(() => {
     const root = window.__realmApp.sceneManager.getBerryPatchRoot();
     const sources = [], draws = [];
@@ -158,7 +236,7 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
         return { stream: root?.userData.realmStream?.stats, colorBatches: root?.userData.realmInstanceBatches?.stats(),
           shadowBatches: root?.userData.realmInstanceBatches?.stats(true) };
       })(),
-      stats: window.__medievalRoadStats, buildings: app.gameState.buildings.size,
+      stats: window.__medievalRoadStats, startup: window.__medievalRoadStartup, buildings: app.gameState.buildings.size,
       meshes: meshes.sort((a, b) => b.triangles - a.triangles).slice(0, 25),
       profile: window.__visualPerf?.getReport() ?? null,
       profileStatus: document.documentElement.dataset.visualProfileStatus,
@@ -188,8 +266,17 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
   report.vegetationCache = vegetationCache;
   report.frameProfiling = frameProfiling;
   report.staleVegetationCache = staleVegetationCache;
+  report.productionBuild = productionBuild;
   writeFileSync(`${output}/report.json`, JSON.stringify({ ...report, errors }, null, 2));
   console.log(JSON.stringify({ ...report, errors }, null, 2));
+  if (process.env.REALM_BROWSER_KEEP === '1') {
+    console.log('REALM_LAB_READY');
+    for await (const line of createInterface({ input: process.stdin, terminal: false })) {
+      if (line === 'quit') break;
+      try { console.log('LAB_RESULT', JSON.stringify(await page.evaluate(line))); }
+      catch (error) { console.log('LAB_ERROR', String(error)); }
+    }
+  }
   await page.evaluate(() => {
     const scene = window.__realmApp.sceneManager.scene;
     const renderer = window.__realmApp.sceneManager.renderer;
@@ -283,46 +370,20 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
   // Pass-local timestamps measure GPU execution without the queue-idle gaps
   // included by the formal profile's whole-render bookends. This separate
   // diagnostic runs only after the uncontaminated frame and CPU captures.
-  await page.evaluate(() => {
-    const renderer = window.__realmApp.sceneManager.renderer, backend = renderer.backend;
-    if (!backend.device.features.has('timestamp-query')) throw Error('Pass timestamps unavailable');
-    const labels = new Map(), costs = new Map();
-    const begin = backend.beginRender;
-    backend.beginRender = function(context) {
-      const uid = this.getTimestampUID(context);
-      labels.set(uid, `context ${context.id}: ${context.textures?.map(t => t.name || t.uuid).join(',') || 'canvas'} (${context.width}x${context.height})`);
-      return begin.call(this, context);
-    };
-    backend.trackTimestamp = true;
-    let pending = null;
-    const collect = async () => {
-      if (pending) return pending;
-      pending = Promise.all(['render','compute'].map(type => renderer.resolveTimestampsAsync(type))).then(() => {
-        for (const [type, pool] of Object.entries(backend.timestampQueryPool)) {
-          if (!pool) continue;
-          for (const [uid, ms] of pool.timestamps) {
-            const name = labels.get(uid) || `${type} ${uid.replace(/:f\d+$/, '')}`;
-            let cost = costs.get(name);
-            if (!cost) costs.set(name, cost = { name, ms: 0, calls: 0, maxMs: 0 });
-            cost.ms += ms; cost.calls++; cost.maxMs = Math.max(cost.maxMs, ms);
-            labels.delete(uid);
-          }
-          pool.timestamps.clear();
-        }
-      }).finally(() => { pending = null; });
-      return pending;
-    };
-    const timer = setInterval(() => { void collect(); }, 250);
-    window.__realmFinishGpuPasses = async () => {
-      clearInterval(timer); if (pending) await pending; await collect();
-      backend.trackTimestamp = false; backend.beginRender = begin;
-      return [...costs.values()].map(c => ({ ...c, meanMs: c.ms / c.calls })).sort((a,b) => b.ms-a.ms);
-    };
-  });
+  await page.evaluate(`window.__realmFinishGpuPasses = (${beginGpuPassCosts.toString()})(window.__realmApp.sceneManager.renderer);`);
   await page.waitForTimeout(12000);
   const gpuPasses = await page.evaluate(() => window.__realmFinishGpuPasses());
   writeFileSync(`${output}/gpu-passes.json`, JSON.stringify(gpuPasses,null,2));
   console.log('GPU passes',JSON.stringify(gpuPasses.slice(0,20)));
+  if (process.env.REALM_BROWSER_TRACE === '1') {
+    const { captureBrowserFrameTrace } = await import('./fixtures/browserFrameTrace.mjs');
+    await captureBrowserFrameTrace(page, `${output}/browser-frame-trace.json`);
+  }
+  if (process.env.REALM_BROWSER_UI_DIAGNOSTIC === '1') {
+    const costs = await page.evaluate(`(${measureUiCompositionCosts.toString()})()`);
+    writeFileSync(`${output}/ui-composition-costs.json`,JSON.stringify(costs,null,2));
+    console.log('UI composition',JSON.stringify(costs));
+  }
   await page.screenshot({ path: `${output}/camp.png` });
   await page.evaluate(() => window.__realmApp.cameraController.enterIllustratedMap());
   await page.waitForFunction(() => window.__realmApp.sceneManager.isIllustratedMapActive(), undefined, { timeout: 30000 });
@@ -360,7 +421,9 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
   await page.screenshot({path:`${output}/returned.png`});
   if (!report.frameBudget.passed) throw Error(`Frame budget missed: P95 ${report.p95Ms.toFixed(2)} ms; target 16.67 ms`);
 } finally {
+  clearTimeout(startupProfileTimer);
   await browser?.close();
+  await server?.close();
   if (load.connected) load.send('stop');
   else load.kill();
 }

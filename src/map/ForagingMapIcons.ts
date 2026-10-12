@@ -106,7 +106,6 @@ export class ForagingMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       if (!isWorldPointExplored(marker.x, marker.z)) { button.hidden = true; continue; }
-      button.hidden = false;
       if (!isWorldMapForagingMarkerVisible(marker, nodes)) {
         if (!button.hidden) button.hidden = true;
         continue;

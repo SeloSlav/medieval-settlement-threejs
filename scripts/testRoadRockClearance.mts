@@ -37,7 +37,7 @@ function verifyForestRockClearance(): void {
     rockField,
     null,
     [],
-    { getHeightAt: () => 0 } as never,
+    { getHeightAt: () => 0, mesh: { material: new THREE.MeshBasicMaterial() } } as never,
     () => {},
   );
 

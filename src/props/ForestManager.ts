@@ -6,10 +6,10 @@ import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.t
 import { pointWithinBuildingSiteClearance } from '../buildings/BuildingTerrainLayout.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
-import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { RoadClearanceIndex } from '../roads/RoadClearanceIndex.ts';
 import { collectRoadRemovedRockIndices } from '../roads/roadRockClearance.ts';
-import { distancePointToPolylineXZ, type RockObstacle } from '../utils/pathGeometry.ts';
+import type { RockObstacle } from '../utils/pathGeometry.ts';
 import { distancePointToPolygon2 } from '../utils/polygonGeometry.ts';
 import {
   UNDERGROWTH_KINDS,
@@ -40,7 +40,6 @@ import {
   createHarvestStumpInstances,
   disposeHarvestStumpInstances,
   hideHarvestStumpInstance,
-  isUndergrowthNearAnyEdge,
   setHarvestStumpSnowCoverage,
   setHarvestStumpShadowsEnabled,
   shouldShowHarvestStumps,
@@ -168,7 +167,7 @@ export class ForestManager {
   private roadRemovedRocks = new Set<number>();
   private placementRemovedRocks = new Set<number>();
   private removedRocks = new Set<number>();
-  private forestFloorRoadEdges: RoadEdge[] = [];
+  private forestFloorRoadClearance = new RoadClearanceIndex([]);
   private forestFloorPlacementClearance: PlacementClearanceSpatialIndex | null = null;
   private placementClearanceBuildingKeys: string[] = [];
   private placementClearancePolygonSignature = '';
@@ -616,10 +615,11 @@ export class ForestManager {
 
   syncRoadClearance(network: RoadNetwork | null): void {
     const edges = network ? [...network.edges.values()] : [];
-    this.forestFloorRoadEdges = edges;
+    this.forestFloorRoadClearance = new RoadClearanceIndex(edges);
     const nextRoadRemovedTrees = new Set<number>();
     for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
-      if (this.isTreeNearAnyEdge(this.placements[treeIndex], edges)) {
+      const tree = this.placements[treeIndex]!;
+      if (this.forestFloorRoadClearance.isNear(tree.x,tree.z,treeCanopyRadius(tree),ROAD_CLEAR_MARGIN)) {
         nextRoadRemovedTrees.add(treeIndex);
       }
     }
@@ -633,10 +633,9 @@ export class ForestManager {
       const nextRoadRemovedUndergrowth = new Set<number>();
       for (let index = 0; index < this.undergrowthPlacements.length; index++) {
         const placement = this.undergrowthPlacements[index];
-        if (isUndergrowthNearAnyEdge(
+        if (this.forestFloorRoadClearance.isNear(
           placement.x,
           placement.z,
-          edges,
           undergrowthPlacementClearanceRadius(placement),
         )) {
           nextRoadRemovedUndergrowth.add(index);
@@ -820,10 +819,9 @@ export class ForestManager {
   }
 
   private isForestFloorPointWithinClearance(x: number, z: number): boolean {
-    if (isUndergrowthNearAnyEdge(
+    if (this.forestFloorRoadClearance.isNear(
       x,
       z,
-      this.forestFloorRoadEdges,
       UNDERGROWTH_CLEAR_MARGIN,
     )) {
       return true;
@@ -1032,16 +1030,6 @@ export class ForestManager {
     this.activeRockPlacements = this.allRockPlacements.filter((_, index) => !nextRemoved.has(index));
   }
 
-  private isTreeNearAnyEdge(placement: TreePlacement, edges: RoadEdge[]): boolean {
-    for (const edge of edges) {
-      const path = edge.sampledPath.length >= 2 ? edge.sampledPath : edge.controlPoints;
-      if (path.length < 2) continue;
-      const distance = distancePointToPolylineXZ(placement.x, placement.z, path);
-      if (distance <= treeClearRadius(placement, edge.width)) return true;
-    }
-    return false;
-  }
-
   private hideTree(treeIndex: number): void {
     this.fallingTrees.delete(treeIndex);
     this.timberLogs.remove(treeIndex);
@@ -1240,10 +1228,6 @@ function treeCanopyRadius(placement: TreePlacement): number {
   if (placement.form === 'broad') return 4.1 * placement.scale;
   if (placement.form === 'young' || placement.form === 'midstory') return 2.3 * placement.scale;
   return 3.3 * placement.scale;
-}
-
-function treeClearRadius(placement: TreePlacement, roadWidth: number): number {
-  return roadWidth * 0.5 + treeCanopyRadius(placement) + ROAD_CLEAR_MARGIN;
 }
 
 function treeWithinBuildingPad(placement: TreePlacement, building: BuildingTerrainSource): boolean {

@@ -206,16 +206,16 @@ assert.ok(
   `100-home fixture must retain the reviewed dense load (got ${denseBeforeDraws})`,
 );
 assert.ok(
-  denseAfter.draws <= 450,
-  `spatial cells and exact instances must remain at or below 450 render objects (got ${denseAfter.draws})`,
+  denseAfter.draws <= 80,
+  `spatial cells and exact instances must remain at or below 80 render objects (got ${denseAfter.draws})`,
 );
 assert.ok(
   denseAfter.draws <= denseBeforeDraws * 0.05,
   `100-home batching must remove at least 95% of render objects (${denseBeforeDraws} -> ${denseAfter.draws})`,
 );
 assert.ok(
-  denseNativeDraws <= 300,
-  `spatial merging must keep 100 varied homes below 300 native WebGPU draws (got ${denseNativeDraws})`,
+  denseNativeDraws <= 80,
+  `spatial merging must keep 100 varied homes at or below 80 native WebGPU draws (got ${denseNativeDraws})`,
 );
 assert.ok(
   denseNativeDraws <= denseBeforeDraws * 0.2,

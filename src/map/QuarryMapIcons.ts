@@ -96,7 +96,6 @@ export class QuarryMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       if (!isWorldPointExplored(marker.x, marker.z)) { button.hidden = true; continue; }
-      button.hidden = false;
       const node = geologicalNodeForMapMarker(marker, nodes);
       const stampArtSize = illustratedMapActive
         ? mapStampArtSize(marker, node?.isRich === true)

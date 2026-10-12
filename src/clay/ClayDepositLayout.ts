@@ -14,6 +14,7 @@ import {
   type ResourcePlacementTarget,
 } from '../world/resourceRegionDistribution.ts';
 import type { ResourceTerrainAccessibilityTest } from '../world/resourceTerrainAccessibility.ts';
+import { StaticFootprintIndex, ellipticalFootprintBounds } from '../utils/StaticFootprintIndex.ts';
 
 export type ClayDepositSite = {
   x: number;
@@ -144,10 +145,13 @@ export class ClayDepositLayout {
   }
   readonly sites: readonly ClayDepositSite[];
   readonly seed: number;
+  private readonly footprintIndex: StaticFootprintIndex<ClayDepositSite>;
 
   private constructor(seed: number, sites: ClayDepositSite[]) {
     this.seed = seed;
     this.sites = sites;
+    this.footprintIndex = new StaticFootprintIndex(sites,
+      site => ellipticalFootprintBounds(site, 1.16, site.kind === 'rich' ? RICH_CLAY_DEPOSIT_RADIUS : 0));
   }
 
   static create(options: ClayDepositLayoutOptions): ClayDepositLayout {
@@ -217,7 +221,7 @@ export class ClayDepositLayout {
 
   richnessAt(x: number, z: number): number {
     let richness = 0;
-    for (const site of this.sites) {
+    for (const site of this.footprintIndex.at(x, z)) {
       if (site.kind !== 'rich') continue;
       const distance = Math.hypot(x - site.x, z - site.z);
       if (distance >= RICH_CLAY_DEPOSIT_RADIUS) continue;
@@ -228,11 +232,11 @@ export class ClayDepositLayout {
   }
 
   isBlockedForProps(x: number, z: number): boolean {
-    return this.sites.some((site) => sampleEllipticalBlend(x, z, site, 1.08) > 0);
+    return this.footprintIndex.at(x, z).some((site) => sampleEllipticalBlend(x, z, site, 1.08) > 0);
   }
 
   isBlockedForGrass(x: number, z: number): boolean {
-    return this.sites.some((site) => sampleEllipticalBlend(x, z, site, 1.16) > 0);
+    return this.footprintIndex.at(x, z).some((site) => sampleEllipticalBlend(x, z, site, 1.16) > 0);
   }
 }
 
