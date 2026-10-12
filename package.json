@@ -302,6 +302,7 @@
     "test:road-junction-topology": "npx tsx scripts/testRoadJunctionTopology.mts",
     "test:road-rock-clearance": "npx tsx scripts/testRoadRockClearance.mts",
     "test:road-clearance-index": "node --import tsx scripts/testRoadClearanceIndex.mts",
+    "test:map-icon-visibility-browser": "node scripts/testMapIconVisibilityBrowser.mjs",
     "test:dry-stone-walls": "npx tsx scripts/testDryStoneWalls.mts",
     "test:deer-wildlife": "npx tsx scripts/testDeerWildlife.mts",
     "test:livestock": "npx tsx scripts/testLivestock.mts",
