@@ -151,6 +151,9 @@ fn total_assigned_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u
 }
 
 fn total_free_hauler_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) -> u32 {
+    if let Some(workers) = super::delivery_labor::cached_free_hauler_labor(ctx, owner) {
+        return workers;
+    }
     ctx.db
         .delivery_trip()
         .owner()
@@ -163,12 +166,15 @@ thread_local! {
     static PRODUCTION_LABOR_ROSTERS: std::cell::RefCell<Option<std::collections::HashMap<spacetimedb::Identity, u32>>> = const { std::cell::RefCell::new(None) };
 }
 /// Bounded to the production/logistics phase of a single reducer. Population
-/// and workplace rosters are stable here; new cart and military reservations
-/// are always read live. No cache survives the phase or another transaction.
-pub struct ProductionLaborCache;
+/// and workplace rosters are stable here. Cart totals follow starts, returns,
+/// and crew changes; military reservations are read live. No cache survives
+/// the phase or another transaction.
+pub struct ProductionLaborCache {
+    _delivery_labor: super::delivery_labor::DeliveryLaborCache,
+}
 pub fn cache_production_labor_rosters() -> ProductionLaborCache {
     PRODUCTION_LABOR_ROSTERS.with(|cache| *cache.borrow_mut() = Some(Default::default()));
-    ProductionLaborCache
+    ProductionLaborCache { _delivery_labor: super::delivery_labor::cache_delivery_labor() }
 }
 impl Drop for ProductionLaborCache {
     fn drop(&mut self) { PRODUCTION_LABOR_ROSTERS.with(|cache| *cache.borrow_mut() = None); }

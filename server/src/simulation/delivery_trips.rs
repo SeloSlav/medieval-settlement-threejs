@@ -140,7 +140,7 @@ pub fn try_start_forestry_trip(
     let capacity = whole_units(stock.min(building_commodity_room(camp, commodity))
         .min(if ox_id != 0 { 6.0 } else { 8.0 }));
     if capacity < 1.0 { release_haul_ox(tick, ox_id); return false; }
-    ctx.db.delivery_trip().insert(DeliveryTrip {
+    let trip = ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0, owner: camp.owner, building_id: camp.id, labor_building_id: camp.id,
         residence_id: 0, target_building_id: 0, destination_kind: DELIVERY_DESTINATION_FORESTRY,
         cargo_kind: commodity.as_u8(), amount: 0.0, phase: 0, x: camp.x, z: camp.z,
@@ -154,6 +154,7 @@ pub fn try_start_forestry_trip(
             log_index: log_index as u32, layout_index: tree.layout_index, capacity,
             log_max_health: log.max_health }),
     });
+    crate::economy::record_delivery_trip_started(&trip);
     true
 }
 
@@ -532,6 +533,9 @@ fn rostered_cart_workers(
 /// part of the cart crew still backed by this roster preserves genuinely free
 /// founding, reclamation, and chapel errands.
 pub fn onsite_building_labor(ctx: &ReducerContext, building: &Building) -> u32 {
+    if let Some(workers) = crate::economy::cached_rostered_cart_labor(ctx, building.id) {
+        return building.assigned_labor.saturating_sub(workers);
+    }
     let indexed_workers = ctx
         .db
         .delivery_trip()
@@ -609,6 +613,7 @@ pub fn preserve_in_transit_cart_labor(
             .min(trip.delivery_workers);
         newly_reserved = newly_reserved.saturating_add(released_workers);
         ctx.db.delivery_trip().id().update(trip);
+        crate::economy::invalidate_delivery_labor();
     }
 
     newly_reserved
@@ -904,7 +909,9 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
                 )
                 .unwrap_or(false)
                 {
-                    ctx.db.delivery_trip().id().delete(trip.id);
+                    if ctx.db.delivery_trip().id().delete(trip.id) {
+                        crate::economy::record_delivery_trip_finished(&trip);
+                    }
                     continue;
                 }
             }
@@ -936,7 +943,9 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
                 }
             }
         }
-        ctx.db.delivery_trip().id().delete(trip.id);
+        if ctx.db.delivery_trip().id().delete(trip.id) {
+            crate::economy::record_delivery_trip_finished(&trip);
+        }
     }
     totals
 }
@@ -2154,7 +2163,7 @@ fn insert_trip(
         DeliveryLaborSource::External => (0, 0),
     };
 
-    ctx.db.delivery_trip().insert(DeliveryTrip {
+    let trip = ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
         owner: spec.origin.owner,
         building_id: spec.origin.id,
@@ -2179,6 +2188,7 @@ fn insert_trip(
         ox_id: spec.ox_id,
         forestry_source: None,
     });
+    crate::economy::record_delivery_trip_started(&trip);
 }
 
 fn step_one_trip(
@@ -2965,7 +2975,9 @@ fn finish_inbound_trip(ctx: &ReducerContext, trip: DeliveryTrip, sim_tick: u64) 
     };
     return_trip_cargo_to_building(ctx, &trip);
     hand_off_arriving_cart_pursuit(ctx, &trip, cart_raid_value, sim_tick);
-    ctx.db.delivery_trip().id().delete(trip.id);
+    if ctx.db.delivery_trip().id().delete(trip.id) {
+        crate::economy::record_delivery_trip_finished(&trip);
+    }
 }
 
 /// Cargo changes container when a handcart reaches its origin; it does not
@@ -3087,7 +3099,9 @@ fn recall_trip_to_origin(ctx: &ReducerContext, mut trip: DeliveryTrip) {
     }
 
     return_trip_cargo_to_origin(ctx, &trip);
-    ctx.db.delivery_trip().id().delete(trip.id);
+    if ctx.db.delivery_trip().id().delete(trip.id) {
+        crate::economy::record_delivery_trip_finished(&trip);
+    }
 }
 
 /// A capable raider alarm recalls ordinary carters without teleporting cargo
@@ -3236,7 +3250,9 @@ fn settle_stranded_trip(ctx: &ReducerContext, trip: DeliveryTrip) {
     if !physically_recovered {
         return_trip_cargo_to_origin(ctx, &trip);
     }
-    ctx.db.delivery_trip().id().delete(trip.id);
+    if ctx.db.delivery_trip().id().delete(trip.id) {
+        crate::economy::record_delivery_trip_finished(&trip);
+    }
 }
 
 fn trip_fire_target(trip: &DeliveryTrip) -> (u8, u64) {

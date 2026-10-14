@@ -12,11 +12,13 @@ async function request(path, body) {
   if (!response.ok) throw Error(`Inspection failed: ${response.status}`);
   return response.text();
 }
-const logs = await request('logs?num_lines=1200'), phases = new Map();
+const logs = await request('logs?num_lines=1200'), phases = new Map(), deliveryLaborPhases = [];
 let firstTimestamp = Infinity, lastTimestamp = 0;
 for (const line of logs.split('\n')) {
   if (!line.trim()) continue;
   const entry = JSON.parse(line);
+  const labor = /^Cart labor cache phase: (\d+) lookups, (\d+) scanned rows$/.exec(entry.message);
+  if (labor) deliveryLaborPhases.push({ atMicros: entry.ts, lookups: Number(labor[1]), scannedRows: Number(labor[2]) });
   const match = /^Timing span "([^"]+)": ([\d.]+)(ns|µs|ms|s)$/.exec(entry.message);
   if (!match) continue;
   const milliseconds = Number(match[2]) * ({ ns: .000001, 'µs': .001, ms: 1, s: 1000 }[match[3]]);
@@ -36,7 +38,7 @@ for (const table of ['building', 'residence', 'delivery_trip', 'corpse', 'gravey
   const [{ rows }] = JSON.parse(await request('sql', `SELECT id FROM ${table}`)); counts[table] = rows.length;
 }
 const report = { atUtc: new Date().toISOString(), tick, lagMs,
-  logSpanSeconds: (lastTimestamp - firstTimestamp) / 1e6, counts, phases: summaries };
+  logSpanSeconds: (lastTimestamp - firstTimestamp) / 1e6, counts, phases: summaries, deliveryLaborPhases };
 mkdirSync('artifacts', { recursive: true });
 writeFileSync(process.env.REALM_PHASE_OUTPUT || 'artifacts/realm-phase-report.json', JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

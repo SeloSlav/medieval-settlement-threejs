@@ -4,6 +4,7 @@ mod aggregate_spend;
 mod chapel_coffer;
 mod civic_receipts;
 mod commodities;
+mod delivery_labor;
 mod fiscal_accounting;
 mod household_wealth;
 mod marketplace_trade;
@@ -60,6 +61,10 @@ pub(crate) use marketplace_trade::{
 pub(crate) use marketplace_trade_policy::marketplace_proceeds_cart_load;
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
+};
+pub(crate) use delivery_labor::{
+    cached_rostered_cart_labor, invalidate_delivery_labor,
+    record_delivery_trip_started, record_delivery_trip_finished,
 };
 pub(crate) use population::{cache_production_labor_rosters, invalidate_production_labor_roster};
 pub use population::{

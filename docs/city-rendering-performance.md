@@ -273,6 +273,37 @@ There are still no farm fields or pastures in this fixture. Sustainable full
 production and a stable five-minute multiplayer day remain unverified.
 Evidence: `artifacts/realm-phases-2026-10-14.json`.
 
+Server cart labor now shares compact totals within each production phase in both
+game modes. Cart creation and confirmed removal update those totals immediately;
+crew reassignment invalidates them. Unguarded reducers continue querying live
+tables. `test:delivery-labor-cache` executes the actual Rust cache, free-labor and
+onsite-labor getters, and crew-preemption function against in-memory tables.
+Four thousand labor queries preserve results while reducing returned cart-row
+reads from 55,000 to 1,000 and table queries from 7,000 to one. The regression
+also checks 600 mixed dispatch/return/preemption events, changing assigned labor,
+phase reset, and ordinary uncached operation.
+
+Local-only counters confirm that the developed realm actually reuses the cache:
+production phases make roughly 3,340 lookups against about 714 cart rows, with
+the initial scan averaging 0.57 ms. Counter fields, scan timers and phase logs
+are absent from the production build. `inspectRealmPhases.mjs` records the raw
+phase counters alongside timing spans. Evidence:
+`artifacts/realm-phases-delivery-labor-counters.json`.
+
+The clock remains unfinished. A pre-change module built from source commit
+`98e0e163` replaced the older running WASM before comparison. Its 90-second
+50-client capture advanced 205 steps in 90.11 seconds while catching up debt
+from 13.47 to 0.86 seconds; this fails the steady-clock gate. The cache build's
+full 50-client capture advanced 636 steps in 300.28 seconds, reducing debt from
+39.75 to 22.03 seconds, with a maximum sampled debt of 41.36 seconds. It also
+fails both clock gates. Sequential workshop samples average 198.36 ms before
+and 212.47 ms afterward; the advancing world and differing catch-up workload
+do not establish a workshop or FPS improvement. The exact labor-query reduction
+is verified, but further server work and a sustainable farm/pasture fixture are
+still required. Evidence: `artifacts/realm-clock-delivery-labor-baseline.json`,
+`artifacts/realm-clock-delivery-labor-cache.json` and the corresponding
+`realm-phases-delivery-labor-*.json` captures.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd
@@ -308,6 +339,7 @@ node --experimental-strip-types scripts/testWindmillSailBatch.mts
 node scripts/testWindmillSailBatchBrowser.mjs
 node --experimental-strip-types scripts/testAnimatedBuildingTransforms.mts
 node --import tsx scripts/testDepositTransformCache.mts
+node scripts/testDeliveryLaborCache.mjs
 node scripts/profileCityRuntime.mjs
 node --experimental-strip-types scripts/testAuthoredRigWorldMatrices.mts
 node --experimental-strip-types scripts/testResidenceStaticBatching.mts

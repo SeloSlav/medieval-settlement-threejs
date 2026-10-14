@@ -360,6 +360,7 @@
     "test:founding-site": "npx tsx scripts/testFoundingSite.mts",
     "test:founding-reservations": "node scripts/testFoundingReservations.mjs",
     "test:material-candidate-cache": "node scripts/testMaterialCandidateCache.mjs",
+    "test:delivery-labor-cache": "node scripts/testDeliveryLaborCache.mjs",
     "test:campfire-occupancy": "node --experimental-strip-types scripts/testCampfireOccupancy.mts",
     "test:fire-lighting": "node --experimental-strip-types scripts/testFireLighting.mts",
     "test:starter-camp": "npx tsx scripts/testStarterCampPlacement.mts",
