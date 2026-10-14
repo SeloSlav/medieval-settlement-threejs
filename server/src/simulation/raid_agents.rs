@@ -498,7 +498,7 @@ pub fn step_live_raids(
         .map(|(owner, _)| *owner)
         .collect::<HashSet<_>>();
     for raid in active_raids {
-        let road_network = road_networks.and_then(|networks| networks.get(&raid.owner));
+        let road_network = road_networks.and_then(|networks| networks.get(&raid.owner)).map(|network| network.as_ref());
         step_one_live_raid(
             ctx,
             raid,
@@ -521,7 +521,7 @@ pub fn step_live_raids(
         .map(|security| (security.owner, security.next_raid_tick))
         .collect::<HashSet<_>>();
     for (owner, raid_id) in &warned_keys {
-        let road_network = road_networks.and_then(|networks| networks.get(owner));
+        let road_network = road_networks.and_then(|networks| networks.get(owner)).map(|network| network.as_ref());
         step_warned_guard_muster(
             ctx,
             *owner,
@@ -551,7 +551,7 @@ pub fn step_live_raids(
         }
         let agent_id = agent.id;
         if agent.faction == COMBAT_FACTION_GUARD {
-            let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
+            let road_network = road_networks.and_then(|networks| networks.get(&agent.owner)).map(|network| network.as_ref());
             let muster_route = load_one_guard_muster_path(
                 ctx,
                 agent.owner,

@@ -304,6 +304,51 @@ still required. Evidence: `artifacts/realm-clock-delivery-labor-baseline.json`,
 `artifacts/realm-clock-delivery-labor-cache.json` and the corresponding
 `realm-phases-delivery-labor-*.json` captures.
 
+Canonical road paths now cache exact directed endpoints, including unreachable
+results. FIFO eviction limits each graph to 256 entries and 16,384 points;
+oversized routes are returned in full without being retained. Callers own their
+returned polylines, and replacing river navigation clears the cache. The native
+road suite passes 27 checks. Its recurring workload preserves every path while
+reducing 4,800 route requests to 48 solves.
+
+Snapshot retention is also per owner. A 50-owner test warms all graphs, edits one,
+removes one and admits another. Only the edited and new graphs are parsed; the
+other 48 retain their exact graph identities and warm routes. Existing reducer
+contexts keep their original immutable graphs, and removed owners are released
+after those contexts end. Reordering unchanged table rows reuses the outer map.
+Invalid snapshots remain absent until their source changes. Single-player and
+multiplayer use the same cache, with no database schema or save conversion.
+
+The first live capture reused 928 of 930 route requests in one heartbeat, with
+332 cached entries and 834 points across the realm. It used temporary per-route
+timing logs, which have been removed in favor of one aggregate heartbeat counter.
+Its five-minute test subscribed 50 clients and advanced 604 steps in 300.05
+seconds: a projected 298.06-second day, passing the rate tolerance. It still
+retained 31.65 seconds of clock debt, with a maximum sampled debt of 34.95 seconds,
+so the full clock gate fails. The fixture still lacks farm fields and pastures.
+Evidence: `artifacts/realm-phases-canonical-route-cache-warm.json` and
+`artifacts/realm-clock-canonical-route-cache.json`.
+
+The final module removes individual route timing logs. Its later aggregate capture
+records 6,949 hits among 6,957 requests over seven heartbeats, with 596 entries and
+2,121 points across the realm. This sample still averages 1.75 seconds per heartbeat
+and retains about 126 seconds of clock debt. The production-client browser cohort
+with 49 computer clients and profiling disabled remains at 31.16 ms mean / 42.40 ms
+P95. Paper-map fog and terrain-cache return checks pass, and the browser reports no
+runtime errors; the frame-budget gate fails. These sequential captures establish
+cache reuse, not an overall performance gain. Evidence:
+`artifacts/realm-phases-canonical-route-cache-final.json` and
+`artifacts/realm-browser-canonical-route-cache/`.
+
+A separate renderer experiment grouped uniform updates by type while retaining
+Three's native value packers. Across 834 bindings and 5,323 uniforms, eight native
+WebGPU comparisons preserved every pixel under camera, fog, lighting, material,
+object and wind changes. The alternating CPU samples were slower: about 6.06 ms
+with native dispatch versus 6.58 ms with the experiment. This remains an isolated
+probe and is not installed in gameplay. Reproduce with
+`node scripts/probeUniformDispatchBrowser.mjs`; evidence:
+`artifacts/city-performance/uniform-dispatch-probe/report.json`.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd

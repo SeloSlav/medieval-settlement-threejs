@@ -78,6 +78,9 @@ pub mod extraction_policy;
 #[path = "../../src/roads/network.rs"]
 pub mod road_network;
 
+#[path = "../../src/roads/snapshot_cache.rs"]
+pub mod road_snapshot_cache;
+
 pub mod roads {
     pub use crate::road_network::{RoadNetwork, RoadPathRoute};
 }

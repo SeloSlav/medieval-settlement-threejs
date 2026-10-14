@@ -330,7 +330,7 @@ fn step_guard_dogs(
             continue;
         }
         dog.attack_cooldown = (dog.attack_cooldown - dt).max(0.0);
-        let road_network = road_networks.and_then(|networks| networks.get(&dog.owner));
+        let road_network = road_networks.and_then(|networks| networks.get(&dog.owner)).map(|network| network.as_ref());
         let threat = nearest_hostile(ctx, &dog, 52.0);
         if let Some(enemy) = threat {
             dog.target_kind = TARGET_COMBAT_AGENT;

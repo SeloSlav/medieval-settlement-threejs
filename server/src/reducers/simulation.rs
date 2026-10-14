@@ -105,6 +105,12 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     phase!(heartbeat_phase, "heartbeat roads");
     let shared_road_networks = (has_delivery_trips || has_combat_agents || substeps > 0)
         .then(|| SimTickContext::load_road_networks(ctx));
+    #[cfg(feature = "local-loadtest")]
+    let route_cache_before = shared_road_networks.as_ref().map(|networks| {
+        networks.values().map(|network| network.route_cache_stats()).fold((0, 0), |(queries, hits), stats| {
+            (queries + stats.queries, hits + stats.hits)
+        })
+    });
 
     let heartbeat_sim_seconds = wall_seconds * speed as f64 * f64::from(base_numerator)
         / f64::from(base_denominator);
@@ -202,6 +208,15 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     phase!(heartbeat_phase, "heartbeat entities");
     if substeps > 0 { crate::realm::refresh_entities(ctx); }
     else { crate::realm::refresh_mobile_entities(ctx); }
+    #[cfg(feature = "local-loadtest")]
+    if let (Some(networks), Some((queries_before, hits_before))) = (shared_road_networks.as_ref(), route_cache_before) {
+        let (queries, hits, entries, points) = networks.values().map(|network| network.route_cache_stats())
+            .fold((0, 0, 0, 0), |(queries, hits, entries, points), stats| {
+                (queries + stats.queries, hits + stats.hits, entries + stats.entries, points + stats.points)
+            });
+        log::debug!("Canonical route cache heartbeat: {} queries, {} hits, {} entries, {} points",
+            queries.saturating_sub(queries_before), hits.saturating_sub(hits_before), entries, points);
+    }
 }
 
 fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {

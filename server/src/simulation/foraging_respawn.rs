@@ -178,7 +178,7 @@ impl HabitatIndex {
         let mut result = Self { cells: Default::default(), footprints: Vec::new() };
         for b in buildings {
             if building_def(&b.kind).is_none() { continue; }
-            let polygon = building_footprint_polygon_at_yaw(&b.kind, b.x, b.z, resolved_existing_building_yaw(roads.get(&b.owner), b));
+            let polygon = building_footprint_polygon_at_yaw(&b.kind, b.x, b.z, resolved_existing_building_yaw(roads.get(&b.owner).map(|network| network.as_ref()), b));
             let index = result.footprints.len();
             let min_x = polygon.iter().map(|p| p.x).fold(f64::INFINITY, f64::min) - GAME_HABITAT_DISRUPTION_RADIUS;
             let max_x = polygon.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max) + GAME_HABITAT_DISRUPTION_RADIUS;

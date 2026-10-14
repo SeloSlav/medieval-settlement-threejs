@@ -335,7 +335,7 @@ pub fn step_military_world(
         navigation.clear();
         for owner in owners {
             navigation.insert(owner, build_owner_combat_navigation(
-                ctx, owner, road_networks.and_then(|networks| networks.get(&owner)),
+                ctx, owner, road_networks.and_then(|networks| networks.get(&owner)).map(|network| network.as_ref()),
             ));
         }
     });
@@ -382,7 +382,7 @@ pub fn step_military_world(
                         continue;
                     };
                     let melee_rank_hint = scratch.engagement_rank(agent.id);
-                    let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
+                    let road_network = road_networks.and_then(|networks| networks.get(&agent.owner)).map(|network| network.as_ref());
                     match member.phase {
                         0 => step_mustering_member(
                             ctx,
@@ -1489,7 +1489,7 @@ fn refresh_company_summaries(ctx: &ReducerContext, tick: u64, dt: f64, military_
             if company.morale < stance_morale_required(company.stance) { company.stance = 0; }
             if company.kind == MilitaryKind::Militia as u8 {
                 let source_settlement = ctx.db.building().id().find(&company.source_building_id).map(|s| s.settlement_id);
-                let home = crate::settlements::residential_settlement_on_roads(ctx, company.owner, center.0 / living as f64, center.1 / living as f64, road_networks.and_then(|networks| networks.get(&company.owner)));
+                let home = crate::settlements::residential_settlement_on_roads(ctx, company.owner, center.0 / living as f64, center.1 / living as f64, road_networks.and_then(|networks| networks.get(&company.owner)).map(|network| network.as_ref()));
                 if source_settlement.is_some() && home == source_settlement {
                     company.morale = (company.morale + dt * 0.0012).min(1.0);
                 }

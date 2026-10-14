@@ -1,10 +1,12 @@
 mod network;
+mod snapshot_cache;
 
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::db::*;
 
 pub use network::{RoadNetwork, RoadPathRoute};
+pub use snapshot_cache::RoadSnapshotCache;
 #[cfg(feature = "persistent-world")]
 pub use network::RiverNavigationGrid;
 

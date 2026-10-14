@@ -231,7 +231,7 @@ pub fn step_scouts(ctx: &ReducerContext, elapsed_seconds: f64) {
         if scout.health > 0.0 && (scout.target_x-scout.x).hypot(scout.target_z-scout.z)>0.001 {
             if let (Some(navigation),Some(mut route)) = (navigation.as_ref(),ctx.db.realm_scout_route().settlement_id().find(scout.settlement_id)) {
                 if let Ok(path) = serde_json::from_str::<Vec<[f64;2]>>(&route.waypoints_json) {
-                    let roads = roads.as_ref().and_then(|networks| networks.get(&scout.owner)).unwrap_or_else(|| empty_roads.as_ref().unwrap());
+                    let roads = roads.as_ref().and_then(|networks| networks.get(&scout.owner)).map(|network| network.as_ref()).unwrap_or_else(|| empty_roads.as_ref().unwrap());
                     let initial_leg = route.leg;
                     let mut remaining = 4.0 * elapsed_seconds.max(0.0);
                     while remaining > 0.001 && (route.leg as usize) < path.len() {

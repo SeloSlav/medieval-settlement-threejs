@@ -64,6 +64,7 @@ pub struct RiverNavigationGrid {
 
 #[derive(Debug, Clone)]
 pub struct RoadNetwork {
+    route_cache: std::cell::RefCell<CanonicalRouteCache>,
     water_segment_cache: std::cell::RefCell<HashMap<[u64;4],bool>>,
     distance_cache: std::cell::RefCell<HashMap<[u64; 4], Option<f64>>>,
     snap_cache: std::cell::RefCell<HashMap<[u64; 2], Option<Vec<String>>>>,
@@ -89,10 +90,60 @@ pub struct RoadNetwork {
 const ROAD_SURFACE_CELL_SIZE: f64 = 24.0;
 const ROAD_SURFACE_MARGIN: f64 = 0.15;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RoadPathRoute {
     pub distance: f64,
     pub polyline: Vec<[f64; 2]>,
+}
+
+const MAX_CACHED_ROUTES: usize = 256;
+const MAX_CACHED_ROUTE_POINTS: usize = 16_384;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RoadRouteCacheStats {
+    pub queries: u64,
+    pub hits: u64,
+    pub evictions: u64,
+    pub oversized: u64,
+    pub entries: usize,
+    pub points: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CanonicalRouteCache {
+    entries: HashMap<[u64; 4], Option<RoadPathRoute>>,
+    order: VecDeque<[u64; 4]>,
+    stats: RoadRouteCacheStats,
+}
+
+impl CanonicalRouteCache {
+    fn get(&mut self, key: &[u64; 4]) -> Option<Option<RoadPathRoute>> {
+        self.stats.queries += 1;
+        let route = self.entries.get(key)?;
+        self.stats.hits += 1;
+        Some(route.clone())
+    }
+
+    fn insert(&mut self, key: [u64; 4], route: &Option<RoadPathRoute>) {
+        let points = route.as_ref().map_or(0, |route| route.polyline.len());
+        if points > MAX_CACHED_ROUTE_POINTS {
+            self.stats.oversized += 1;
+            return;
+        }
+        // FIFO eviction preserves other warm routes instead of flushing the
+        // entire cache when a moving endpoint produces another unique key.
+        while self.entries.len() >= MAX_CACHED_ROUTES || self.stats.points + points > MAX_CACHED_ROUTE_POINTS {
+            let old = self.order.pop_front().expect("Route cache entries must have eviction ownership");
+            if let Some(Some(route)) = self.entries.remove(&old) {
+                self.stats.points -= route.polyline.len();
+            }
+            self.stats.evictions += 1;
+        }
+        self.entries.insert(key, route.clone());
+        self.order.push_back(key);
+        self.stats.points += points;
+        self.stats.entries = self.entries.len();
+    }
 }
 
 struct ShortestPathSolve {
@@ -111,6 +162,7 @@ impl RoadNetwork {
     /// Immutable map data can be shared across every owner's graph and clone.
     pub fn set_river_navigation(&mut self, navigation: Arc<RiverNavigationGrid>) {
         self.river_navigation = Some(navigation);
+        *self.route_cache.borrow_mut() = CanonicalRouteCache::default();
         self.distance_cache.borrow_mut().clear();
         self.snap_cache.borrow_mut().clear();
         self.water_segment_cache.borrow_mut().clear();
@@ -218,6 +270,7 @@ impl RoadNetwork {
             build_surface_spatial_index(&nodes, &snapshot.edges, &endpoint_half_width);
 
         Some(Self {
+            route_cache: Default::default(),
             water_segment_cache: Default::default(),
             distance_cache: Default::default(), snap_cache: Default::default(),
             nearest_cache: Default::default(),
@@ -739,6 +792,18 @@ impl RoadNetwork {
 
     /// Canonical shortest route — distance matches sampled polyline length for movement.
     pub fn road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
+        let key = [ax.to_bits(), az.to_bits(), bx.to_bits(), bz.to_bits()];
+        if let Some(route) = self.route_cache.borrow_mut().get(&key) { return route; }
+        let route = self.uncached_road_path_route(ax, az, bx, bz);
+        self.route_cache.borrow_mut().insert(key, &route);
+        route
+    }
+
+    pub fn route_cache_stats(&self) -> RoadRouteCacheStats {
+        self.route_cache.borrow().stats
+    }
+
+    fn uncached_road_path_route(&self, ax: f64, az: f64, bx: f64, bz: f64) -> Option<RoadPathRoute> {
         let graph_route = self
             .shortest_path_solve(ax, az, bx, bz)
             .map(|solve| {
@@ -1651,6 +1716,118 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 mod tests {
     use super::{RoadNetwork, RiverNavigationGrid};
     use std::sync::Arc;
+
+    fn canonical_cache_network() -> RoadNetwork {
+        RoadNetwork::from_snapshot_json(&serde_json::json!({
+            "nodes": [
+                {"id":"a","position":[-40.0,0.0,-40.0]}, {"id":"b","position":[40.0,0.0,-40.0]},
+                {"id":"c","position":[40.0,0.0,40.0]}, {"id":"d","position":[-40.0,0.0,40.0]},
+                {"id":"e","position":[140.0,0.0,0.0]}, {"id":"f","position":[240.0,0.0,0.0]}
+            ],
+            "edges": [
+                {"startNodeId":"a","endNodeId":"b","sampledPath":[[-40.0,0.0,-40.0],[-15.0,0.0,-48.0],[0.0,0.0,-34.0],[18.0,0.0,-44.0],[40.0,0.0,-40.0]]},
+                {"startNodeId":"b","endNodeId":"c","sampledPath":[[40.0,0.0,-40.0],[40.0,0.0,40.0]]},
+                {"startNodeId":"c","endNodeId":"d","sampledPath":[[40.0,0.0,40.0],[-40.0,0.0,40.0]]},
+                {"startNodeId":"d","endNodeId":"a","sampledPath":[[-40.0,0.0,40.0],[-40.0,0.0,-40.0]]},
+                {"startNodeId":"e","endNodeId":"f","sampledPath":[[140.0,0.0,0.0],[240.0,0.0,0.0]]}
+            ]
+        }).to_string()).unwrap()
+    }
+
+    #[test]
+    fn canonical_cache_preserves_exact_routes_failures_direction_and_caller_ownership() {
+        let network = canonical_cache_network();
+        let points = [(-40.0,-40.0),(-20.0,-43.0),(20.0,-42.0),(40.0,35.0),(-40.0,20.0),
+            (140.0,0.0),(200.0,4.0),(1000.0,1000.0),(-0.0,-34.0),(0.0,-34.0)];
+        let mut positive = 0; let mut negative = 0;
+        for &(ax,az) in &points { for &(bx,bz) in &points {
+            let reference = network.uncached_road_path_route(ax,az,bx,bz);
+            if reference.is_some() { positive += 1; } else { negative += 1; }
+            assert_eq!(network.road_path_route(ax,az,bx,bz), reference);
+            assert_eq!(network.road_path_route(ax,az,bx,bz), reference);
+        }}
+        assert!(positive > 20 && negative > 20);
+        let reference = network.uncached_road_path_route(-40.0,-40.0,40.0,40.0).unwrap();
+        let mut owned = network.road_path_route(-40.0,-40.0,40.0,40.0).unwrap();
+        owned.polyline[0] = [999.0,999.0]; owned.distance = -1.0;
+        assert_eq!(network.road_path_route(-40.0,-40.0,40.0,40.0), Some(reference));
+        let stats = network.route_cache_stats();
+        assert!(stats.hits >= 101); assert!(stats.entries <= super::MAX_CACHED_ROUTES);
+        let cloned = network.clone();
+        assert_eq!(cloned.road_path_route(-40.0,-40.0,40.0,40.0), network.road_path_route(-40.0,-40.0,40.0,40.0));
+        assert_eq!(network.road_path_route(f64::NAN,0.0,1.0,0.0),None);
+        assert_eq!(network.road_path_route(f64::INFINITY,0.0,1.0,0.0),None);
+    }
+
+    #[test]
+    fn canonical_cache_refreshes_when_navigation_changes_and_new_graphs_start_cold() {
+        let mut network = RoadNetwork::from_snapshot_json(&serde_json::json!({
+            "nodes":[{"id":"a","position":[1.0,0.0,8.0]},{"id":"b","position":[14.0,0.0,8.0]}],
+            "edges":[{"startNodeId":"a","endNodeId":"b","width":0.2}]
+        }).to_string()).unwrap();
+        let endpoints = (1.0,13.0,14.0,13.0);
+        assert!(network.road_path_route(endpoints.0,endpoints.1,endpoints.2,endpoints.3).is_some());
+        let flooded: Vec<_> = (0..16).flat_map(|x|(0..16).map(move |z|(x,z))).collect();
+        let wet = sparse_water_network(16,&flooded,15.0).river_navigation.unwrap();
+        network.set_river_navigation(wet);
+        assert_eq!(network.route_cache_stats().entries,0);
+        assert_eq!(network.road_path_route(endpoints.0,endpoints.1,endpoints.2,endpoints.3),None);
+        assert_eq!(network.road_path_route(endpoints.0,endpoints.1,endpoints.2,endpoints.3),None);
+        assert_eq!(network.route_cache_stats().hits,1);
+        let dry = sparse_water_network(16,&[],15.0).river_navigation.unwrap();
+        network.set_river_navigation(dry);
+        assert!(network.road_path_route(endpoints.0,endpoints.1,endpoints.2,endpoints.3).is_some());
+        assert_eq!(canonical_cache_network().route_cache_stats().entries,0);
+    }
+
+    #[test]
+    fn canonical_cache_evicts_individually_and_rejects_oversized_routes_without_truncation() {
+        let network = canonical_cache_network();
+        for index in 0..super::MAX_CACHED_ROUTES + 30 {
+            let x = -39.0 + index as f64 * 0.1;
+            network.road_path_route(x,-40.0,x+0.5,-40.0);
+        }
+        let stats = network.route_cache_stats();
+        assert_eq!(stats.entries,super::MAX_CACHED_ROUTES);
+        assert_eq!(stats.evictions,30); assert!(stats.points <= super::MAX_CACHED_ROUTE_POINTS);
+        assert!(!network.route_cache.borrow().entries.contains_key(&[(-39.0f64).to_bits(),(-40.0f64).to_bits(),(-38.5f64).to_bits(),(-40.0f64).to_bits()]));
+        let last = -39.0 + (super::MAX_CACHED_ROUTES + 29) as f64 * 0.1;
+        network.road_path_route(last,-40.0,last+0.5,-40.0);
+        assert_eq!(network.route_cache_stats().hits,1,"A capacity eviction must retain other warm routes");
+
+        let mut point_budget = super::CanonicalRouteCache::default();
+        for index in 0..12u64 {
+            point_budget.insert([index,0,0,0], &Some(super::RoadPathRoute {
+                distance: 3000.0, polyline: vec![[0.0,0.0];3000],
+            }));
+        }
+        assert_eq!(point_budget.stats.entries,5); assert_eq!(point_budget.stats.points,15000);
+        assert_eq!(point_budget.stats.evictions,7,"The point budget must evict before the entry limit");
+
+        let length = super::MAX_CACHED_ROUTE_POINTS + 32;
+        let path:Vec<_> = (0..length).map(|i|[i as f64,0.0,0.0]).collect();
+        let large = RoadNetwork::from_snapshot_json(&serde_json::json!({
+            "nodes":[{"id":"a","position":[0.0,0.0,0.0]},{"id":"b","position":[(length-1) as f64,0.0,0.0]}],
+            "edges":[{"startNodeId":"a","endNodeId":"b","sampledPath":path}]
+        }).to_string()).unwrap();
+        let route = large.road_path_route(0.0,0.0,(length-1) as f64,0.0).unwrap();
+        assert_eq!(route.polyline.len(),length); assert_eq!(route.distance,(length-1) as f64);
+        assert_eq!(large.route_cache_stats().entries,0); assert_eq!(large.route_cache_stats().oversized,1);
+    }
+
+    #[test]
+    fn recurring_canonical_routes_avoid_repeated_solves() {
+        let network = canonical_cache_network();
+        let requests:Vec<_> = (0..48).map(|i|(-39.0+i as f64,-40.0,39.0-i as f64,40.0)).collect();
+        let expected:Vec<_> = requests.iter().map(|&(a,b,c,d)|network.uncached_road_path_route(a,b,c,d)).collect();
+        assert!(expected.iter().all(Option::is_some));
+        for _ in 0..100 { for (request, reference) in requests.iter().zip(&expected) {
+            assert_eq!(&network.road_path_route(request.0,request.1,request.2,request.3),reference);
+        }}
+        let stats=network.route_cache_stats();
+        assert_eq!(stats.queries,4800);assert_eq!(stats.hits,4752);assert_eq!(stats.entries,48);
+        println!("Canonical route parity: 4800 recurring requests -> 48 solves, {} cached points",stats.points);
+    }
 
     fn sparse_water_network(resolution:usize, wet: &[(usize,usize)], span:f64) -> RoadNetwork {
         let mut bytes=vec![0u8;resolution*resolution/8];

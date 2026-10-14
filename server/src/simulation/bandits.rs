@@ -312,7 +312,7 @@ fn dispatch_thefts(
         .filter(|c| c.active && tick >= c.next_theft_tick)
         .collect::<Vec<_>>()
     {
-        let road_network = road_networks.and_then(|networks| networks.get(&camp.owner));
+        let road_network = road_networks.and_then(|networks| networks.get(&camp.owner)).map(|network| network.as_ref());
         let target = ctx
             .db
             .building()
@@ -362,7 +362,7 @@ fn step_bandits(
         .filter(|a| a.faction == BANDIT && a.state != DOWNED)
         .collect::<Vec<_>>()
     {
-        let road_network = road_networks.and_then(|networks| networks.get(&agent.owner));
+        let road_network = road_networks.and_then(|networks| networks.get(&agent.owner)).map(|network| network.as_ref());
         if agent.state == FIGHTING {
             agent.state = if agent.carried_loot_json.is_empty()
                 && dist(agent.x, agent.z, agent.home_x, agent.home_z) <= 8.0

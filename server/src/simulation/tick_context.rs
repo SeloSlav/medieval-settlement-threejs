@@ -23,7 +23,7 @@ use crate::marketplace_stall_policy::{
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::residence_service_policy::required_chapel_tier;
 use crate::resident_welfare_policy::CorpseSpatialIndex;
-use crate::roads::RoadNetwork;
+use crate::roads::{RoadNetwork, RoadSnapshotCache};
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
@@ -60,11 +60,11 @@ impl FarmsteadSeedReserves {
     }
 }
 
-pub type SharedRoadNetworks = Arc<HashMap<Identity, RoadNetwork>>;
+pub type SharedRoadNetworks = Arc<HashMap<Identity, Arc<RoadNetwork>>>;
 thread_local! {
-    // Exact serialized topology is the invalidation key, including bridge/water
-    // navigation. A database reset or any owner's road edit replaces this cache.
-    static ROAD_SNAPSHOT_CACHE: RefCell<Option<(Vec<(Identity, String)>, SharedRoadNetworks)>> = const { RefCell::new(None) };
+    // Owner snapshots include their bridge/terrain data. Edits only replace
+    // that owner's graph; embedded realm navigation is immutable.
+    static ROAD_SNAPSHOT_CACHE: RefCell<Option<RoadSnapshotCache<Identity>>> = const { RefCell::new(None) };
 }
 
 const LIVESTOCK_TREE_INDEX_CELL_METERS: f64 = 32.0;
@@ -106,19 +106,14 @@ impl SimTickContext {
     /// delivery heartbeat and every economy substep share immutable networks,
     /// while each context below still owns fresh mutable simulation caches.
     pub fn load_road_networks(ctx: &ReducerContext) -> SharedRoadNetworks {
-        let mut snapshots: Vec<_> = ctx.db.road_network_state().iter().map(|s| (s.owner,s.snapshot_json)).collect();
-        snapshots.sort_by_key(|s| s.0);
+        let snapshots: Vec<_> = ctx.db.road_network_state().iter().map(|s| (s.owner,s.snapshot_json)).collect();
         ROAD_SNAPSHOT_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
-            if let Some((previous, networks)) = cache.as_ref() {
-                if *previous == snapshots { return networks.clone(); }
-            }
-            let road_networks: SharedRoadNetworks = Arc::new(snapshots.iter().filter_map(|(owner,json)| {
+            cache.get_or_insert_with(RoadSnapshotCache::default).refresh(snapshots, |json| {
                 let mut network = RoadNetwork::from_snapshot_json(json)?;
                 crate::roads::apply_world_navigation(&mut network);
-                Some((*owner, network))
-            }).collect());
-            *cache = Some((snapshots, road_networks.clone())); road_networks
+                Some(network)
+            })
         })
     }
 
@@ -296,7 +291,7 @@ impl SimTickContext {
     }
 
     pub fn road_network(&self, owner: Identity) -> Option<&RoadNetwork> {
-        self.road_networks.get(&owner)
+        self.road_networks.get(&owner).map(Arc::as_ref)
     }
 
     pub fn road_connected(&self, owner: Identity, ax: f64, az: f64, bx: f64, bz: f64) -> bool {
