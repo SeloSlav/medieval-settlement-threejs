@@ -35,6 +35,8 @@
     "test:streamed-instance-batches-browser": "node scripts/testStreamedInstanceBatchesBrowser.mjs",
     "test:seedthree-streamed-batches-browser": "node scripts/testSeedThreeStreamedBatchesBrowser.mjs",
     "test:realm-terrain-buffers": "node --import tsx scripts/testRealmTerrainBuffers.mts",
+    "test:spatial-terrain-draws": "node --import tsx scripts/testSpatialTerrainDraws.mts",
+    "test:spatial-terrain-draws-browser": "node scripts/testSpatialTerrainDrawsBrowser.mjs",
     "test:household-timers": "node --import tsx scripts/testHouseholdTimers.mts",
     "test:delivery-cart-batch": "node --import tsx scripts/testDeliveryCartBatch.mts",
     "test:delivery-worker-batches": "node --import tsx scripts/testDeliveryWorkerBatches.mts",

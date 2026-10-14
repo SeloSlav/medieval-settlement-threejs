@@ -406,6 +406,15 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
     console.log('Terrain idle', JSON.stringify(costs));
   }
   await page.screenshot({ path: `${output}/camp.png` });
+  await page.evaluate(() => {
+    const app=window.__realmApp, backend=app.sceneManager.renderer.backend, buffers=window.__realmTerrainGpuBuffers=new Map();
+    app.realmPresentation.terrainStream.group.traverse(mesh=>{
+      if(!mesh.isMesh)return;
+      const vertex=backend.get(mesh.geometry.getAttribute('position').data).buffer,index=backend.get(mesh.geometry.index).buffer;
+      if(vertex&&index)buffers.set(mesh,[vertex,index]);
+    });
+    if(!buffers.size)throw Error('Terrain GPU cache proof requires rendered cells');
+  });
   await page.evaluate(() => window.__realmApp.cameraController.enterIllustratedMap());
   await page.waitForFunction(() => window.__realmApp.sceneManager.isIllustratedMapActive(), undefined, { timeout: 30000 });
   await page.evaluate(() => {
@@ -433,10 +442,23 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
     return stream.resident > 0 && stream.loading === 0 && stream.queued === 0;
   }, undefined, { timeout: 30000 });
   const returned = await page.evaluate(() => ({ terrain: window.__realmApp.realmPresentation.terrainStream.stream.stats,
+    terrainBuffers: window.__realmApp.realmPresentation.terrainStream.stats,
     active: window.__realmApp.sceneManager.isIllustratedMapActive() }));
+  returned.reusedNativeTerrainBuffers=await page.evaluate(()=>{
+    const backend=window.__realmApp.sceneManager.renderer.backend;
+    for(const [mesh,[vertex,index]]of window.__realmTerrainGpuBuffers){
+      if(backend.get(mesh.geometry.getAttribute('position').data).buffer!==vertex
+        ||backend.get(mesh.geometry.index).buffer!==index)throw Error('Returning from the parchment map replaced a terrain GPU buffer');
+    }
+    return window.__realmTerrainGpuBuffers.size*2;
+  });
   writeFileSync(`${output}/returned.json`, JSON.stringify(returned,null,2));
   if (returned.active || returned.terrain.hits <= report.stream.hits || returned.terrain.misses !== report.stream.misses) {
     throw Error('Returning from the parchment map did not reuse the resident terrain cache');
+  }
+  if (returned.terrainBuffers.draws.allocations !== report.terrainBuffers.draws.allocations
+    || returned.terrainBuffers.draws.cacheHits <= report.terrainBuffers.draws.cacheHits) {
+    throw Error('Returning from the parchment map did not reuse the consolidated terrain GPU buffers');
   }
   if (errors.length) throw Error(errors.join('\n'));
   await page.screenshot({path:`${output}/returned.png`});

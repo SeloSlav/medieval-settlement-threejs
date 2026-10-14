@@ -374,6 +374,59 @@ functions. Evidence: `artifacts/realm-browser-terrain-dirty-queue/`. Set
 `REALM_BROWSER_TERRAIN_DIAGNOSTIC=1` to collect the isolated comparison after the
 formal frame and CPU cohorts.
 
+Resident multiplayer terrain now shares native vertex/index draws across fixed
+4×4 chunk cells. Source tiles keep their independent CPU interpolation buffers
+and cache lifecycle; only their exact packed vertices move into consolidated
+GPU buffers. A complete 81-chunk window uses nine terrain draws and retains all
+41,472 triangles. Buffer growth initializes the previous contents before partial
+updates. Dense removal moves the last member into the freed slot, and bounds
+include only active members. Different attribute layouts coexist while budgeted
+refreshes finish. This adds no sampled textures to terrain's existing shader.
+
+Empty draw cells retain their GPU buffers in an LRU cache bounded to 128 reserved
+chunk slots. Reattachment updates source data and reuses the original allocation;
+eviction and disposal release each owned geometry once. The CPU regression checks
+495,720 float bit patterns, exact indices, growth, same-version buffer replacement,
+mixed layouts, material changes and an 80-cell cache churn. Streaming, terrain
+buffer and TypeScript checks pass.
+
+The native WebGPU regression uses 14 material textures plus depth/color shadow
+textures within the standard 16-texture limit. All 21 comparisons preserve every
+pixel, including first-frame growth, five immediate camera changes, height/wetness
+updates, dense removal, mixed layouts, material replacement and cached GPU-buffer
+return. Its wide view changes 83 total draws to 11, including a shadowed test box,
+with the same 41,496 triangles. An explicit visibility check covers 52,417 terrain
+pixels, so empty matching frames cannot pass. Consolidated bounds are conservative:
+some partial camera views submit more offscreen triangles than individual chunks,
+while their rendered pixels still match exactly. Evidence:
+`artifacts/city-performance/spatial-terrain-draws/report.json`.
+
+The controlled cached-return case also compares the native GPUBuffer objects,
+retaining all 18 vertex/index buffer identities. Indices are allocated as uint32
+from the start, matching Three's native WebGPU format and avoiding first-use
+array conversion in previously culled cells.
+
+The following production-client 50-client capture has 81 resident chunks and nine
+terrain draws, with 2.84 MB of active draw buffers. It averages 28.99 ms / 48.30 ms
+P95, and the 16.67 ms gate still fails. Fog and paper-map return checks pass with no
+browser runtime errors. The advancing world's later frame cohort does not isolate
+an FPS gain from terrain consolidation. Evidence:
+`artifacts/realm-browser-spatial-terrain-draws/`.
+
+A subsequent 50-client run adds an explicit game-level allocation/cache-hit
+gate. Returning from the paper map retains 19 geometry allocations and reuses all
+nine draw cells, while fog and chunk-cache return checks pass without runtime
+errors. Its frame cohort remains over budget at 30.85 ms mean / 48.50 ms P95.
+Evidence: `artifacts/realm-browser-spatial-terrain-cache-return/`.
+
+The final game-level check captures actual backend GPUBuffer identities before
+entering the paper map. All ten buffers from the five already-rendered terrain
+cells retain their identities on return; all nine draw cells reuse the same 19
+geometry allocations, with 2.90 MB before and afterward. The final 50-client
+cohort measures 26.57 ms mean / 42.50 ms P95, with no browser runtime errors and
+passing fog/cache return gates. The frame-budget gate still fails. Evidence:
+`artifacts/realm-browser-spatial-terrain-native-buffers/`.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd

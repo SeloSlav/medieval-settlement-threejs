@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { ChunkStream } from './ChunkStream.ts';
+import { SpatialTerrainDraws } from './SpatialTerrainDraws.ts';
 import { REALM, REALM_CHUNKS_PER_SIDE, chunkBounds, worldChunk } from './realmPolicy.ts';
 
 type SourceAttribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
@@ -18,6 +19,7 @@ export class RealmTerrainStream {
   readonly group = new THREE.Group();
   readonly stream: ChunkStream<Tile>;
   private readonly terrain: Terrain;
+  private readonly draws: SpatialTerrainDraws;
   private readonly now: () => number;
   private readonly attached = new Map<number, Tile>();
   private readonly attributes = new Map<string, AttributeState>();
@@ -34,12 +36,14 @@ export class RealmTerrainStream {
   private center: number | null = null;
   private paused = false;
   get stats() { return { allocations: this.allocations, refreshes: this.refreshes,
-    tileChecks: this.tileChecks, pendingRefreshes: this.pendingRefreshes.size }; }
+    tileChecks: this.tileChecks, pendingRefreshes: this.pendingRefreshes.size, draws: this.draws.stats }; }
 
   constructor(terrain: Terrain, scene: THREE.Scene, now: () => number = () => performance.now()) {
     this.terrain = terrain;
     this.now = now;
     this.material = terrain.mesh.material;
+    this.draws = new SpatialTerrainDraws(this.material);
+    this.group.add(this.draws.group);
     this.group.name = 'Streamed realm terrain';
     scene.add(this.group);
     terrain.mesh.visible = false;
@@ -48,9 +52,9 @@ export class RealmTerrainStream {
       load: async id => this.createTile(id),
       attach: (id, tile) => {
         this.synchronizeSource(); this.refreshTile(id, tile);
-        this.attached.set(id, tile); this.group.add(tile.mesh); tile.mesh.updateMatrixWorld(true);
+        this.attached.set(id, tile); this.draws.upsert(id, tile);
       },
-      detach: (id, tile) => { this.attached.delete(id); this.pendingRefreshes.delete(id); this.group.remove(tile.mesh); },
+      detach: id => { this.attached.delete(id); this.pendingRefreshes.delete(id); this.draws.remove(id); },
       onError: (id, error) => console.error(`[Realm terrain ${id}]`, error),
     });
   }
@@ -90,10 +94,12 @@ export class RealmTerrainStream {
     if (this.material !== this.terrain.mesh.material) {
       this.material = this.terrain.mesh.material;
       for (const tile of this.attached.values()) tile.mesh.material = this.material;
+      this.draws.setMaterial(this.material);
     }
     this.stream.pump(Math.max(0, REALM.streamBudgetMs - (this.now() - start)), this.now);
+    this.draws.flush();
   }
-  dispose(): void { this.stream.dispose(); this.group.removeFromParent(); this.terrain.mesh.visible = true; }
+  dispose(): void { this.stream.dispose(); this.draws.dispose(); this.group.removeFromParent(); this.terrain.mesh.visible = true; }
 
   private tileNeedsRefresh(id: number, tile: Tile): boolean {
     if (tile.layout !== this.layout) return true;
@@ -213,5 +219,6 @@ export class RealmTerrainStream {
     if (changed) { tile.buffer.needsUpdate = true; this.refreshes++; }
     if (boundsChanged) { tile.mesh.geometry.computeBoundingBox(); tile.mesh.geometry.computeBoundingSphere(); }
     tile.mesh.material = this.terrain.mesh.material;
+    if (changed && this.attached.get(id) === tile) this.draws.upsert(id, tile);
   }
 }
