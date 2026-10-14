@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline';
 const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`;
 const large = process.argv.includes('--large');
 const normalFrames = process.argv.includes('--normal');
+const includeFields = process.argv.includes('--fields');
 mkdirSync(output, { recursive: true });
 const server = await createServer({
   cacheDir: 'artifacts/city-performance/vite-cache',
@@ -77,7 +78,7 @@ try {
   await page.screenshot({ path: `${output}/initial-runtime.png` });
   await page.evaluate(() => window.__visualPerf?.stopFrameCollection());
   console.log('ready', JSON.stringify({ stats: state.stats, buildings: state.buildings.length, residences: state.residences.length, errors }));
-  const measured = await page.evaluate(async large => {
+  const measured = await page.evaluate(async ({large,includeFields}) => {
     const app = window.__cityApp;
     const manager = app.sceneManager;
     const phases = {};
@@ -96,6 +97,19 @@ try {
     const position=(i)=>large ? {x:center.x+(i%14-6.5)*18,z:center.z+(Math.floor(i/14)-6.5)*18} : {x:center.x+(i%3-1)*20,z:center.z+Math.floor(i/3)*20+24};
     const buildings=Array.from({length:large?100:6},(_,i)=>({...camp,id:`perf-building-${i}`,kind:kinds[i%kinds.length],...position(i),foundingShelterActive:false,assignedLabor:4,yaw:0}));
     const residences=Array.from({length:large?100:5},(_,i)=>({id:`perf-home-${i}`,zoneId:'perf',parcelIndex:i,...(large?position(i+100):{x:center.x+(i-2)*16,z:center.z-25}),yaw:0,population:large?5:6,populationCapacity:6,tier:1,settlementTicks:0,needs:createDefaultNeeds(),abandoned:false,householdWealth:8}));
+    const {FarmFieldMarkers}=await import('/src/farming/FarmFieldMarkers.ts');
+    const fieldMarkers=includeFields?new FarmFieldMarkers(manager.selectionGroup,(x,z)=>manager.terrain.getHeightAt(x,z),{
+      rendererBackend:manager.rendererBackend,maxAnisotropy:manager.textureAnisotropy,useSeedThreeCrops:true,useSeedThreePerimeterShrubs:true,
+      getHeightRevision:()=>{const geometry=manager.terrain.mesh.geometry,position=geometry.getAttribute('position');return [geometry,position,position.version];},
+    }):null;
+    let farmFields=includeFields?Array.from({length:large?12:4},(_,i)=>{
+      const x=center.x-180+(i%4)*44,z=center.z-230+Math.floor(i/4)*44;
+      return {id:`perf-field-${i}`,farmsteadId:buildings[0].id,corners:[{x,z},{x:x+36,z},{x:x+36,z:z+36},{x,z:z+36}],
+        area:1296,averageSlopeDegrees:0,moisture:.5,fertility:.8,crop:['rye','oats','barley','flax'][i%4],nextCrop:'fallow',stage:'growing',stageProgress:.7,
+        priority:1,harvestCount:0,lastYield:0,currentYield:0};
+    }):[];
+    if(fieldMarkers)await Promise.all([fieldMarkers.whenCropsReady(),fieldMarkers.whenPerimeterReady()]);
+    let fieldScenarioReady=false;
     if(large)app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
     const stableIds=buildings.filter(b=>b.kind==='stable').map(b=>b.id);
     const { AnimalCombatRenderer }=await import('/src/settlement/AnimalCombatRenderer.ts');
@@ -109,6 +123,8 @@ try {
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
+        fieldMarkers?.syncFields(farmFields);
+        fieldScenarioReady=true;
       }
       if(arm==='populated') {
         app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:large?30:3},(_,i)=>({id:`perf-ox-${i}`,stableId:stableIds[Math.floor(i/3)%stableIds.length],slot:i%3,purchaseCost:10}))});
@@ -120,7 +136,7 @@ try {
         const occupancy=residences.map((_,i)=>({zoneId:`perf-plot-${i}`,parcelIndex:0}));
         const parcels=collectOccupiedParcelPolygons(zones,occupancy);
         if(parcels.length!==residences.length)throw new Error('Normal occupied-parcel clearance fixture is incomplete');
-        manager.setForestClearanceSources([camp,...buildings],parcels,[]);
+        manager.setForestClearanceSources([camp,...buildings],parcels,farmFields.map(field=>field.corners));
         app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
       }
       for(let i=0;i<(arm.startsWith('populated-')?240:120);i++)await new Promise(requestAnimationFrame);
@@ -130,6 +146,9 @@ try {
       for(let i=0;i<(arm.startsWith('populated-')?360:180);i++) {
         if(arm.endsWith('camera-sweep'))app.cameraController.applyShowcaseView(center.x,center.z,.7+.4*Math.sin(i*Math.PI/180),.75,320);
         for(const k of Object.keys(phases)) phases[k]=0;
+        // Presentation-only replica changes; this probe does not run a farm economy.
+        if(fieldMarkers&&fieldScenarioReady&&i%30===0){farmFields=farmFields.map((f,index)=>index===0?{...f,stageProgress:.5+(i%120)/240}:f);
+          const started=performance.now();fieldMarkers.syncFields(farmFields);phases.fields=performance.now()-started;}
         const time=await new Promise(requestAnimationFrame);
         if(last!==undefined)samples.push({intervalMs:time-last,...phases});
         last=time;
@@ -139,14 +158,14 @@ try {
       await window.__cityProbeProgress({arm,phase:'complete',meanFrameMs:samples.reduce((sum,sample)=>sum+sample.intervalMs,0)/samples.length});
     }
     return reports;
-  }, large);
+  }, {large,includeFields});
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
   const summary=measured.map(({arm,samples,stats})=>{
     const times=samples.map(s=>s.intervalMs).sort((a,b)=>a-b);
     const mean=times.reduce((a,b)=>a+b,0)/times.length;
     return {arm,meanFrameMs:mean,averageFps:1000/mean,medianFrameMs:times[Math.floor(times.length*.5)],p95FrameMs:times[Math.floor(times.length*.95)],meanRenderCpuMs:samples.reduce((a,b)=>a+b.render,0)/samples.length,stats};
   });
-  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
+  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,fields:includeFields?{count:large?12:4,replicaChangesEveryFrames:30,presentationOnly:true}:null,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   const geometryInventory = await page.evaluate(async () => {
     const { THREE } = await import('/scripts/fixtures/webgpuTestImports.ts');

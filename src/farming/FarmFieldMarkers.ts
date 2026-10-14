@@ -1257,11 +1257,20 @@ export type FarmFieldMarkerOptions = {
   soilDebugMode?: FieldSoilDebugMode;
   useSeedThreePerimeterShrubs?: boolean;
   useSeedThreeCrops?: boolean;
+  /** Identities/versions governing the supplied height sampler. */
+  getHeightRevision?: () => readonly unknown[];
 };
 
 export class FarmFieldMarkers {
   private readonly root = new THREE.Group();
   private lastSignature = '';
+  private readonly fieldModels = new Map<string, { signature: string; group: THREE.Group }>();
+  private cropRevision = 0;
+  private perimeterSignature = '';
+  private perimeterGroup: THREE.Group | null = null;
+  private readonly getHeightRevision?: () => readonly unknown[];
+  private lastHeightRevision: readonly unknown[] = [];
+  private heightRevision = 0;
   private readonly getHeightAt: (x: number, z: number) => number;
   private latestFields: FarmFieldState[] = [];
   private perimeterShrubs: FieldPerimeterShrubCatalog | null = null;
@@ -1279,6 +1288,7 @@ export class FarmFieldMarkers {
     options: FarmFieldMarkerOptions = {},
   ) {
     this.getHeightAt = getHeightAt;
+    this.getHeightRevision = options.getHeightRevision;
     this.seedThreeCropsRequested = options.useSeedThreeCrops === true;
     this.rendererBackend = options.rendererBackend ?? 'webgl';
     this.soilDebugMode = options.soilDebugMode ?? 'final';
@@ -1298,6 +1308,7 @@ export class FarmFieldMarkers {
             return;
           }
           this.perimeterShrubs = catalog;
+          this.perimeterSignature = '';
           this.lastSignature = '';
           this.syncFields(this.latestFields);
         },
@@ -1323,6 +1334,7 @@ export class FarmFieldMarkers {
             return;
           }
           this.cropCatalog = catalog;
+          this.cropRevision += 1;
           this.lastSignature = '';
           this.syncFields(this.latestFields);
         },
@@ -1337,73 +1349,121 @@ export class FarmFieldMarkers {
   }
 
   syncFields(fields: Iterable<FarmFieldState>): void {
+    if (this.disposed) return;
     const list = [...fields];
     this.latestFields = list;
-    const signature = list.map((field) => [
+    const heightRevision = this.getHeightRevision?.();
+    if (heightRevision && (heightRevision.length !== this.lastHeightRevision.length
+      || heightRevision.some((value,index) => value !== this.lastHeightRevision[index]))) {
+      this.lastHeightRevision = [...heightRevision];
+      this.heightRevision += 1;
+    }
+    const fieldSignatures = list.map((field) => [
       field.id,
       field.crop,
       field.stage,
       Math.round(clamp01(field.stageProgress) * 40),
       Math.round(clamp01(field.fertility) * 20),
       field.corners.map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`).join(';'),
-    ].join(':')).join('|');
+      this.cropRevision,
+    ].join(':'));
+    const signature = `${this.heightRevision}|${fieldSignatures.join('|')}`;
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
-    disposeObject(this.root);
+    const currentIds = new Set(list.map(field => field.id));
+    for (const [id, previous] of this.fieldModels) {
+      if (currentIds.has(id)) continue;
+      previous.group.removeFromParent();
+      disposeObject(previous.group);
+      this.fieldModels.delete(id);
+    }
     for (const field of list) {
-      const corners = field.corners as FarmFieldCorners;
-      const group = new THREE.Group();
-      group.name = `Field ${field.id}`;
-      group.userData.visualContract = {
-        seed: hashString(field.id),
-        state: field.crop === 'fallow'
-          ? 'fallow'
-          : field.stage === 'ploughing' && field.stageProgress <= 0.01
-            ? 'unploughed'
-            : field.stage === 'ploughing'
-              ? 'ploughed'
-              : field.stage === 'sowing'
-                ? field.stageProgress <= 0.01
-                  ? 'ploughed'
-                  : 'seeded'
-                : field.stage,
-        processedCoverage: field.stage === 'ploughing'
-          ? clamp01(field.stageProgress)
-          : 1,
-        seededCoverage: field.stage === 'sowing'
-          ? clamp01(field.stageProgress)
-          : 0,
-        soilIdentities: soilIdentityOrder(field),
-        soilCoordinateDomain: 'world-xz-metres',
-        soilOrganicRepeat: true,
-        soilEdgeFadeMeters: FIELD_EDGE_FADE_METERS,
-        crop: field.crop === 'wheat' ? 'maslin' : field.crop,
-        cropAssetOwner: field.crop === 'fallow' ? 'none' : 'SeloSlav/SeedThree',
-      };
-      group.add(createSurface(
-        field,
-        corners,
-        this.getHeightAt,
-        this.rendererBackend,
-        this.soilDebugMode,
-      ));
-      group.add(createSeededDrills(field, corners, this.getHeightAt));
-      group.add(createSoilClods(field, corners, this.getHeightAt));
-      group.add(this.cropCatalog
-        ? createSeedThreeCropStand(field, corners, this.getHeightAt, this.cropCatalog)
-        : this.seedThreeCropsRequested
-          ? new THREE.Group()
-          : createLegacyCropStand(field, corners, this.getHeightAt));
-      group.add(createFieldEdge(field.id, corners, this.getHeightAt));
+      // Preserve the former global update cadence. Once another field changes
+      // a visual band, compare exact builder inputs so fractional progress or
+      // terrain edits observed by the old whole-list rebuild are not lost.
+      const modelSignature = JSON.stringify([field.id,field.crop,field.stage,
+        field.stageProgress,field.fertility,field.area,
+        field.corners.map(point => [point.x,point.z]),this.cropRevision,this.heightRevision]);
+      const previous = this.fieldModels.get(field.id);
+      if (previous?.signature === modelSignature) continue;
+      if (previous) {
+        previous.group.removeFromParent();
+        disposeObject(previous.group);
+      }
+      const group = this.createFieldModel(field);
+      this.fieldModels.set(field.id, { signature: modelSignature, group });
       this.root.add(group);
     }
-    if (this.perimeterShrubs && list.length > 0) {
-      this.root.add(createFieldPerimeterShrubGroup(
-        list,
-        this.getHeightAt,
-        this.perimeterShrubs,
-      ));
+    // Perimeter geometry depends on parcel shape and identity, independently
+    // of crop progress, fertility or the asynchronously loaded crop catalog.
+    const perimeterSignature = JSON.stringify([this.heightRevision,list.map(field => [field.id,
+      field.corners.map(point => [point.x,point.z]),
+    ])]);
+    if (perimeterSignature !== this.perimeterSignature) {
+      this.perimeterSignature = perimeterSignature;
+      if (this.perimeterGroup) {
+        this.perimeterGroup.removeFromParent();
+        disposeObject(this.perimeterGroup);
+        this.perimeterGroup = null;
+      }
+      if (this.perimeterShrubs && list.length > 0) {
+        this.perimeterGroup = createFieldPerimeterShrubGroup(list, this.getHeightAt, this.perimeterShrubs);
+        this.root.add(this.perimeterGroup);
+      }
     }
+    // Replacements append to Object3D.children. Restore input order without
+    // detaching unchanged models or firing spurious graph-removal callbacks.
+    const order = new Map<THREE.Object3D, number>(list.map((field, index) => [this.fieldModels.get(field.id)!.group, index]));
+    if (this.perimeterGroup) order.set(this.perimeterGroup, list.length);
+    this.root.children.sort((a,b) => order.get(a)! - order.get(b)!);
+  }
+
+  private createFieldModel(field: FarmFieldState): THREE.Group {
+    const corners = field.corners as FarmFieldCorners;
+    const group = new THREE.Group();
+    group.name = `Field ${field.id}`;
+    group.userData.visualContract = {
+      seed: hashString(field.id),
+      state: field.crop === 'fallow'
+        ? 'fallow'
+        : field.stage === 'ploughing' && field.stageProgress <= 0.01
+          ? 'unploughed'
+          : field.stage === 'ploughing'
+            ? 'ploughed'
+            : field.stage === 'sowing'
+              ? field.stageProgress <= 0.01
+                ? 'ploughed'
+                : 'seeded'
+              : field.stage,
+      processedCoverage: field.stage === 'ploughing'
+        ? clamp01(field.stageProgress)
+        : 1,
+      seededCoverage: field.stage === 'sowing'
+        ? clamp01(field.stageProgress)
+        : 0,
+      soilIdentities: soilIdentityOrder(field),
+      soilCoordinateDomain: 'world-xz-metres',
+      soilOrganicRepeat: true,
+      soilEdgeFadeMeters: FIELD_EDGE_FADE_METERS,
+      crop: field.crop === 'wheat' ? 'maslin' : field.crop,
+      cropAssetOwner: field.crop === 'fallow' ? 'none' : 'SeloSlav/SeedThree',
+    };
+    group.add(createSurface(
+      field,
+      corners,
+      this.getHeightAt,
+      this.rendererBackend,
+      this.soilDebugMode,
+    ));
+    group.add(createSeededDrills(field, corners, this.getHeightAt));
+    group.add(createSoilClods(field, corners, this.getHeightAt));
+    group.add(this.cropCatalog
+      ? createSeedThreeCropStand(field, corners, this.getHeightAt, this.cropCatalog)
+      : this.seedThreeCropsRequested
+        ? new THREE.Group()
+        : createLegacyCropStand(field, corners, this.getHeightAt));
+    group.add(createFieldEdge(field.id, corners, this.getHeightAt));
+    return group;
   }
 
   whenPerimeterReady(): Promise<void> {
@@ -1415,8 +1475,12 @@ export class FarmFieldMarkers {
   }
 
   dispose(): void {
+    if (this.disposed) return;
     this.disposed = true;
     disposeObject(this.root);
+    this.fieldModels.clear();
+    this.perimeterGroup = null;
+    this.latestFields = [];
     this.perimeterShrubs?.dispose();
     this.perimeterShrubs = null;
     this.cropCatalog?.dispose();

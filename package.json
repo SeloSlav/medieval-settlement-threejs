@@ -243,6 +243,8 @@
     "test:expanded-settlement": "npx tsx scripts/testExpandedSettlement.mts",
     "test:farming": "npx tsx scripts/testFarming.mts",
     "test:farm-field-visuals": "npx tsx scripts/testFarmFieldVisuals.mts",
+    "test:farm-field-cache": "node --import tsx scripts/testFarmFieldCache.mts",
+    "test:farm-field-cache-browser": "node scripts/testFarmFieldCacheBrowser.mjs",
     "test:grain-logistics": "node --experimental-strip-types scripts/testGrainLogistics.mts",
     "test:monastery-polish": "npx tsx scripts/testMonasteryPolish.mts",
     "test:monastery-estate": "npx tsx scripts/testMonasteryEstate.mts",

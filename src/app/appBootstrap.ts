@@ -1,3 +1,4 @@
+import type { BufferAttribute } from 'three';
 import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import { CameraController } from '../camera/CameraController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
@@ -879,6 +880,11 @@ export async function bootstrapAppSession(
       rendererBackend: sceneManager.rendererBackend,
       useSeedThreePerimeterShrubs: true,
       useSeedThreeCrops: true,
+      getHeightRevision: () => {
+        const geometry = sceneManager.terrain.mesh.geometry;
+        const position = geometry.getAttribute('position') as BufferAttribute;
+        return [geometry, position, position.version];
+      },
     },
   );
   const pastureMarkers = new PastureMarkers(

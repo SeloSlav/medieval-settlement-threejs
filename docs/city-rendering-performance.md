@@ -439,6 +439,51 @@ the larger workload's current cost, not an isolated rendering regression: the
 world, lighting, crop stages and delivery activity differ from earlier captures.
 Evidence: `artifacts/realm-browser-production-coverage/`.
 
+Farm-field synchronization now keeps models whose exact geometry inputs are
+unchanged. The previous global visual-band cadence remains intact; when one
+field changes a band, fractional input changes in another field are still
+observed. Hedges use a separate parcel-shape signature and survive crop-only
+updates. A terrain position-buffer identity/version change invalidates models
+and hedges. Late crop/perimeter catalogs and final disposal retain their existing
+ownership rules. Single-player and multiplayer use the same implementation.
+
+The CPU regression retains 99 of 100 models, reduces height sampling from 22,100
+calls to 222, and compares 2,448,816 attribute values against fresh models. It
+checks fractional changes below a band, growing/harvest transitions, insertion,
+removal, order changes, terrain edits and exactly-once disposal. TypeScript and
+the existing field-visual suite pass.
+
+Two native WebGPU cohorts compare against the immutable pre-change source,
+reversing render order in the second cohort. All 30 settled comparisons preserve
+every pixel, draw and triangle across authored crop transitions, fertility,
+wind, near/far cameras, terrain edits, insertion/removal and reorder. Both cohorts
+retain all eleven tracked buffers from an unchanged field and eighteen hedge
+buffers. Three new crop phases have first-use differences of 178–288 pixels;
+the differences follow whichever path renders first, including the original.
+This does not establish cold-insertion parity, and the unchanged shader
+initialization issue remains. The alternating native 100-field synchronization
+cohort measures 0.54–0.74 ms with retention versus 30.91–34.40 ms with full-list
+rebuilds. A separate reversed-order cohort also verifies the same retention.
+Evidence: `artifacts/city-performance/farm-field-cache/` and
+`artifacts/city-performance/farm-field-cache-reference-first/`.
+
+The subsequent production-client capture with 50 clients averages 25.40 ms /
+36.30 ms P95, still failing 16.67 ms. Fog, paper-map return and native terrain
+buffer reuse pass with no browser runtime errors. The advancing world's
+different crop/lighting/activity state prevents attributing the entire frame
+difference to this cache. Evidence: `artifacts/realm-browser-field-model-cache/`.
+
+The single-player presentation probe now supports `--fields`: twelve authored
+fields and periodic replica-style progress changes accompany its 100 workplaces,
+100 homes, 500 civilians, 100 dogs and 30 oxen. This is a presentation fixture,
+not a live authoritative farm economy. Its corrected field-clearance capture
+averages 42.24 ms / 54.60 ms P95 stationary and 40.62 ms / 60.60 ms P95 during the
+camera sweep. Both fail the budget. The local single-player database connection
+is refused, and a stag variant retains individual exact rigs because its horns
+are not skinned; this is not a whole-game success claim. Evidence:
+`artifacts/city-performance/sp-field-model-cache-cleared/`. Reproduce with
+`node scripts/profileCityRuntime.mjs sp-fields --large --normal --fields`.
+
 Multiplayer terrain refresh now queues only tiles whose layout or source
 attribute revisions changed. Idle frames still observe source versions but do
 not scan every resident tile. Unfinished work remains in order across frames;
