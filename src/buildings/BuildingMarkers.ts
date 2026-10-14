@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
+import {
+  installStaticTransformBoundary,
+  invalidateStaticTransformBoundary,
+  retainDynamicTransformSubtree,
+} from '../scene/StaticTransformBoundary.ts';
 import { CampStandardRenderer } from '../settlement/CampStandardRenderer.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
@@ -335,6 +339,7 @@ export class BuildingMarkers {
       marker.userData.marketFoodWorkers = foodWorkers.length;
       marker.userData.marketGoodsWorkers = goodsWorkers.length;
       marker.userData.marketStallAssignments = marketAssignments;
+      invalidateStaticTransformBoundary(marker);
     }
   }
 
@@ -921,12 +926,7 @@ export class BuildingMarkers {
         );
       }
       this.registerCampfires(marker);
-      // These state-owned buildings have no CPU-animated child transforms.
-      // Mills, clock hands, market stalls and camp effects keep their live trees.
-      if (!this.campfiresByMarker.has(marker)
-        && !['founders_camp', 'watermill', 'windmill', 'chapel', 'marketplace'].includes(building.kind)) {
-        installStaticTransformBoundary(marker);
-      }
+      installStaticTransformBoundary(marker);
       if (operational) {
         if (!marker.userData.staticBuildingBatchStats) {
           batchCompletedBuildingStaticMeshes(marker);
@@ -1037,7 +1037,10 @@ export class BuildingMarkers {
 
   private registerWatermillWheel(marker: THREE.Group): void {
     const wheel = marker.getObjectByName('Watermill wheel');
-    if (wheel instanceof THREE.Group) this.watermillWheels.add(wheel);
+    if (wheel instanceof THREE.Group) {
+      retainDynamicTransformSubtree(wheel);
+      this.watermillWheels.add(wheel);
+    }
   }
 
   private unregisterWatermillWheel(marker: THREE.Group): void {
@@ -1048,6 +1051,7 @@ export class BuildingMarkers {
   private registerWindmillSails(marker: THREE.Group, building: BuildingState): void {
     const sails = marker.getObjectByName('Windmill sails');
     if (sails instanceof THREE.Group) {
+      retainDynamicTransformSubtree(sails);
       this.windmillSails.set(
         sails,
         windSiteThroughputMultiplier(

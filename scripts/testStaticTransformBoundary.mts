@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { installStaticTransformBoundary, invalidateStaticTransformBoundary, isRetainedRenderSubtree } from '../src/scene/StaticTransformBoundary.ts';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary, isRetainedRenderSubtree, retainDynamicTransformSubtree } from '../src/scene/StaticTransformBoundary.ts';
 import { ChimneySmokeEmitter } from '../src/residences/ResidenceChimneySmoke.ts';
 
 const scene = new THREE.Scene(), parent = new THREE.Group(), house = new THREE.Group(), fixture = new THREE.Group();
@@ -57,4 +57,41 @@ for (let i = 0; i < 12; i++) {
   }
 }
 smoke.setActive(false); assert.equal(chimney.children[0]!.children.length, 0); smoke.dispose();
+
+// Static ancestors must not suppress nested rotating or particle subtrees.
+const mixed = new THREE.Group(), mount = new THREE.Group(), island = new THREE.Group();
+const rigid = new THREE.Object3D(), rotor = new THREE.Object3D();
+scene.add(mixed); mixed.add(rigid, mount); mount.add(island); island.add(rotor);
+mixed.position.set(-8, 6, 4); mixed.scale.set(2, 1.5, .8); mount.rotation.y = .45;
+rotor.position.set(1, 2, 3);
+retainDynamicTransformSubtree(island);
+retainDynamicTransformSubtree(rotor); // Nested declarations must not double-update.
+installStaticTransformBoundary(mixed);
+let rigidVisits = 0, rotorVisits = 0;
+rigid.updateMatrixWorld = function(force) { rigidVisits++; THREE.Object3D.prototype.updateMatrixWorld.call(this, force); };
+rotor.updateMatrixWorld = function(force) { rotorVisits++; THREE.Object3D.prototype.updateMatrixWorld.call(this, force); };
+scene.updateMatrixWorld(true);
+const mixedReference = mixed.clone(true);
+const referenceIsland = mixedReference.children[1]!.children[0]!;
+for (let frame = 0; frame < 90; frame++) {
+  island.rotation.z = referenceIsland.rotation.z = frame * .045;
+  rotor.scale.setScalar(1 + Math.sin(frame * .12) * .3);
+  referenceIsland.children[0]!.scale.copy(rotor.scale);
+  mixed.visible = frame % 3 !== 0;
+  if (frame === 45) {
+    mixed.position.x = mixedReference.position.x = 18;
+    mount.position.y = mixedReference.children[1]!.position.y = 3;
+    invalidateStaticTransformBoundary(mixed);
+  }
+  scene.updateMatrixWorld(true); mixedReference.updateMatrixWorld(true);
+  const actual: THREE.Object3D[] = [], reference: THREE.Object3D[] = [];
+  mixed.traverse(object => actual.push(object)); mixedReference.traverse(object => reference.push(object));
+  actual.forEach((object, index) => assert.deepEqual(object.matrixWorld.elements, reference[index]!.matrixWorld.elements));
+}
+assert.equal(rigidVisits, 2, 'Rigid branches update only at first use and explicit edits');
+assert.equal(rotorVisits, 91, 'Only the outermost registered island drives nested animation once per frame');
+assert.equal(isRetainedRenderSubtree(island), false, 'Animated islands remain renderable even when initially empty');
+mount.remove(island); invalidateStaticTransformBoundary(mixed); scene.updateMatrixWorld(true);
+const removedVisits = rotorVisits; scene.updateMatrixWorld(true);
+assert.equal(rotorVisits, removedVisits, 'Removing an island releases its update ownership');
 console.log('Static residence transforms: exact ancestor/child edits, zero idle visits, live chimney smoke PASS');

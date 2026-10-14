@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { retainDynamicTransformSubtree } from '../scene/StaticTransformBoundary.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { sharedBuildingMaterial } from './buildingMaterials.ts';
 
@@ -99,6 +100,7 @@ function createClockHand(
   const pivot = new THREE.Group();
   pivot.name = name;
   pivot.userData.chapelClockHand = true;
+  retainDynamicTransformSubtree(pivot);
   const hand = new THREE.Mesh(new THREE.BoxGeometry(width, length, 0.035), material);
   hand.name = `${name}Blade`;
   hand.position.set(0, length * 0.41, 0.073);

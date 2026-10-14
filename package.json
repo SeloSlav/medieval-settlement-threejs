@@ -13,6 +13,8 @@
     "test:terrain-grid-indices": "node --experimental-strip-types scripts/testTerrainGridIndices.mts",
     "test:authored-instance-world-transforms": "node --experimental-strip-types scripts/testAuthoredInstanceWorldTransforms.mts",
     "test:static-transform-boundary": "node --experimental-strip-types scripts/testStaticTransformBoundary.mts",
+    "test:animated-building-transforms": "node --experimental-strip-types scripts/testAnimatedBuildingTransforms.mts",
+    "test:deposit-transform-cache": "node --import tsx scripts/testDepositTransformCache.mts",
     "test:authored-gpu-animation-browser": "node scripts/testAuthoredGpuAnimationBrowser.mjs",
     "test:building-stock-instances": "node --experimental-strip-types scripts/testBuildingStockInstances.mts",
     "test:instance-draw-compaction-browser": "node scripts/testInstanceDrawCompactionBrowser.mjs",

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { retainDynamicTransformSubtree } from '../scene/StaticTransformBoundary.ts';
 import { SpriteNodeMaterial } from 'three/webgpu';
 import {
   abs,
@@ -103,6 +104,7 @@ const sparkInstanceTransform = new THREE.Object3D();
 export function createFireEffect(options: FireEffectOptions = {}): FireEffect {
   const root = new THREE.Group();
   root.name = options.name ?? 'Reusable fire effect';
+  retainDynamicTransformSubtree(root);
   root.scale.setScalar(options.scale ?? 1);
   root.userData.fpNoCollision = true;
 

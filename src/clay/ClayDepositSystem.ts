@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ResourceNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { StaticInstancedShadowBatch } from '../scene/StaticInstancedShadowBatch.ts';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import {
   clayDepositNodeId,
   type ClayDepositLayout,
@@ -75,6 +76,7 @@ export function createClayDepositSystem(
     visuals.flatMap((visual) => visual.clods),
     'Clay deposit exact caster batches',
   );
+  installStaticTransformBoundary(group);
 
   return {
     group,
@@ -92,7 +94,10 @@ export function createClayDepositSystem(
           changed = true;
         }
       }
-      if (changed) shadowBatch.rebuild();
+      if (changed) {
+        shadowBatch.rebuild();
+        invalidateStaticTransformBoundary(group);
+      }
       return changed;
     },
     isBlockedAt: (x, z) => layout.isBlockedForProps(x, z),

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import {
   disposeRockTextureSet,
   type RockTextureSet,
@@ -53,6 +54,7 @@ export function createQuarrySystem(
 ): QuarrySystem {
   const group = new THREE.Group();
   group.name = 'Stone deposits';
+  installStaticTransformBoundary(group);
 
   const rockMaterial = createQuarryRockMaterial(rockTextures);
   const shadowMaterials = createPropShadowMaterials();
@@ -112,6 +114,7 @@ export function createQuarrySystem(
         return;
       }
       group.add(result.group);
+      invalidateStaticTransformBoundary(group);
       sites.push(...result.sites);
       activePlacements.splice(0, activePlacements.length, ...placements);
       detailsReady = true;

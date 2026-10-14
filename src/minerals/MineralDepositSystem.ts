@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ResourceNodeState } from '../resources/types.ts';
 import { StaticInstancedShadowBatch } from '../scene/StaticInstancedShadowBatch.ts';
@@ -67,6 +68,7 @@ export function createMineralDepositSystem(
     visuals.flatMap((visual) => visual.stones),
     'Mineral deposit exact caster batches',
   );
+  installStaticTransformBoundary(group);
 
   return {
     group,
@@ -87,7 +89,10 @@ export function createMineralDepositSystem(
           }
         });
       }
-      if (changed) shadowBatch.rebuild();
+      if (changed) {
+        shadowBatch.rebuild();
+        invalidateStaticTransformBoundary(group);
+      }
       return changed;
     },
     isBlockedAt: (x, z) => layout.isBlockedForProps(x, z),

@@ -18,6 +18,7 @@ try {
     const { THREE } = await import('/scripts/fixtures/webgpuTestImports.ts');
     const { createWindmillMesh } = await import('/src/buildings/meshes/expandedBuildingMeshes.ts');
     const { batchWindmillSails } = await import('/src/buildings/windmillSailBatch.ts');
+    const { installStaticTransformBoundary, retainDynamicTransformSubtree } = await import('/src/scene/StaticTransformBoundary.ts');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { renderer } = await createPreferredRenderer(); renderer.setSize(640, 480); renderer.shadowMap.enabled = true;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x334455);
@@ -27,6 +28,7 @@ try {
     const source = createWindmillMesh(), batched = createWindmillMesh();
     for (const root of [source, batched]) root.traverse(object => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
     const sails = batched.getObjectByName('Windmill sails'); batchWindmillSails(sails);
+    retainDynamicTransformSubtree(sails); installStaticTransformBoundary(batched);
     scene.add(source, batched);
     const camera = new THREE.PerspectiveCamera(48, 640 / 480, .1, 60), target = new THREE.RenderTarget(640, 480), reports = [];
     const render = async visible => { source.visible = visible; batched.visible = !visible; renderer.setRenderTarget(target); renderer.render(scene, camera); return renderer.readRenderTargetPixelsAsync(target, 0, 0, 640, 480); };

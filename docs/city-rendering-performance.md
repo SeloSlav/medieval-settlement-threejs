@@ -235,6 +235,44 @@ so this removes a confirmed submission hotspot without claiming the frame budget
 has been achieved. Evidence: `artifacts/realm-browser-windmill-sail-batch/` and
 `artifacts/city-performance/windmill-sail-batch/`.
 
+Rigid transform caches now support registered animated subtrees. Mills, church
+clocks, and buildings with campfires cache their static structure while continuing
+to update their moving children every frame. Marketplace state changes invalidate
+the cache. Clay and mineral deposits use the same cache, and progressive quarry
+hydration invalidates both transform and render classification. These paths are
+shared by single-player and multiplayer. The matrix regression compares 90,120
+node transforms over 120 frames against ordinary Three propagation, including
+nonuniform ancestor scale, relocation, changing stock and live fire/clock/mill
+animation. It observes 627 rigid descendants updated only on state edits. The
+deposit test covers zero idle descendant updates, moved chunk ancestors, late
+quarry loading, depletion and restoration. Twelve native shadowed sail views
+still match the uncached rendering reference.
+
+In the later 50-client capture, building-marker matrix work averages 0.13 ms per
+frame versus 0.58 ms in the prior profile; the selection root containing those
+markers averages 0.71 ms versus 1.20 ms. The three deposit roots together use
+about 0.003 ms per frame versus 0.62 ms. These are sequential diagnostic samples;
+ancestor and child times overlap and must not be added together. The full frame
+cohort still fails: 31.16 ms mean / 42.50 ms P95. Its pass-local main GPU average
+is 1.14 ms, with 0.79 ms per refreshed shadow pass. Evidence:
+`artifacts/realm-browser-animated-transform-cache/`.
+
+The large offline single-player fixture requests 100 workplaces, 100 homes,
+500 civilians, 100 dogs and 30 oxen. At 1280×720 and pixel ratio 1 with profiling
+disabled, its populated stationary cohort averages 19.69 ms / 24.30 ms P95. The
+cleared moving-camera cohort averages 24.08 ms / 30.40 ms P95; render submission
+accounts for 16.84 ms on average. Its local single-player database connection
+was refused, so this is client presentation evidence, not a live economy test.
+It does not prove an isolated FPS gain from the transform changes. Evidence:
+`artifacts/city-performance/sp-animated-transform-cache/`.
+
+The fresh realm still needs simulation work. The 14 October phase capture has
+5,004 homes, 2,549 buildings and 867 delivery trips; 15 heartbeats average
+1.90 seconds, with about 98 seconds of retained clock debt at capture time.
+There are still no farm fields or pastures in this fixture. Sustainable full
+production and a stable five-minute multiplayer day remain unverified.
+Evidence: `artifacts/realm-phases-2026-10-14.json`.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd
@@ -268,6 +306,8 @@ node scripts/benchmarkCityScale.mjs cpu-review --profile
 node scripts/testBatchedBuildingGrowthBrowser.mjs review
 node --experimental-strip-types scripts/testWindmillSailBatch.mts
 node scripts/testWindmillSailBatchBrowser.mjs
+node --experimental-strip-types scripts/testAnimatedBuildingTransforms.mts
+node --import tsx scripts/testDepositTransformCache.mts
 node scripts/profileCityRuntime.mjs
 node --experimental-strip-types scripts/testAuthoredRigWorldMatrices.mts
 node --experimental-strip-types scripts/testResidenceStaticBatching.mts

@@ -3,10 +3,24 @@ import * as THREE from 'three';
 const invalidators = new WeakMap<THREE.Object3D, () => void>();
 const retainedOnly = new WeakSet<THREE.Object3D>();
 const dynamicRenderSubtrees = new WeakSet<THREE.Object3D>();
+const dynamicTransformSubtrees = new WeakSet<THREE.Object3D>();
 
 /** A particle/effect owner can add visible descendants between state updates. */
 export function retainDynamicRenderSubtree(root: THREE.Object3D): void {
   dynamicRenderSubtrees.add(root);
+}
+
+/** Register moving children before installation, or invalidate their owner afterward. */
+export function retainDynamicTransformSubtree(root: THREE.Object3D): void {
+  dynamicTransformSubtrees.add(root);
+  retainDynamicRenderSubtree(root);
+}
+
+function collectDynamicTransforms(root: THREE.Object3D, result: THREE.Object3D[]): void {
+  for (const child of root.children) {
+    if (dynamicTransformSubtrees.has(child)) result.push(child);
+    else collectDynamicTransforms(child, result);
+  }
 }
 
 export function isRetainedRenderSubtree(root: THREE.Object3D): boolean {
@@ -24,16 +38,24 @@ function classifyRenderSubtrees(root: THREE.Object3D): boolean {
   return renderable;
 }
 
-/** A rigid authored subtree whose owning state synchronizer reports edits. */
+/** State synchronizers report rigid edits; registered animated islands stay live. */
 export function installStaticTransformBoundary(root: THREE.Object3D): void {
   if (invalidators.has(root)) return;
   const update = root.updateMatrixWorld, previous = new THREE.Matrix4();
   let dirty = true;
+  const animated: THREE.Object3D[] = [];
   invalidators.set(root, () => { dirty = true; });
   root.updateMatrixWorld = function() {
     this.updateWorldMatrix(false, false);
-    if (!dirty && previous.equals(this.matrixWorld)) return;
-    if (dirty) classifyRenderSubtrees(this);
+    if (!dirty && previous.equals(this.matrixWorld)) {
+      for (const island of animated) island.updateMatrixWorld();
+      return;
+    }
+    if (dirty) {
+      classifyRenderSubtrees(this);
+      animated.length = 0;
+      collectDynamicTransforms(this, animated);
+    }
     update.call(this, true); previous.copy(this.matrixWorld); dirty = false;
   };
 }
