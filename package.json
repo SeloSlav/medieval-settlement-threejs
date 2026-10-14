@@ -244,6 +244,8 @@
     "test:farming": "npx tsx scripts/testFarming.mts",
     "test:farm-field-visuals": "npx tsx scripts/testFarmFieldVisuals.mts",
     "test:farm-field-cache": "node --import tsx scripts/testFarmFieldCache.mts",
+    "test:field-perimeter-culling": "node --import tsx scripts/testFieldPerimeterCulling.mts",
+    "test:field-perimeter-culling-browser": "node scripts/testFieldPerimeterCullingBrowser.mjs",
     "test:farm-field-cache-browser": "node scripts/testFarmFieldCacheBrowser.mjs",
     "test:grain-logistics": "node --experimental-strip-types scripts/testGrainLogistics.mts",
     "test:monastery-polish": "npx tsx scripts/testMonasteryPolish.mts",

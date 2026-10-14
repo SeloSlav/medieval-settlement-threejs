@@ -637,3 +637,55 @@ The asset benchmark and wall regression start and close isolated Vite servers on
 available ports. The full-game probe uses its own server on port 5191. Results and
 images are written under `artifacts/city-performance/`; existing game servers and
 database contents are left alone.
+
+## Field-perimeter camera selection
+
+Both modes retain the three authored hornbeam hedge meshes while selecting their
+instances from 32-metre cells before renderer projection. Cell bounds contain
+the complete transformed prototype and the maximum rooted bend, including the
+current wind strength. Selection preserves source order and exact matrix, tint,
+anchor and wind-vector bytes. Camera motion and parent transforms update the
+selection; unchanged views skip packing and uploads. A shadow pass skips this
+non-casting subtree so its camera cannot overwrite the outer colour selection.
+The meshes remain in the original opaque render list, preserving draw ordering.
+
+Matrix and colour data use directly uploaded storage attributes on WebGPU,
+including explicit vec4 padding for RGB storage. This avoids Three's deferred
+interleaved range copy when a selected prefix grows. Base geometry, textures,
+materials, wind and visual detail are unchanged. The legacy WebGL fixture keeps
+its ordinary instance attributes and complete source set.
+
+`test:field-perimeter-culling` checks 10,700 authored instances across twelve
+views, including hidden/wide returns, source ordering and parent transforms.
+`test:field-perimeter-culling-browser` checks sixteen native views with shadows,
+perspective/orthographic cameras, parent rotation/nonuniform scale, and wind
+strengths from zero to three. Every first-frame and settled pixel is identical
+to the immutable pre-change source. All 24 tracked GPUBuffer identities remain,
+and unchanged views issue zero writes to those buffers. The controlled close
+view submits 554,508 triangles versus 25,599,822 without selection, with the same
+nine total draws. A positive presence check identifies 11,291 hedge pixels.
+The existing farm cache browser regression preserves every settled pixel across
+crop stages, parcel changes and terrain revisions, retaining eleven field and
+24 hedge buffers. The existing static render-bundle regression also passes.
+
+The production client with 49 computer players plus the measured browser still
+fails the frame budget: 28.05 ms average, 42.40 ms P95 and 103.00 ms P99. Fog,
+paper-map return and ten native terrain-buffer identities pass with no runtime
+errors. Its sampled scene submits 2,687,716 triangles. The separate diagnostic
+window measures the main GPU pass at 1.77 ms, a refreshed shadow pass at 1.60 ms,
+and CPU rendering at about 14.7 ms per frame. This advancing-world cohort is not
+an isolated whole-game FPS comparison.
+
+The large single-player presentation fixture includes 100 workplaces, 100 homes,
+500 civilians, 100 dogs, 30 oxen and twelve authored fields. After clearing their
+vegetation, it measures 23.87 ms average / 36.40 ms P95 stationary and 27.99 ms /
+42.40 ms P95 moving. CPU rendering takes 17.09 and 19.98 ms respectively. The
+single-player database connection is refused, so these figures cover presentation
+only. Both modes still miss 16.67 ms; the existing full-production clock failure
+also remains. Further CPU rendering/entity work and live single-player economy
+validation are required.
+
+Evidence: `artifacts/city-performance/field-perimeter-culling/`,
+`artifacts/city-performance/farm-field-cache-culling/`,
+`artifacts/realm-browser-hedge-view-culling/` and
+`artifacts/city-performance/sp-hedge-view-culling/`.

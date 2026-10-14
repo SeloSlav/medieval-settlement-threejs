@@ -82,14 +82,18 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   const renderScene = projectionRenderer._renderScene;
   const renderBundle = projectionRenderer._renderBundle;
   const statistics = new WeakMap<BundleData, { draws: number; triangles: number }>();
+  let shadowPass = false;
   projectionRenderer._renderScene = function(...args) {
     // A light can render an entire shadow scene while recording the outer
     // color bundle. Ordinary shadow casters must not enter that color bundle's
     // refresh list or workload statistics. Restore its owner after the scene.
     const parentBundle = this._currentRenderBundle;
+    const parentShadowPass = shadowPass;
+    shadowPass = ((args[0] as THREE.Scene).overrideMaterial as
+      (THREE.Material & { isShadowPassMaterial?: boolean }) | null)?.isShadowPassMaterial === true;
     this._currentRenderBundle = null;
     try { return renderScene.call(this, ...args); }
-    finally { this._currentRenderBundle = parentBundle; }
+    finally { this._currentRenderBundle = parentBundle; shadowPass = parentShadowPass; }
   };
   projectionRenderer._renderBundle = function(bundle, ...args) {
     if (!bundle.bundleGroup.isCityStaticRenderBundle) return renderBundle.call(this, bundle, ...args);
@@ -136,6 +140,9 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   };
   projectionRenderer._projectObject = function(object, camera, ...args) {
     if (isRetainedRenderSubtree(object)) return;
+    if (shadowPass && object.userData.cityColourOnlySubtree === true) return;
+    const prepared = object as THREE.Object3D & { isCityCameraPreparedGroup?: boolean; prepare(camera: THREE.Camera): void };
+    if (prepared.isCityCameraPreparedGroup) prepared.prepare(camera);
     if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, false);
     original.call(this, object, camera, ...args);
   };

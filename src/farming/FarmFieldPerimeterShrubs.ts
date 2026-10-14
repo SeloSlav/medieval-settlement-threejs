@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { WIND_DIR } from '@seedthree/core/wind.js';
 import type { FieldPerimeterShrubCatalog } from '../props/ForestUndergrowth.ts';
 import type { FarmFieldState } from '../resources/types.ts';
+import { FieldPerimeterView } from './FieldPerimeterView.ts';
 import {
   isPointInPolygon2,
   polygonCentroid2,
@@ -105,7 +106,7 @@ export function createFieldPerimeterShrubGroup(
   getHeightAt: (x: number, z: number) => number,
   catalog: FieldPerimeterShrubCatalog,
 ): THREE.Group {
-  const group = new THREE.Group();
+  const group = new FieldPerimeterView();
   group.name = 'SeedThree field-perimeter shrubs';
   const placements = createFieldPerimeterShrubPlacements(fields);
   const buckets = catalog.prototypes.map(() => [] as FieldPerimeterShrubPlacement[]);
@@ -186,7 +187,7 @@ export function createFieldPerimeterShrubGroup(
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingBox();
     mesh.computeBoundingSphere();
-    group.add(mesh);
+    group.addBatch(mesh, catalog.materials.some(material => (material as THREE.Material & { isNodeMaterial?: boolean }).isNodeMaterial));
   }
 
   group.userData.placementCount = placements.length;

@@ -5,12 +5,15 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 
 // Immutable pre-change implementation; imports resolve beside the live module.
-const reference=execFileSync('git',['show','c05bd44f:src/farming/FarmFieldMarkers.ts'],{encoding:'utf8',windowsHide:true});
+const reference=execFileSync('git',['show','c05bd44f:src/farming/FarmFieldMarkers.ts'],{encoding:'utf8',windowsHide:true})
+  .replace("'./FarmFieldPerimeterShrubs.ts'", "'./FarmFieldPerimeterShrubs.ts?perimeterReference'");
+const perimeterReference=execFileSync('git',['show','75bc1212:src/farming/FarmFieldPerimeterShrubs.ts'],{encoding:'utf8',windowsHide:true});
 const referenceFirst=process.env.FARM_CACHE_REFERENCE_FIRST==='1';
-const output=referenceFirst?'artifacts/city-performance/farm-field-cache-reference-first':'artifacts/city-performance/farm-field-cache';mkdirSync(output,{recursive:true});
+const output=referenceFirst?'artifacts/city-performance/farm-field-cache-culling-reference-first':'artifacts/city-performance/farm-field-cache-culling';mkdirSync(output,{recursive:true});
 const server=await createServer({cacheDir:'artifacts/farm-field-cache-vite',server:{host:'127.0.0.1',port:0,hmr:false},plugins:[{
   name:'farm-field-reference',enforce:'pre',transform(code,id){
     if(id.replaceAll('\\','/').endsWith('/src/farming/FarmFieldMarkers.ts?cacheReference'))return reference;
+    if(id.replaceAll('\\','/').endsWith('/src/farming/FarmFieldPerimeterShrubs.ts?perimeterReference'))return perimeterReference;
   },
 }]});await server.listen();let browser;
 try {
@@ -103,7 +106,7 @@ try {
   writeFileSync(`${output}/report.json`,JSON.stringify({result,errors},null,2));
   console.log(JSON.stringify({result,errors}));assert.deepEqual(errors,[]);assert(result.frames[0].triangles>100000);
   assert(result.frames[1].referenceRebuilt,'Reference must execute the former whole-list rebuild');assert(result.frames[3].authoredCropInstances>0);
-  for(const f of result.frames){assert.equal(f.changedPixels,0,`Native field pixel parity frame ${f.frame}`);assert.equal(f.draws,f.referenceDraws);assert.equal(f.triangles,f.referenceTriangles);}
+  for(const f of result.frames){assert.equal(f.changedPixels,0,`Native field pixel parity frame ${f.frame}`);assert(f.draws<=f.referenceDraws);assert(f.triangles<=f.referenceTriangles);}
   const retained=result.frames[6];assert(retained.retainedField&&retained.retainedHedges);assert(retained.nativeFieldBuffers>0&&retained.nativeHedgeBuffers>0);
   assert.equal(retained.retainedNativeFieldBuffers,retained.nativeFieldBuffers);assert.equal(retained.retainedNativeHedgeBuffers,retained.nativeHedgeBuffers);
 } finally {await browser?.close();await server.close();}
