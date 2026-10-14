@@ -335,6 +335,8 @@
     "test:authored-skinned-instance-batch": "node --experimental-strip-types scripts/testAuthoredSkinnedInstanceBatch.mts",
     "test:character-detail": "node --import tsx scripts/testCharacterDetail.mts",
     "test:character-detail-browser": "node scripts/testCharacterDetailBrowser.mjs",
+    "test:windmill-sail-batch": "node --experimental-strip-types scripts/testWindmillSailBatch.mts",
+    "test:windmill-sail-batch-browser": "node scripts/testWindmillSailBatchBrowser.mjs",
     "test:full-quality-animal-rendering": "node --experimental-strip-types scripts/testFullQualityAnimalRendering.mts",
     "test:exact-mounted-attachment-batch": "node --experimental-strip-types scripts/testExactMountedAttachmentBatch.mts",
     "test:crowd-renderer-pacing": "node --experimental-strip-types scripts/testCrowdRendererPacing.mts",

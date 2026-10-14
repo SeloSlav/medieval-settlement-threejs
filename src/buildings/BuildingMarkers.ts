@@ -105,6 +105,7 @@ import {
 } from './meshes/materialChainBuildingMeshes.ts';
 import { processorOutputTargetForBuilding } from '../economy/processorOutputPolicy.ts';
 import { batchCompletedBuildingStaticMeshes } from './staticBuildingBatch.ts';
+import { batchWindmillSails } from './windmillSailBatch.ts';
 import { BuildingStaticBatches } from './BuildingStaticBatches.ts';
 import { refreshBuildingDetailCasterBatches } from './buildingDetailShadowBatch.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -904,6 +905,10 @@ export class BuildingMarkers {
       this.buildingMeshes.set(building.id, marker);
       if (marker.parent !== this.group) this.group.add(marker);
       this.registerWatermillWheel(marker);
+      if (building.kind === 'windmill') {
+        const sails = marker.getObjectByName('Windmill sails');
+        if (sails instanceof THREE.Group) batchWindmillSails(sails);
+      }
       this.registerWindmillSails(marker, building);
       setCharcoalClampSmokeThroughput(
         marker,

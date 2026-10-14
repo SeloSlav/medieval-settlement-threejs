@@ -224,6 +224,17 @@ scaling constraint; the existing GPU animation library is not integrated into
 the live crowd path. The full terrain/shadow/post-processing budget also needs
 further work. No reduction in graphics quality was used to hide these limits.
 
+Rotating windmill sails now retain their authored parent transform but compile
+their 42 rigid sail leaves into four material batches at runtime. The authored
+source hierarchy remains available for disposal and asset checks. The structural
+regression preserves all 560 sail triangles, and the native WebGPU comparison
+checks twelve lit, shadowed camera-and-rotation combinations with no meaningful
+pixel change. In the rebuilt 50-client realm at 1280×720, the settled capture
+remained above target (32.62 ms mean, 48.40 ms P95, 2.73 M submitted triangles),
+so this removes a confirmed submission hotspot without claiming the frame budget
+has been achieved. Evidence: `artifacts/realm-browser-windmill-sail-batch/` and
+`artifacts/city-performance/windmill-sail-batch/`.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd
@@ -255,6 +266,8 @@ Reproduce from the repository root (Node dependencies and installed Edge require
 node scripts/benchmarkCityScale.mjs review --gpu
 node scripts/benchmarkCityScale.mjs cpu-review --profile
 node scripts/testBatchedBuildingGrowthBrowser.mjs review
+node --experimental-strip-types scripts/testWindmillSailBatch.mts
+node scripts/testWindmillSailBatchBrowser.mjs
 node scripts/profileCityRuntime.mjs
 node --experimental-strip-types scripts/testAuthoredRigWorldMatrices.mts
 node --experimental-strip-types scripts/testResidenceStaticBatching.mts
