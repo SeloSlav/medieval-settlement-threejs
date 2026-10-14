@@ -81,6 +81,7 @@ pub struct SimTickContext {
     monastery_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     disabled_fire_targets: RefCell<Option<HashSet<(u8, u64)>>>,
     water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    water_residences_by_well: RefCell<HashMap<Identity, HashMap<u64, Vec<u64>>>>,
     food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
@@ -129,6 +130,7 @@ impl SimTickContext {
             monastery_claims: RefCell::new(HashMap::new()),
             disabled_fire_targets: RefCell::new(None),
             water_claims: RefCell::new(HashMap::new()),
+            water_residences_by_well: RefCell::new(HashMap::new()),
             food_claims: RefCell::new(HashMap::new()),
             food_claim_counts: RefCell::new(HashMap::new()),
             marketplace_claims: RefCell::new(HashMap::new()),
@@ -860,15 +862,45 @@ impl SimTickContext {
         owner: Identity,
         residence_id: u64,
     ) -> Option<u64> {
-        if !self.water_claims.borrow().contains_key(&owner) {
-            let claims = self.build_water_claims(ctx, owner);
-            self.water_claims.borrow_mut().insert(owner, claims);
-        }
+        self.ensure_water_claims(ctx, owner);
         self.water_claims
             .borrow()
             .get(&owner)
             .and_then(|claims| claims.get(&residence_id))
             .copied()
+    }
+
+    fn ensure_water_claims(&self, ctx: &ReducerContext, owner: Identity) {
+        if self.water_claims.borrow().contains_key(&owner) {
+            return;
+        }
+        let claims = self.build_water_claims(ctx, owner);
+        let mut by_well: HashMap<u64, Vec<u64>> = HashMap::new();
+        for (&residence_id, &well_id) in &claims {
+            by_well.entry(well_id).or_default().push(residence_id);
+        }
+        for ids in by_well.values_mut() {
+            ids.sort_unstable();
+        }
+        self.water_residences_by_well.borrow_mut().insert(owner, by_well);
+        self.water_claims.borrow_mut().insert(owner, claims);
+    }
+
+    /// The same authoritative territory as well_supplier_for, indexed in the
+    /// reverse direction. Callers still reload each home's live eligibility.
+    pub fn well_residence_ids(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        well_id: u64,
+    ) -> Vec<u64> {
+        self.ensure_water_claims(ctx, owner);
+        self.water_residences_by_well
+            .borrow()
+            .get(&owner)
+            .and_then(|wells| wells.get(&well_id))
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Returns the nearest staffed Trading Post by exact road distance for

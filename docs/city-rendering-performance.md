@@ -484,6 +484,35 @@ are not skinned; this is not a whole-game success claim. Evidence:
 `artifacts/city-performance/sp-field-model-cache-cleared/`. Reproduce with
 `node scripts/profileCityRuntime.mjs sp-fields --large --normal --fields`.
 
+Well distribution now inverts the existing authoritative household-to-well claims
+once per owner per economy step. Each well reads only its assigned household
+identities, then reloads current ownership, population, tier, vacancy, fire state
+and stock before allocation. Stable priority ordering and physical water
+conservation remain unchanged. Three native source-extraction tests preserve
+exact stock and dispatch order across 50 owners, 500 wells and 5,000 homes while
+reducing returned residence rows from 50,000 to 5,000. Primary-key queries increase
+relative to the former broad scans, so row-count savings alone are not a speed
+claim. Changed/deleted homes, cached territory, new homes, fresh phases, caller
+copies, dry wells and absent roads are covered. Both modes use this index, with
+no database schema change. Compilation checks pass for single-player, production
+persistent-world and local-loadtest.
+
+The 90-second 50-client baseline catches up rest-day work: 688 steps in 90.74
+seconds, with sampled debt falling from 1,042.91 to 789.65 seconds. It fails the
+steady-clock gate and cannot establish a normal day rate. Its later working-phase
+capture records wells at 176.32 ms per step and heartbeats at 2.43 seconds. Early
+compilation checks overlap client setup; the later phase sample is separate from
+those checks. The index module's full 50-client test advances 572 steps in 300.95
+seconds: a projected 315.68-second day, with sampled debt growing from 870.33 to
+885.28 seconds. It still fails both clock requirements. Its subscribed phase
+sample records wells at 91.48 ms and heartbeats at 1.88 seconds; the final sample
+after disconnection records 89.68 ms and 1.78 seconds respectively. These
+sequential, advancing-world samples establish current workload costs rather than
+an isolated whole-server or FPS gain. Further capacity work is required.
+Evidence: `artifacts/realm-clock-well-index-baseline.json`,
+`artifacts/realm-clock-well-residence-index.json` and the corresponding
+`realm-phases-well-*.json` reports.
+
 Multiplayer terrain refresh now queues only tiles whose layout or source
 attribute revisions changed. Idle frames still observe source versions but do
 not scan every resident tile. Unfinished work remains in order across frames;

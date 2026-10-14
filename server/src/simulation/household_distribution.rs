@@ -372,19 +372,16 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
     let Some(network) = tick.road_network(well.owner) else {
         return;
     };
-    let residences: Vec<(Residence, f64, f64)> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&well.owner)
+    let residences: Vec<(Residence, f64, f64)> = tick
+        .well_residence_ids(ctx, well.owner, well.id)
+        .into_iter()
+        .filter_map(|residence_id| ctx.db.residence().id().find(residence_id))
         .filter(|residence| {
-            !residence.abandoned
+            residence.owner == well.owner
+                && !residence.abandoned
                 && residence.population > 0
                 && ResidenceNeedKind::Water.is_active_for_tier(residence.tier)
                 && !tick.residence_disabled_by_fire(ctx, residence.id)
-                // Territory is independent of pantry stock. Reject homes this
-                // well cannot serve before deserializing their need rows.
-                && tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id)
                 && delivery_stock_room(
                     ResidenceNeedKind::Water,
                     need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),

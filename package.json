@@ -368,6 +368,7 @@
     "test:canonical-route-cache": "cargo test --manifest-path server/logic/Cargo.toml road_ -- --nocapture",
     "test:household-need-snapshot": "node scripts/testHouseholdNeedSnapshot.mjs",
     "test:burial-candidate-index": "node scripts/testBurialCandidateIndex.mjs",
+    "test:well-residence-index": "node scripts/testWellResidenceIndex.mjs",
     "test:realm-production-parcels": "node scripts/testRealmProductionParcels.mjs --real-terrain",
     "test:realm-production-coverage": "node scripts/testRealmProductionCoverage.mjs",
     "test:campfire-occupancy": "node --experimental-strip-types scripts/testCampfireOccupancy.mts",
