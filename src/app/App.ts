@@ -1097,7 +1097,8 @@ export class App {
       firstPersonActive,
       renderFirstPersonCrouching,
       renderCameraInteractionActive,
-      this.villagers?.hasVisibleDynamicShadowCasters() ?? false,
+      (this.villagers?.hasVisibleDynamicShadowCasters() ?? false)
+        || (this.deliveryAgents?.hasVisibleDynamicShadowCasters() ?? false),
     );
     this.startBattleCaptureIfRequested();
     this.updateFps(time, rawDt);

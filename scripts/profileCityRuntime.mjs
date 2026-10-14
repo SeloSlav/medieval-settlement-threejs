@@ -7,6 +7,7 @@ const output = `artifacts/city-performance/${process.argv[2] ?? 'full-current'}`
 const large = process.argv.includes('--large');
 const normalFrames = process.argv.includes('--normal');
 const includeFields = process.argv.includes('--fields');
+const includeDeliveries = process.argv.includes('--deliveries');
 mkdirSync(output, { recursive: true });
 const server = await createServer({
   cacheDir: 'artifacts/city-performance/vite-cache',
@@ -78,7 +79,7 @@ try {
   await page.screenshot({ path: `${output}/initial-runtime.png` });
   await page.evaluate(() => window.__visualPerf?.stopFrameCollection());
   console.log('ready', JSON.stringify({ stats: state.stats, buildings: state.buildings.length, residences: state.residences.length, errors }));
-  const measured = await page.evaluate(async ({large,includeFields}) => {
+  const measured = await page.evaluate(async ({large,includeFields,includeDeliveries}) => {
     const app = window.__cityApp;
     const manager = app.sceneManager;
     const phases = {};
@@ -112,6 +113,14 @@ try {
     let fieldScenarioReady=false;
     if(large)app.cameraController.applyShowcaseView(center.x,center.z,.7,.75,320);
     const stableIds=buildings.filter(b=>b.kind==='stable').map(b=>b.id);
+    const cargoKinds=['ale','water','animalFeed','ryeGrain','iron','salt','remedies','firewood'];
+    const deliveryTrips=includeDeliveries?Array.from({length:large?48:6},(_,i)=>{
+      const x=center.x+(i%8-3.5)*15,z=center.z+(Math.floor(i/8)-2.5)*15;
+      return {id:`perf-delivery-${i}`,buildingId:buildings[i%buildings.length].id,residenceId:null,destinationKind:'building',
+        targetBuildingId:buildings[(i+1)%buildings.length].id,cargoKind:cargoKinds[i%cargoKinds.length],amount:6,phase:'unloading',
+        x,z,progress:30,speedMps:3,unloadSeconds:8,unloadRemaining:8,deliveryWorkers:2,freeHaulerWorkers:0,oxId:null,
+        pathDistance:30,travelSpeedMultiplier:1,routePolylineJson:JSON.stringify([[x-30,z],[x,z]])};
+    }):[];
     const { AnimalCombatRenderer }=await import('/src/settlement/AnimalCombatRenderer.ts');
     const dogs=new AnimalCombatRenderer(manager.scene);await dogs.ready;
     const dogPoses=[];
@@ -129,6 +138,8 @@ try {
       if(arm==='populated') {
         app.villagers.sync({residences,buildings:[camp,...buildings],quarries:[],foragingNodes:[],trees:new Map(),treeRegistry:null,farmFields:[],pastures:[],roadNetwork:app.roadNetwork,oxen:Array.from({length:large?30:3},(_,i)=>({id:`perf-ox-${i}`,stableId:stableIds[Math.floor(i/3)%stableIds.length],slot:i%3,purchaseCost:10}))});
         if(large)for(let i=0;i<100;i++){const x=center.x+(i%20-10)*2,z=center.z+(Math.floor(i/20)-2)*3;dogPoses.push({id:`perf-dog-${i}`,faction:'dog',x,y:manager.terrain.getHeightAt(x,z),z,yaw:0,moveSpeed:1,status:'advancing'});}
+        if(includeDeliveries){app.deliveryAgents.syncTrips(deliveryTrips);
+          if(app.deliveryAgents.authoredCartDiagnostics().registeredTools<deliveryTrips.length*2)throw Error('Delivery fixture requires loaded authored cart models and cargo');}
       }
       if(arm==='populated-cleared-stationary') {
         const {collectOccupiedParcelPolygons}=await import('/src/residences/burgageZoneLayout.ts');
@@ -154,18 +165,20 @@ try {
         last=time;
       }
       if(arm==='populated')await window.__cityProfileEnd();
-      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),visualReport:window.__visualPerf?.getReport()});
+      reports.push({arm,samples,stats:manager.getPerformanceStats(),crowd:app.villagers.renderer.authoredCrowdDiagnostics(),oxen:app.villagers.oxen.diagnostics(),dogs:dogs.diagnostics(),carts:app.deliveryAgents.authoredCartDiagnostics(),visualReport:window.__visualPerf?.getReport()});
       await window.__cityProbeProgress({arm,phase:'complete',meanFrameMs:samples.reduce((sum,sample)=>sum+sample.intervalMs,0)/samples.length});
     }
     return reports;
-  }, {large,includeFields});
+  }, {large,includeFields,includeDeliveries});
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
   const summary=measured.map(({arm,samples,stats})=>{
     const times=samples.map(s=>s.intervalMs).sort((a,b)=>a-b);
     const mean=times.reduce((a,b)=>a+b,0)/times.length;
     return {arm,meanFrameMs:mean,averageFps:1000/mean,medianFrameMs:times[Math.floor(times.length*.5)],p95FrameMs:times[Math.floor(times.length*.95)],meanRenderCpuMs:samples.reduce((a,b)=>a+b.render,0)/samples.length,stats};
   });
-  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,fields:includeFields?{count:large?12:4,replicaChangesEveryFrames:30,presentationOnly:true}:null,requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
+  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,fields:includeFields?{count:large?12:4,replicaChangesEveryFrames:30,presentationOnly:true}:null,
+    deliveries:includeDeliveries?{count:large?48:6,crewPerCart:2,phase:'unloading',presentationOnly:true}:null,
+    requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});
   const geometryInventory = await page.evaluate(async () => {
     const { THREE } = await import('/scripts/fixtures/webgpuTestImports.ts');

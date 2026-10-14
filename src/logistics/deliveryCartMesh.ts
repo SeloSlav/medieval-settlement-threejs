@@ -7,7 +7,8 @@ import {
   stoneMaterial,
 } from '../buildings/buildingMaterials.ts';
 import type { DeliveryCargoKind } from './deliveryTrips.ts';
-import { addSharedFirewoodLog } from '../buildings/firewoodPileMesh.ts';
+import { geometryEqualsGeometry, geometryFingerprint } from '../scene/geometryIdentity.ts';
+import { addSharedFirewoodLog, sharedFirewoodLogGeometry } from '../buildings/firewoodPileMesh.ts';
 
 const MODEL_URL = '/assets/models/delivery-cart/quaternius-medieval-cart.glb';
 const MODEL_TARGET_HEIGHT = 1.56;
@@ -115,7 +116,57 @@ export type DeliveryCartMeshOptions = {
   source?: DeliveryCartModelSource | null;
   regionalImport?: boolean;
   loaded?: boolean;
+  cargoCatalog?: DeliveryCargoCatalog;
 };
+
+/** One renderer owns the exact, lazily built cargo geometries borrowed by carts. */
+export class DeliveryCargoCatalog {
+  private readonly prototypes = new Map<string, THREE.Group>();
+  private readonly geometries = new Map<string, THREE.BufferGeometry[]>();
+  private disposed = false;
+
+  create(kind: DeliveryCargoKind, regionalImport: boolean): THREE.Group {
+    if (this.disposed) throw new Error('Delivery cargo catalog has been disposed');
+    const key = `${regionalImport}:${kind}`;
+    let prototype = this.prototypes.get(key);
+    if (!prototype) {
+      prototype = new THREE.Group();
+      addCargo(prototype, kind, regionalImport);
+      const replacements = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
+      prototype.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const source = mesh.geometry;
+        let geometry = replacements.get(source);
+        if (!geometry) {
+          const fingerprint = geometryFingerprint(source);
+          const candidates = this.geometries.get(fingerprint) ?? [];
+          geometry = candidates.find(candidate => geometryEqualsGeometry(source, candidate));
+          if (geometry) {
+            if (geometry !== source && source !== sharedFirewoodLogGeometry()) source.dispose();
+          } else {
+            geometry = source === sharedFirewoodLogGeometry() ? source.clone() : source;
+            candidates.push(geometry);
+            this.geometries.set(fingerprint, candidates);
+          }
+          replacements.set(source, geometry);
+        }
+        mesh.geometry = geometry;
+        mesh.userData.sharedGeometry = true;
+      });
+      this.prototypes.set(key, prototype);
+    }
+    return prototype.clone(true);
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const candidates of this.geometries.values()) for (const geometry of candidates) geometry.dispose();
+    this.geometries.clear();
+    this.prototypes.clear();
+  }
+}
 
 function createCargoMaterial(
   name: string,
@@ -1452,7 +1503,7 @@ export function createDeliveryCartMesh(
   }
 
   if (loaded) {
-    const cargoRoot = new THREE.Group();
+    const cargoRoot = options.cargoCatalog?.create(kind, regionalImport) ?? new THREE.Group();
     cargoRoot.name = regionalImport
       ? `Regional import cargo: ${kind}`
       : `Cart cargo: ${kind}`;
@@ -1460,7 +1511,8 @@ export function createDeliveryCartMesh(
       cargoRoot.scale.setScalar(0.76);
       cargoRoot.position.set(0, 0.08, 0.08);
     }
-    addCargo(cargoRoot, kind, regionalImport);
+    if (!options.cargoCatalog) addCargo(cargoRoot, kind, regionalImport);
+    group.userData.deliveryCartCargo = cargoRoot;
     group.add(cargoRoot);
   }
   return group;
@@ -1484,7 +1536,7 @@ export function disposeDeliveryCartMesh(group: THREE.Group): void {
   );
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
-    if (!mesh.userData.sharedGeometry) mesh.geometry?.dispose();
+    if (!mesh.userData.sharedGeometry && mesh.geometry !== sharedFirewoodLogGeometry()) mesh.geometry?.dispose();
   });
   for (const material of ownedMaterials) material.dispose();
 }

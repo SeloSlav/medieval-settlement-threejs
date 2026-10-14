@@ -18,6 +18,7 @@ import {
   disposeDeliveryCartModelSource,
   loadDeliveryCartModelSource,
   fireBucketCarrierMeshName,
+  DeliveryCargoCatalog,
   type DeliveryCartModelSource,
 } from '../logistics/deliveryCartMesh.ts';
 import {
@@ -111,6 +112,7 @@ export class DeliveryAgentRenderer {
   private readonly isOnRoadSurface: ((x: number, z: number) => boolean) | null;
   private readonly group = new THREE.Group();
   private readonly cartBatches: ExactMountedAttachmentBatch;
+  private readonly cargoCatalog = new DeliveryCargoCatalog();
   private readonly visuals = new Map<string, TripVisual>();
   private readonly selectedRoute: SelectedAgentRoute;
   private readonly latestTrips = new Map<string, DeliveryTripState>();
@@ -134,7 +136,7 @@ export class DeliveryAgentRenderer {
     this.selectedRoute = createSelectedAgentRoute('Selected delivery destination route');
     this.group.add(this.selectedRoute);
     options.parent.add(this.group);
-    this.cartBatches = new ExactMountedAttachmentBatch(this.group, { name: 'Exact delivery cart bodies' });
+    this.cartBatches = new ExactMountedAttachmentBatch(this.group, { name: 'Exact delivery carts and cargo', separateShadows: true });
     void this.loadCartSource();
     void this.loadWorkerSources();
   }
@@ -286,6 +288,8 @@ export class DeliveryAgentRenderer {
         : yaw;
       const model = visual.mesh.userData.deliveryCartModel as THREE.Group | undefined;
       if (model) model.visible = visual.mesh.visible;
+      const cargo = visual.mesh.userData.deliveryCartCargo as THREE.Group | undefined;
+      if (cargo) cargo.visible = visual.mesh.visible;
       const moving = this.isVisualMoving(visual);
       visual.movementSpeed = moving ? surfaceTravelSpeed : 0;
       for (const worker of visual.workers) {
@@ -299,7 +303,7 @@ export class DeliveryAgentRenderer {
       }
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
     }
-    this.cartBatches.update();
+    this.cartBatches.update(undefined, view?.renderCamera);
     this.workerBatches?.finish();
   }
 
@@ -310,6 +314,15 @@ export class DeliveryAgentRenderer {
       this.syncRoute(visual, trip);
       this.applyAuthoritativeTripState(visual, trip);
     }
+  }
+
+  hasVisibleDynamicShadowCasters(): boolean {
+    for (const visual of this.visuals.values()) if (visual.mesh.visible) return true;
+    return false;
+  }
+
+  authoredCartDiagnostics() {
+    return this.cartBatches.diagnostics();
   }
 
   private syncRoute(visual: TripVisual, trip: DeliveryTripState): void {
@@ -396,6 +409,7 @@ export class DeliveryAgentRenderer {
       this.removeTrip(id);
     }
     this.cartBatches.dispose();
+    this.cargoCatalog.dispose();
     this.workerBatches?.dispose();
     if (this.cartSource) disposeDeliveryCartModelSource(this.cartSource);
     if (this.workerSources) disposeDeliveryCartWorkerSources(this.workerSources);
@@ -515,15 +529,20 @@ export class DeliveryAgentRenderer {
       source: this.cartSource,
       regionalImport: isRegionalImportTrip(trip),
       loaded: deliveryTripHasVisibleCargo(trip),
+      cargoCatalog: this.cargoCatalog,
     });
     const model = mesh.userData.deliveryCartModel as THREE.Group | undefined;
     if (model) this.cartBatches.registerTool(model);
+    const cargo = mesh.userData.deliveryCartCargo as THREE.Group | undefined;
+    if (cargo) this.cartBatches.registerTool(cargo);
     return mesh;
   }
 
   private unregisterCartBody(mesh: THREE.Group): void {
     const model = mesh.userData.deliveryCartModel as THREE.Group | undefined;
     if (model) this.cartBatches.unregisterTool(model);
+    const cargo = mesh.userData.deliveryCartCargo as THREE.Group | undefined;
+    if (cargo) this.cartBatches.unregisterTool(cargo);
   }
 
   private ensureWorkerCrew(visual: TripVisual, trip: DeliveryTripState): void {

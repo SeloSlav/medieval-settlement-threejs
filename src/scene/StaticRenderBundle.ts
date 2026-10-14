@@ -141,6 +141,7 @@ export function installStaticRenderBundlePreparation(renderer: WebGPURenderer): 
   projectionRenderer._projectObject = function(object, camera, ...args) {
     if (isRetainedRenderSubtree(object)) return;
     if (shadowPass && object.userData.cityColourOnlySubtree === true) return;
+    if (!shadowPass && object.userData.cityShadowOnlySubtree === true) return;
     const prepared = object as THREE.Object3D & { isCityCameraPreparedGroup?: boolean; prepare(camera: THREE.Camera): void };
     if (prepared.isCityCameraPreparedGroup) prepared.prepare(camera);
     if ((object as StaticRenderBundle).isCityStaticRenderBundle) (object as StaticRenderBundle).prepare(camera, false);

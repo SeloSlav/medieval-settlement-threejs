@@ -689,3 +689,81 @@ Evidence: `artifacts/city-performance/field-perimeter-culling/`,
 `artifacts/city-performance/farm-field-cache-culling/`,
 `artifacts/realm-browser-hedge-view-culling/` and
 `artifacts/city-performance/sp-hedge-view-culling/`.
+
+## Delivery cargo and hand transforms
+
+Loaded carts now borrow geometry from a lazily populated catalog owned by their
+renderer. Reuse requires exact attribute, index, group and draw-range equality;
+hashes only select candidates. Names, transforms, materials and cargo provenance
+remain authored. Cart removal leaves shared geometry alive, and renderer disposal
+releases each canonical geometry once. The global firewood billet remains owned
+by its original source. All 72 goods and both provenance variants are covered by
+`test:delivery-cargo-batch`, comparing 1,448 source meshes against fresh builders.
+Their catalog contains 142 canonical geometries. A 128-load ale fixture uses eight
+shape/material draws for its 1,792 cargo parts.
+
+Delivery bodies and cargo use independent colour and shadow instance buffers.
+Each camera selects the same original mesh bounds, and the renderer projects
+only the appropriate subtree for that pass. An off-screen colour selection
+cannot erase an in-view caster from the shadow camera. Unchanged matrix values
+skip uploads. Visible deliveries also participate in the existing bounded
+dynamic-shadow refresh cadence. Other mounted-equipment callers retain their
+existing rendering mode.
+
+The native browser regression covers all 144 goods/provenance combinations,
+camera changes, movement, parent rotation/nonuniform scale, visibility, empty
+returns and refilling. Every case submits the same colour-plus-shadow triangle
+count as the immutable reference. Wide-view draws fall from 2,708 to 320, and
+looking away submits zero draws. Instanced transform/normal arithmetic and
+intersecting-surface depth ties leave 0–5 differing pixels per 480×320 capture,
+including first frames; at most two differ by more than six summed RGB levels.
+This is a bounded visual comparison, not pixel-exact parity. All 317 tracked
+matrix buffers receive zero writes on unchanged views. Alternating isolated
+render/update arms measure 6.34–6.73 ms with batching versus 26.92–29.37 ms for
+the original draws. Full-world results must be measured separately.
+
+The hand solver now updates the rig once, then reads its current world matrices
+directly. Existing joint-descendant updates still propagate each CCD rotation;
+world getters no longer recompute the cart and ancestor chain repeatedly. The
+reference regression checks 48 male/female civilian workers across all three
+roles, 24 frames, paused deltas, animation transitions and moving/nonuniformly
+scaled parents, including large world coordinates. All 755,712 compared GPU
+palette floats are identical. Its measured world-matrix method calls fall from
+210,432 to 63,168. The existing worker vertex, material, visibility and lifetime
+regression also passes. This changes no animation clip or civilian role.
+
+The single-player presentation probe's optional `--deliveries` adds 48 authored
+loaded carts and 96 civilian crew in the unloading phase to the large fixture.
+It intentionally adds these renderers to the existing 500 civilians; it does not
+model authoritative crew allocation or simulate a live delivery economy. Both
+its delivery count and authored model/cargo registrations are checked. This
+broader fixture exposes logistics costs that the earlier field-only probe missed.
+
+The cargo-only production-client cohort, with 49 computer clients plus the
+measured browser, still fails at 28.08 ms average / 43.40 ms P95. It has 19
+registered body/cargo roots and 22 active colour draws at the sample point,
+with 465 civilian agents. Fog, paper-map return and native terrain-buffer reuse
+pass with no browser errors. This run does not isolate an overall FPS gain.
+
+After the exact hand-transform change, a fresh 50-client capture measures
+27.28 ms average / 36.30 ms P95 / 97.00 ms P99, still failing 16.67 ms. It has
+464 civilian agents, 18 registered body/cargo roots and nine active colour draws
+at the sample point. Fog and paper-map return pass, retaining ten native terrain
+buffers with no runtime errors. The advancing workload prevents isolating an
+overall FPS improvement from these sequential captures. Evidence:
+`artifacts/realm-browser-cargo-ik-cache/`.
+
+Before the hand change, the heavier single-player presentation fixture averages
+45.39 ms / 58.00 ms P95 stationary after vegetation clearance and 50.78 ms /
+66.60 ms P95 moving; logistics takes 14.55 and 15.45 ms respectively. The hand
+change's repeat averages 42.09 ms / 54.50 ms P95 stationary and 48.27 ms / 66.60
+ms P95 moving, with logistics at 10.71 and 11.36 ms. Both captures still fail;
+their differing render costs prevent treating the whole-frame difference as an
+isolated comparison. The disconnected single-player database means these are
+presentation fixtures, not live economy validation. Shader detail is retained,
+and the full-production multiplayer clock failure remains unresolved.
+
+Evidence: `artifacts/city-performance/delivery-cargo-batch/`,
+`artifacts/realm-browser-cargo-batching/`,
+`artifacts/city-performance/sp-cargo-batching/` and
+`artifacts/city-performance/sp-cargo-ik-cache/`.

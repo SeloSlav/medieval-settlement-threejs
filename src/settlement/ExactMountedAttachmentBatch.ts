@@ -7,6 +7,7 @@ export const EXACT_MOUNTED_ATTACHMENT_INITIAL_CAPACITY = 8;
 export type ExactMountedAttachmentBatchOptions = {
   initialCapacity?: number;
   name?: string;
+  separateShadows?: boolean;
 };
 
 export type ExactMountedAttachmentBatchDiagnostic = {
@@ -24,6 +25,8 @@ export type ExactMountedAttachmentBatchDiagnostic = {
   meshBatches: number;
   lineBatches: number;
   activeDrawCalls: number;
+  shadowDrawCalls: number;
+  visibleShadowMeshInstances: number;
   meshInstanceCapacity: number;
   lineSegmentCapacity: number;
   resizeCount: number;
@@ -64,6 +67,7 @@ type MeshBatch = {
   mesh: THREE.InstancedMesh;
   parts: MeshPart[];
   capacity: number;
+  shadowMesh?: THREE.InstancedMesh;
 };
 
 type LinePart = {
@@ -103,6 +107,9 @@ export class ExactMountedAttachmentBatch {
   readonly group = new THREE.Group();
 
   private readonly initialCapacity: number;
+  private readonly separateShadows: boolean;
+  private readonly colorGroup: THREE.Group;
+  private readonly shadowGroup: THREE.Group | null;
   private readonly registrations = new Set<RegistrationState>();
   private readonly registrationByTool = new WeakMap<THREE.Object3D, RegistrationState>();
   private readonly renderableOwner = new WeakMap<THREE.Object3D, RegistrationState>();
@@ -111,6 +118,12 @@ export class ExactMountedAttachmentBatch {
   private readonly worldToBatch = new THREE.Matrix4();
   private readonly localMatrix = new THREE.Matrix4();
   private readonly point = new THREE.Vector3();
+  private readonly colorFrustum = new THREE.Frustum();
+  private readonly colorProjection = new THREE.Matrix4();
+  private readonly selectedMeshParts: MeshPart[] = [];
+  private colorCamera: THREE.Camera | null = null;
+  private readonly shadowFrustum = new THREE.Frustum();
+  private readonly shadowProjection = new THREE.Matrix4();
   private resizeCount = 0;
 
   constructor(
@@ -125,6 +138,19 @@ export class ExactMountedAttachmentBatch {
     this.group.matrixAutoUpdate = true;
     this.group.userData.exactMountedAttachmentBatch = true;
     parent.add(this.group);
+    this.separateShadows = options.separateShadows === true;
+    this.colorGroup = this.separateShadows ? new THREE.Group() : this.group;
+    this.shadowGroup = this.separateShadows ? Object.assign(new THREE.Group(), {
+      isCityCameraPreparedGroup: true,
+      prepare: (camera: THREE.Camera) => this.prepareShadows(camera),
+    }) : null;
+    if (this.shadowGroup) {
+      this.colorGroup.name = `${this.group.name} colour draws`;
+      this.colorGroup.userData.cityColourOnlySubtree = true;
+      this.shadowGroup.name = `${this.group.name} shadow draws`;
+      this.shadowGroup.userData.cityShadowOnlySubtree = true;
+      this.group.add(this.colorGroup, this.shadowGroup);
+    }
   }
 
   /**
@@ -217,8 +243,10 @@ export class ExactMountedAttachmentBatch {
    * Updates every visible prefix. Passing the crowd-parent world inverse saves
    * a redundant inversion when several crowd batches share that parent. When
    * omitted, the inverse of this batch Group is derived directly.
+   * An optional colour camera culls non-casting meshes using their original
+   * geometry bounds. Shadow casters keep their complete instance selection.
    */
-  update(batchParentWorldInverse?: THREE.Matrix4): void {
+  update(batchParentWorldInverse?: THREE.Matrix4, colorCamera?: THREE.Camera): void {
     if (batchParentWorldInverse) {
       this.group.updateMatrix();
       // groupWorld = parentWorld * groupLocal, therefore
@@ -237,12 +265,22 @@ export class ExactMountedAttachmentBatch {
       }
     }
 
-    for (const batch of this.meshBatches.values()) this.updateMeshBatch(batch);
+    this.colorCamera = colorCamera ?? null;
+    if (colorCamera) {
+      colorCamera.updateWorldMatrix(true, false);
+      this.colorProjection.multiplyMatrices(colorCamera.projectionMatrix, colorCamera.matrixWorldInverse);
+      this.colorFrustum.setFromProjectionMatrix(this.colorProjection, colorCamera.coordinateSystem, colorCamera.reversedDepth);
+    }
+
+    for (const batch of this.meshBatches.values()) this.updateMeshBatch(batch, batch.mesh,
+      this.colorCamera ? this.colorFrustum : undefined, this.separateShadows);
     for (const batch of this.lineBatches.values()) this.updateLineBatch(batch);
   }
 
   clear(): void {
     for (const state of [...this.registrations]) this.unregisterTool(state.toolRoot);
+    this.selectedMeshParts.length = 0;
+    this.colorCamera = null;
     this.commitEmptyPrefixes();
   }
 
@@ -320,6 +358,8 @@ export class ExactMountedAttachmentBatch {
       meshBatches: this.meshBatches.size,
       lineBatches: this.lineBatches.size,
       activeDrawCalls,
+      shadowDrawCalls: [...this.meshBatches.values()].filter(batch => (batch.shadowMesh?.count ?? 0) > 0).length,
+      visibleShadowMeshInstances: [...this.meshBatches.values()].reduce((count, batch) => count + (batch.shadowMesh?.count ?? 0), 0),
       meshInstanceCapacity,
       lineSegmentCapacity,
       resizeCount: this.resizeCount,
@@ -336,6 +376,8 @@ export class ExactMountedAttachmentBatch {
     for (const batch of this.meshBatches.values()) {
       batch.mesh.removeFromParent();
       batch.mesh.dispose();
+      batch.shadowMesh?.removeFromParent();
+      batch.shadowMesh?.dispose();
     }
     for (const batch of this.lineBatches.values()) {
       batch.line.removeFromParent();
@@ -405,7 +447,17 @@ export class ExactMountedAttachmentBatch {
   private createMeshBatch(key: string, source: THREE.Mesh, capacity: number): MeshBatch {
     const mesh = new THREE.InstancedMesh(source.geometry, source.material, capacity);
     configureMeshBatchObject(mesh, source, this.group.name);
-    this.group.add(mesh);
+    this.colorGroup.add(mesh);
+    let shadowMesh: THREE.InstancedMesh | undefined;
+    if (this.separateShadows) {
+      mesh.castShadow = false;
+      if (source.castShadow) {
+        shadowMesh = new THREE.InstancedMesh(source.geometry, source.material, capacity);
+        configureMeshBatchObject(shadowMesh, source, `${this.group.name} shadows`);
+        shadowMesh.userData.exactMountedAttachmentShadow = true;
+        this.shadowGroup!.add(shadowMesh);
+      }
+    }
     return {
       key,
       geometry: source.geometry,
@@ -413,6 +465,7 @@ export class ExactMountedAttachmentBatch {
       mesh,
       parts: [],
       capacity,
+      shadowMesh,
     };
   }
 
@@ -425,10 +478,21 @@ export class ExactMountedAttachmentBatch {
     const next = replacement.instanceMatrix.array as Float32Array;
     next.set(previous.subarray(0, Math.min(previous.length, next.length)));
     replacement.instanceMatrix.needsUpdate = batch.mesh.count > 0;
-    this.group.add(replacement);
+    this.colorGroup.add(replacement);
     batch.mesh.removeFromParent();
     batch.mesh.dispose();
     batch.mesh = replacement;
+    if (batch.shadowMesh) {
+      const old = batch.shadowMesh;
+      const shadow = new THREE.InstancedMesh(batch.geometry, batch.material, capacity);
+      configureMeshBatchObject(shadow, old, `${this.group.name} shadows`);
+      shadow.userData.exactMountedAttachmentShadow = true;
+      shadow.count = old.count;
+      shadow.instanceMatrix.array.set(old.instanceMatrix.array);
+      shadow.instanceMatrix.needsUpdate = old.count > 0;
+      this.shadowGroup!.add(shadow);
+      old.removeFromParent(); old.dispose(); batch.shadowMesh = shadow;
+    }
     batch.capacity = capacity;
     this.resizeCount += 1;
   }
@@ -468,23 +532,47 @@ export class ExactMountedAttachmentBatch {
     this.resizeCount += 1;
   }
 
-  private updateMeshBatch(batch: MeshBatch): void {
-    let count = 0;
-    for (const part of batch.parts) if (isPartVisible(part)) count += 1;
-    if (count > batch.capacity) this.resizeMeshBatch(batch, count);
-    let cursor = 0;
+  private prepareShadows(camera: THREE.Camera): void {
+    this.shadowProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.shadowFrustum.setFromProjectionMatrix(this.shadowProjection, camera.coordinateSystem, camera.reversedDepth);
+    for (const batch of this.meshBatches.values()) if (batch.shadowMesh) {
+      this.updateMeshBatch(batch, batch.shadowMesh, this.shadowFrustum, true);
+    }
+  }
+
+  private updateMeshBatch(batch: MeshBatch, target: THREE.InstancedMesh, frustum?: THREE.Frustum, cullCasters = false): void {
+    this.selectedMeshParts.length = 0;
     for (const part of batch.parts) {
       if (!isPartVisible(part)) continue;
+      // Colour and shadow prefixes own separate buffers. Their cameras cannot
+      // overwrite each other's selection while a nested shadow pass renders.
+      if (frustum && (cullCasters || !part.source.castShadow) && part.source.frustumCulled
+        && !frustum.intersectsObject(part.source)) continue;
+      this.selectedMeshParts.push(part);
+    }
+    if (this.selectedMeshParts.length > batch.capacity) {
+      const shadow = target === batch.shadowMesh;
+      this.resizeMeshBatch(batch, this.selectedMeshParts.length);
+      target = shadow ? batch.shadowMesh! : batch.mesh;
+    }
+    let changed = target.count !== this.selectedMeshParts.length;
+    const output = target.instanceMatrix.array;
+    let cursor = 0;
+    for (const part of this.selectedMeshParts) {
       this.localMatrix.multiplyMatrices(this.worldToBatch, part.source.matrixWorld);
-      batch.mesh.setMatrixAt(cursor, this.localMatrix);
+      for (let component = 0; component < 16; component++) {
+        const value = Math.fround(this.localMatrix.elements[component]!);
+        const index = cursor * 16 + component;
+        if (output[index] !== value) { output[index] = value; changed = true; }
+      }
       cursor += 1;
     }
-    batch.mesh.count = cursor;
-    batch.mesh.visible = cursor > 0;
-    if (cursor > 0) {
-      batch.mesh.instanceMatrix.clearUpdateRanges();
-      batch.mesh.instanceMatrix.addUpdateRange(0, cursor * 16);
-      batch.mesh.instanceMatrix.needsUpdate = true;
+    target.count = cursor;
+    target.visible = cursor > 0;
+    if (changed && cursor > 0) {
+      target.instanceMatrix.clearUpdateRanges();
+      target.instanceMatrix.addUpdateRange(0, cursor * 16);
+      target.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -536,6 +624,7 @@ export class ExactMountedAttachmentBatch {
     for (const batch of this.meshBatches.values()) {
       batch.mesh.count = 0;
       batch.mesh.visible = false;
+      if (batch.shadowMesh) { batch.shadowMesh.count = 0; batch.shadowMesh.visible = false; }
     }
     for (const batch of this.lineBatches.values()) {
       batch.geometry.setDrawRange(0, 0);

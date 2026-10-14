@@ -39,6 +39,8 @@ const IK_WORLD_DELTA = new THREE.Quaternion();
 const IK_JOINT_WORLD = new THREE.Quaternion();
 const IK_DESIRED_WORLD = new THREE.Quaternion();
 const IK_PARENT_WORLD = new THREE.Quaternion();
+const IK_DECOMPOSE_POSITION = new THREE.Vector3();
+const IK_DECOMPOSE_SCALE = new THREE.Vector3();
 
 export const DELIVERY_CART_HANDLE_TARGETS = {
   left: {
@@ -307,12 +309,12 @@ function pinHandsToCartHandles(visual: DeliveryCartWorkerVisual): void {
   const cartRoot = visual.root.parent;
   if (!cartRoot) return;
   cartRoot.updateWorldMatrix(true, false);
-  visual.model.updateMatrixWorld(true);
+  visual.root.updateWorldMatrix(false, true);
 
   IK_LEFT_TARGET.copy(HANDLE_TARGETS.left);
   IK_RIGHT_TARGET.copy(HANDLE_TARGETS.right);
-  cartRoot.localToWorld(IK_LEFT_TARGET);
-  cartRoot.localToWorld(IK_RIGHT_TARGET);
+  IK_LEFT_TARGET.applyMatrix4(cartRoot.matrixWorld);
+  IK_RIGHT_TARGET.applyMatrix4(cartRoot.matrixWorld);
   solveArmIk(visual.leftArm, IK_LEFT_TARGET);
   solveArmIk(visual.rightArm, IK_RIGHT_TARGET);
 }
@@ -329,8 +331,11 @@ function rotateJointToward(
   end: THREE.Bone,
   target: THREE.Vector3,
 ): void {
-  joint.getWorldPosition(IK_JOINT_POSITION);
-  end.getWorldPosition(IK_END_DIRECTION).sub(IK_JOINT_POSITION);
+  // The full rig was updated once above; each CCD rotation updates this
+  // joint's descendants below. World getters would redundantly recompute the
+  // cart, model and ancestor chain four times per iteration.
+  IK_JOINT_POSITION.setFromMatrixPosition(joint.matrixWorld);
+  IK_END_DIRECTION.setFromMatrixPosition(end.matrixWorld).sub(IK_JOINT_POSITION);
   IK_TARGET_DIRECTION.copy(target).sub(IK_JOINT_POSITION);
   if (
     IK_END_DIRECTION.lengthSq() <= 1e-8
@@ -345,10 +350,10 @@ function rotateJointToward(
     IK_END_DIRECTION,
     IK_TARGET_DIRECTION,
   );
-  joint.getWorldQuaternion(IK_JOINT_WORLD);
+  joint.matrixWorld.decompose(IK_DECOMPOSE_POSITION, IK_JOINT_WORLD, IK_DECOMPOSE_SCALE);
   IK_DESIRED_WORLD.copy(IK_WORLD_DELTA).multiply(IK_JOINT_WORLD);
   if (!joint.parent) return;
-  joint.parent.getWorldQuaternion(IK_PARENT_WORLD);
+  joint.parent.matrixWorld.decompose(IK_DECOMPOSE_POSITION, IK_PARENT_WORLD, IK_DECOMPOSE_SCALE);
   joint.quaternion
     .copy(IK_PARENT_WORLD.invert())
     .multiply(IK_DESIRED_WORLD)
