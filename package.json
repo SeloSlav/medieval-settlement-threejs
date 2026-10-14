@@ -364,6 +364,8 @@
     "test:material-candidate-cache": "node scripts/testMaterialCandidateCache.mjs",
     "test:delivery-labor-cache": "node scripts/testDeliveryLaborCache.mjs",
     "test:canonical-route-cache": "cargo test --manifest-path server/logic/Cargo.toml road_ -- --nocapture",
+    "test:household-need-snapshot": "node scripts/testHouseholdNeedSnapshot.mjs",
+    "test:burial-candidate-index": "node scripts/testBurialCandidateIndex.mjs",
     "test:campfire-occupancy": "node --experimental-strip-types scripts/testCampfireOccupancy.mts",
     "test:fire-lighting": "node --experimental-strip-types scripts/testFireLighting.mts",
     "test:starter-camp": "npx tsx scripts/testStarterCampPlacement.mts",

@@ -349,6 +349,38 @@ probe and is not installed in gameplay. Reproduce with
 `node scripts/probeUniformDispatchBrowser.mjs`; evidence:
 `artifacts/city-performance/uniform-dispatch-probe/report.json`.
 
+The global economy step now loads household need rows through one authoritative
+table scan instead of one indexed query per existing home. Its existing cache
+continues to receive stock and deficit-anchor writes, invalidates deleted homes,
+and reads through for newly created homes. The native source-extraction regression
+checks all 55,044 rows across 5,004 homes, four repeated read rounds, 600 mixed
+writes, deletion/restoration, new homes, and phase retirement. Results match the
+previous read-through implementation exactly; initial table queries fall from
+5,004 to one, with the same number of returned rows. Household timer checks pass.
+
+Burial dispatch now uses the existing phase's building-kind index to select chapel
+identities, then reads each candidate's current completion, staffing, ownership
+and fire status. It retains corpse ordering, stable route ties, active crew and
+grave-capacity reservations. The native regression checks 50 owners, 250 waiting
+corpses, changed and deleted chapels, no-road/unreachable cases, paused owners,
+active carts and full graveyards. Its scaled comparison preserves exact dispatch
+results while reducing returned building rows from 12,000 to 500. Owners without
+chapels read no building rows after the shared index has been populated. Both
+changes are shared by single-player and multiplayer; no schema change is needed.
+
+The locally published module's five-minute test passes both clock assertions with
+50 subscribed clients: 606 economy steps in 300.76 seconds, a projected
+297.78-second day, and maximum sampled backlog of 3.89 seconds. Sampled backlog
+starts at 3.89 seconds and ends at 1.75 seconds. Separate sequential phase samples
+record burial dispatch at 0.316 ms versus 34.48 ms in the previous module; the
+fixture currently has no chapels. The new need snapshot averages 11.56 ms. These
+advancing-world samples do not isolate an overall economy or client FPS gain.
+The fixture still has 5,004 homes and 2,549 buildings without fields or herds,
+so sustained full-production clock performance remains unverified. Evidence:
+`artifacts/realm-clock-household-burial-index.json` and
+`artifacts/realm-phases-household-burial-index.json`. Default single-player,
+production persistent-world and local-loadtest compilation checks pass.
+
 Multiplayer terrain refresh now queues only tiles whose layout or source
 attribute revisions changed. Idle frames still observe source versions but do
 not scan every resident tile. Unfinished work remains in order across frames;

@@ -38,10 +38,16 @@ struct CachedTickNeeds {
     output_tick: u64,
 }
 pub struct TickNeedCache;
-/// Read-through/write-through cache with the same lifetime as one economy
-/// transaction. All need mutations below update or invalidate its rows.
-pub fn cache_tick_needs(input_tick: u64, output_tick: u64) -> TickNeedCache {
-    TICK_NEED_ROWS.with(|cache| *cache.borrow_mut() = Some(CachedTickNeeds { rows: Default::default(), input_tick, output_tick }));
+/// One authoritative table snapshot for the global economy step. All need
+/// mutations below update or invalidate its rows; new homes still read through.
+pub fn cache_tick_needs(ctx: &ReducerContext, input_tick: u64, output_tick: u64) -> TickNeedCache {
+    #[cfg(feature = "local-loadtest")]
+    let _timer = spacetimedb::log_stopwatch::LogStopwatch::new("household needs snapshot");
+    let mut rows = std::collections::HashMap::<u64, Vec<ResidenceNeed>>::new();
+    for row in ctx.db.residence_need().iter() {
+        rows.entry(row.residence_id).or_default().push(row);
+    }
+    TICK_NEED_ROWS.with(|cache| *cache.borrow_mut() = Some(CachedTickNeeds { rows, input_tick, output_tick }));
     TickNeedCache
 }
 pub fn input_household_tick(ctx: &ReducerContext) -> u64 {

@@ -253,7 +253,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     if crate::simulation::holiday_observance(&clock).is_some() {
         return;
     }
-    let _need_cache = crate::simulation::residence_needs::cache_tick_needs(household_previous_tick, household_tick);
+    let _need_cache = crate::simulation::residence_needs::cache_tick_needs(ctx, household_previous_tick, household_tick);
     let environment = crate::season_policy::environment_for(
         world_seed,
         world_hydrology,

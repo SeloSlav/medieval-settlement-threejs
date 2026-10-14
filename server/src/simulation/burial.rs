@@ -143,19 +143,13 @@ fn dispatch_waiting_corpses(ctx: &ReducerContext, tick: &SimTickContext, clock: 
             continue;
         };
         let mut best: Option<(f64, u64, Graveyard, RoadPathRoute, RoadPathRoute)> = None;
-        for chapel in ctx
-            .db
-            .building()
-            .owner()
-            .filter(&corpse.owner)
-            .filter(|building| {
-                building.kind == "chapel"
-                    && building.construction_complete
-                    && building.assigned_labor
-                        > active_by_chapel.get(&building.id).copied().unwrap_or(0)
-                    && !tick.building_disabled_by_fire(ctx, building.id)
-            })
-        {
+        for chapel_id in tick.building_ids_for_kinds(ctx, corpse.owner, &["chapel"]) {
+            // The index owns identities only. Re-read eligibility after earlier
+            // dispatches reserve workers or other simulation phases edit a site.
+            let Some(chapel) = ctx.db.building().id().find(chapel_id) else { continue; };
+            if chapel.owner != corpse.owner || chapel.kind != "chapel" || !chapel.construction_complete
+                || chapel.assigned_labor <= active_by_chapel.get(&chapel.id).copied().unwrap_or(0)
+                || tick.building_disabled_by_fire(ctx, chapel.id) { continue; }
             for graveyard in ctx.db.graveyard().chapel_id().filter(&chapel.id) {
                 let inbound = reserved_by_graveyard
                     .get(&graveyard.id)
