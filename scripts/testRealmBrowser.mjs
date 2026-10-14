@@ -5,6 +5,7 @@ import { build, createServer, preview } from 'vite';
 import { createInterface } from 'node:readline';
 import { beginGpuPassCosts } from './fixtures/gpuPassCosts.js';
 import { measureUiCompositionCosts } from './fixtures/uiCompositionCosts.js';
+import { measureRealmTerrainIdle } from './fixtures/realmTerrainIdleCosts.js';
 const output = process.env.REALM_BROWSER_OUTPUT || 'artifacts/realm-browser';
 const forestBatches = process.env.REALM_BROWSER_FOREST_BATCHES !== '0';
 const uniformUploads = process.env.REALM_BROWSER_UNIFORM_UPLOADS !== '0';
@@ -397,6 +398,12 @@ if (!navigationSweeps) await page.route('**/src/camera/fp/fpCollisionWorld.ts*',
     const costs = await page.evaluate(`(${measureUiCompositionCosts.toString()})()`);
     writeFileSync(`${output}/ui-composition-costs.json`,JSON.stringify(costs,null,2));
     console.log('UI composition',JSON.stringify(costs));
+  }
+  if (process.env.REALM_BROWSER_TERRAIN_DIAGNOSTIC === '1') {
+    const costs = await page.evaluate(`(${measureRealmTerrainIdle.toString()})(window.__realmApp.realmPresentation.terrainStream,
+      window.__realmApp.cameraController.getTargetPosition().x, window.__realmApp.cameraController.getTargetPosition().z)`);
+    writeFileSync(`${output}/terrain-idle-costs.json`, JSON.stringify(costs, null, 2));
+    console.log('Terrain idle', JSON.stringify(costs));
   }
   await page.screenshot({ path: `${output}/camp.png` });
   await page.evaluate(() => window.__realmApp.cameraController.enterIllustratedMap());

@@ -18,6 +18,7 @@ export class RealmTerrainStream {
   readonly group = new THREE.Group();
   readonly stream: ChunkStream<Tile>;
   private readonly terrain: Terrain;
+  private readonly now: () => number;
   private readonly attached = new Map<number, Tile>();
   private readonly attributes = new Map<string, AttributeState>();
   private layout = '';
@@ -25,12 +26,20 @@ export class RealmTerrainStream {
   private revision = 0;
   private allocations = 0;
   private refreshes = 0;
+  private tileChecks = 0;
+  private queuedRevision = -1;
+  private queuedLayout = '';
+  private readonly pendingRefreshes = new Set<number>();
+  private material: THREE.Mesh['material'];
   private center: number | null = null;
   private paused = false;
-  get stats() { return { allocations: this.allocations, refreshes: this.refreshes }; }
+  get stats() { return { allocations: this.allocations, refreshes: this.refreshes,
+    tileChecks: this.tileChecks, pendingRefreshes: this.pendingRefreshes.size }; }
 
-  constructor(terrain: Terrain, scene: THREE.Scene) {
+  constructor(terrain: Terrain, scene: THREE.Scene, now: () => number = () => performance.now()) {
     this.terrain = terrain;
+    this.now = now;
+    this.material = terrain.mesh.material;
     this.group.name = 'Streamed realm terrain';
     scene.add(this.group);
     terrain.mesh.visible = false;
@@ -41,7 +50,7 @@ export class RealmTerrainStream {
         this.synchronizeSource(); this.refreshTile(id, tile);
         this.attached.set(id, tile); this.group.add(tile.mesh); tile.mesh.updateMatrixWorld(true);
       },
-      detach: (id, tile) => { this.attached.delete(id); this.group.remove(tile.mesh); },
+      detach: (id, tile) => { this.attached.delete(id); this.pendingRefreshes.delete(id); this.group.remove(tile.mesh); },
       onError: (id, error) => console.error(`[Realm terrain ${id}]`, error),
     });
   }
@@ -60,15 +69,39 @@ export class RealmTerrainStream {
       }
       this.stream.setInterest(ids);
     }
-    const start = performance.now();
+    const start = this.now();
     this.synchronizeSource();
-    for (const [id, tile] of this.attached) {
-      if (performance.now() - start >= REALM.streamBudgetMs) break;
-      this.refreshTile(id, tile);
+    if (this.queuedRevision !== this.revision || this.queuedLayout !== this.layout) {
+      this.queuedRevision = this.revision; this.queuedLayout = this.layout;
+      for (const [id, tile] of this.attached) {
+        if (this.tileNeedsRefresh(id, tile)) {
+          this.pendingRefreshes.add(id);
+        }
+      }
     }
-    this.stream.pump(Math.max(0, REALM.streamBudgetMs - (performance.now() - start)));
+    // Retain unfinished work across frames. Restarting at the first resident
+    // tile can permanently starve later tiles when an edit exceeds the budget.
+    while (this.pendingRefreshes.size && this.now() - start < REALM.streamBudgetMs) {
+      const id = this.pendingRefreshes.values().next().value!;
+      this.pendingRefreshes.delete(id);
+      const tile = this.attached.get(id);
+      if (tile) this.refreshTile(id, tile);
+    }
+    if (this.material !== this.terrain.mesh.material) {
+      this.material = this.terrain.mesh.material;
+      for (const tile of this.attached.values()) tile.mesh.material = this.material;
+    }
+    this.stream.pump(Math.max(0, REALM.streamBudgetMs - (this.now() - start)), this.now);
   }
   dispose(): void { this.stream.dispose(); this.group.removeFromParent(); this.terrain.mesh.visible = true; }
+
+  private tileNeedsRefresh(id: number, tile: Tile): boolean {
+    if (tile.layout !== this.layout) return true;
+    for (const [name, state] of this.attributes) {
+      if (tile.revisions.get(name) !== state.revisions[id]) return true;
+    }
+    return false;
+  }
 
   private synchronizeSource(): void {
     const entries = Object.entries(this.terrain.mesh.geometry.attributes);
@@ -142,6 +175,7 @@ export class RealmTerrainStream {
     return tile;
   }
   private refreshTile(id: number, tile: Tile): void {
+    this.tileChecks++;
     const newLayout = tile.layout !== this.layout;
     if (newLayout) {
       const geometry = new THREE.BufferGeometry();

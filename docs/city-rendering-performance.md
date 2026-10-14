@@ -349,6 +349,31 @@ probe and is not installed in gameplay. Reproduce with
 `node scripts/probeUniformDispatchBrowser.mjs`; evidence:
 `artifacts/city-performance/uniform-dispatch-probe/report.json`.
 
+Multiplayer terrain refresh now queues only tiles whose layout or source
+attribute revisions changed. Idle frames still observe source versions but do
+not scan every resident tile. Unfinished work remains in order across frames;
+new edits requeue affected tiles without restarting at the beginning. Detachment
+cancels pending work and cache attachment observes the latest source. Material
+replacement propagates independently of geometry revisions.
+
+The terrain-buffer regression proves zero tile visits over 100 idle frames with
+81 residents. Its deterministic two-tile frame budget finishes all 81 tiles,
+including a second full edit arriving before the first finishes. It also checks
+seam-local updates, normalized attributes, added/removed layouts, cached return,
+allocation reuse, bounds and disposal. TypeScript and streaming regressions pass.
+
+The production-client capture with 49 computer clients and frame profiling
+disabled still fails at 38.96 ms mean / 97.00 ms P95. It ends with 83 tile
+allocations, 173 refreshes and no pending edits. Paper-map fog and cache return
+checks pass, with no runtime errors. A separate alternating diagnostic in that
+browser performs 1,000 idle updates per arm: the old scan takes 30.2–48.0 ms and
+visits roughly 81,000 tiles; the queue takes 1.3–2.3 ms and visits none. This
+isolated housekeeping reduction does not establish an overall FPS gain in the
+advancing world. The earlier terrain profiler hotspot also leaves the top sampled
+functions. Evidence: `artifacts/realm-browser-terrain-dirty-queue/`. Set
+`REALM_BROWSER_TERRAIN_DIAGNOSTIC=1` to collect the isolated comparison after the
+formal frame and CPU cohorts.
+
 Validation completed:
 
 - TypeScript typecheck and the authored skinning, source-model batching, crowd

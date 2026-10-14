@@ -23,14 +23,16 @@ geometry.setAttribute('secondMask', new THREE.InterleavedBufferAttribute(masks, 
 const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
 const terrain = { resolution, mesh } as unknown as Terrain;
 const scene = new THREE.Scene(); scene.add(mesh);
-const realm = new RealmTerrainStream(terrain, scene);
+let steppedClock = false, fakeMs = 0;
+const realm = new RealmTerrainStream(terrain, scene, () => steppedClock ? (fakeMs += 0.9) : performance.now());
 const settle = () => new Promise<void>(resolve => setImmediate(resolve));
 async function drain(paper = false) {
   for (let i = 0; i < 150; i++) {
     realm.update(100, 100, paper); await settle();
-    if (!realm.stream.stats.loading && !realm.stream.stats.queued) break;
+    if (!realm.stream.stats.loading && !realm.stream.stats.queued && !realm.stats.pendingRefreshes) break;
   }
   assert.equal(realm.stream.stats.loading, 0); assert.equal(realm.stream.stats.queued, 0);
+  assert.equal(realm.stats.pendingRefreshes, 0);
 }
 await drain();
 assert.equal(realm.stream.stats.resident, 81);
@@ -40,8 +42,17 @@ const sourceGeometry = center.geometry, sourcePosition = sourceGeometry.getAttri
 assert(Math.abs(sourcePosition.getY(0) - 144) < 1e-5);
 assert(Math.abs(sourceGeometry.getAttribute('mask').getX(0) - 128 / 255) < 1e-6, 'Normalized interleaved sources must retain their values');
 const initialRefreshes = realm.stats.refreshes;
+const initialChecks = realm.stats.tileChecks;
 for (let i = 0; i < 100; i++) realm.update(100, 100, false);
 assert.equal(realm.stats.refreshes, initialRefreshes, 'Idle frames must not upload or rebuild terrain');
+assert.equal(realm.stats.tileChecks, initialChecks, 'Idle frames must not visit all resident tile attributes');
+const idleVisits = realm.stats.tileChecks - initialChecks;
+
+const originalMaterial = mesh.material, replacementMaterial = new THREE.MeshBasicMaterial({ color: 0x608040 });
+mesh.material = replacementMaterial; realm.update(100, 100, false);
+assert(realm.group.children.every(child => (child as THREE.Mesh).material === replacementMaterial), 'Material replacement must propagate without an attribute edit');
+assert.equal(realm.stats.tileChecks, initialChecks, 'A material swap does not resample heightfield attributes');
+mesh.material = originalMaterial; realm.update(100, 100, false); replacementMaterial.dispose();
 
 const buffers = new Map(realm.group.children.map(child => {
   const tile = child as THREE.Mesh;
@@ -84,6 +95,39 @@ for (let i = 0; i < 20; i++) realm.update(100, 100, false);
 assert.equal(center.geometry.getAttribute('position').getY(0), 900);
 assert.equal(seam.geometry.getAttribute('position').getY(8 * 17), 888);
 assert(center.geometry.boundingBox!.max.y >= 900, 'Changed positions must update culling bounds');
+
+// A deterministic two-tile budget proves that late tiles finish instead of
+// revisiting the first tiles forever. A second edit arrives before completion.
+steppedClock = true;
+wet.array.fill(0.35); wet.clearUpdateRanges(); wet.needsUpdate = true;
+const budgetStart = realm.stats.tileChecks;
+realm.update(100, 100, false);
+assert.equal(realm.stats.tileChecks - budgetStart, 2);
+assert.equal(realm.stats.pendingRefreshes, 79);
+wet.array.fill(0.625); wet.needsUpdate = true;
+for (let frame = 0; frame < 45 && realm.stats.pendingRefreshes; frame++) realm.update(100, 100, false);
+assert.equal(realm.stats.pendingRefreshes, 0, 'Every queued tile must finish within a finite number of frames');
+for (const child of realm.group.children) assert.equal((child as THREE.Mesh).geometry.getAttribute('color').getX(0), 0.625);
+
+// Detaching cancels pending work; returning refreshes the cached CPU buffers.
+wet.array.fill(0.875); wet.needsUpdate = true; realm.update(100, 100, false);
+assert(realm.stats.pendingRefreshes > 0); realm.update(100, 100, true);
+assert.equal(realm.stats.pendingRefreshes, 0); assert.equal(realm.stream.stats.resident, 0);
+steppedClock = false; await drain();
+for (const child of realm.group.children) assert.equal((child as THREE.Mesh).geometry.getAttribute('color').getX(0), 0.875);
+console.log(`Idle terrain frames: 100 × 81 resident tiles -> ${idleVisits} tile visits; budgeted edits reach all 81 tiles`);
+
+const beforeLayout = realm.stats.allocations;
+geometry.setAttribute('extraLayer', new THREE.BufferAttribute(new Uint16Array(count).fill(32768), 1, true));
+await drain();
+for (const child of realm.group.children) {
+  const value = (child as THREE.Mesh).geometry.getAttribute('extraLayer').getX(0);
+  assert(Math.abs(value - 32768 / 65535) < 1e-7, 'Queued layout additions retain normalized values');
+}
+assert.equal(realm.stats.allocations - beforeLayout, 81, 'A changed layout rebuilds each resident tile exactly once');
+geometry.deleteAttribute('extraLayer'); await drain();
+assert(realm.group.children.every(child => !(child as THREE.Mesh).geometry.hasAttribute('extraLayer')));
+assert.equal(realm.stats.allocations - beforeLayout, 162, 'Removing an attribute also propagates to late tiles');
 
 let disposed = 0;
 for (const child of realm.group.children) (child as THREE.Mesh).geometry.addEventListener('dispose', () => disposed++);
