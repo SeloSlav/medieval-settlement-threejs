@@ -4,6 +4,7 @@ use spacetimedb::{reducer, ReducerContext};
 use crate::{db::*, tables::*, realm::{realm_member, realm_spawn}};
 use crate::building_defs::building_def;
 use crate::economy::{ALL_COMMODITIES, building_commodity_stock, withdraw_building_commodity, deposit_building_commodity};
+mod production;
 
 #[reducer]
 pub fn loadtest_seed_town(ctx: &ReducerContext, outpost: bool) -> Result<(), String> {

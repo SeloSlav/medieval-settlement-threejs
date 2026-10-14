@@ -381,6 +381,64 @@ so sustained full-production clock performance remains unverified. Evidence:
 `artifacts/realm-phases-household-burial-index.json`. Default single-player,
 production persistent-world and local-loadtest compilation checks pass.
 
+The local fixture now adds actual agricultural and parish coverage to all 50
+owners and 17 outposts. It has 5,004 homes, 3,438 buildings, 702 fields covering
+3.11 million m², 117 cattle/sheep herds holding 1,087 animals, and 117 cemeteries
+with 7,473 burial spaces. Added wells cover every home geometrically. Missing
+breweries, smokehouses, fibre workshops and outpost crop processors are ordinary
+completed building rows. New fields start in mixed sowing, growth, ploughing and
+harvest states, so harvest hauling can run without waiting for a crop year.
+Initial stock is seeded once; ongoing production, needs, hauling and clock work
+remain authoritative. Livestock purchases use the ordinary treasury and capacity
+checks. The observation window sees 115 fields advance; herd changes were not
+observed during that same window. This establishes workload coverage, not annual
+self-sufficiency or uninterrupted household welfare.
+
+Fixture sites reject shared-map water, steep ground, existing parcels, structures
+and protected resource deposits. Chapel placement reserves its cemetery at the
+same time. Short parcels use a 4 m search; large parcels use 16 m. Barns alternate
+field claims and can use smaller legal parcels at constrained edges. Identity
+ordering is deterministic. Cattle parcels retain enough area for at least two
+head even at the allowed slope and moisture limits. Existing base fixture roads
+and homes are retained; this is not a claim that their original placement was
+fully validated against terrain or that every geometric well claim has reliable
+annual supply. No production reducer or multiplayer time control is added.
+
+`test:realm-production-parcels` executes the actual parcel-search functions
+natively. Thirteen controlled tests cover occupied/steep/wet parcels, resource
+exclusion, world edges, working ranges, cemetery clearance and 600 fields around
+50 dense towns. A second native cohort uses the actual embedded terrain in all
+81 founding regions: every region fits twelve fields around the base town layout,
+with 5.19 million m² total area. This terrain cohort excludes the later additional
+service buildings and resource blockers; the live setup separately checks those.
+`test:realm-production-coverage` succeeds for every owner, including geometric
+well coverage and real field changes. Evidence:
+`artifacts/realm-production-coverage.json`.
+
+With agricultural coverage, the subsequent five-minute clock test subscribes 50
+clients and advances 520 steps in 300.76 seconds: a projected 347.03-second day.
+Sampled debt starts at 185.26 seconds and grows to 226.01 seconds. The initial debt
+includes fixture setup, but its further growth still fails the steady-clock gate.
+The initial phase capture averages 2.42 seconds per heartbeat and 357.67 ms per
+workshop step, including 115.66 ms for wells. The final capture after clients
+disconnect averages 1.89 seconds per heartbeat, with wells at 96.96 ms. These
+different subscription states and advancing workloads are not an isolated
+optimization comparison. Clock stability, annual production balance and both
+client frame budgets remain unfinished. Evidence:
+`artifacts/realm-clock-production-coverage.json` and
+`artifacts/realm-phases-production-coverage-{start,final}.json`.
+
+The following native WebGPU capture uses the production client, profiling disabled
+for its formal frame cohort, and 49 computer clients plus the measured browser.
+It averages 30.87 ms / 42.60 ms P95, with 474 residents presented and no browser
+runtime errors. Fog, paper-map switching and native terrain-buffer reuse pass;
+the 16.67 ms frame gate fails. One frame reports 411 draws and 11.97 million
+submitted triangles after agriculture is added. Separate pass timestamps average
+2.92 ms for main rendering and 1.90 ms per refreshed shadow pass. This establishes
+the larger workload's current cost, not an isolated rendering regression: the
+world, lighting, crop stages and delivery activity differ from earlier captures.
+Evidence: `artifacts/realm-browser-production-coverage/`.
+
 Multiplayer terrain refresh now queues only tiles whose layout or source
 attribute revisions changed. Idle frames still observe source versions but do
 not scan every resident tile. Unfinished work remains in order across frames;
