@@ -1826,7 +1826,7 @@ mod tests {
         }}
         let stats=network.route_cache_stats();
         assert_eq!(stats.queries,4800);assert_eq!(stats.hits,4752);assert_eq!(stats.entries,48);
-        println!("Canonical route parity: 4800 recurring requests -> 48 solves, {} cached points",stats.points);
+        log::info!("Canonical route parity: 4800 recurring requests -> 48 solves, {} cached points",stats.points);
     }
 
     fn sparse_water_network(resolution:usize, wet: &[(usize,usize)], span:f64) -> RoadNetwork {
