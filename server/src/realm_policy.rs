@@ -5,8 +5,10 @@ pub const WORLD_SEED: u64 = 0x4747_1e50;
 pub const MAX_PLAYERS: usize = 50;
 pub const CLOCK_NUMERATOR: u16 = 2;
 pub const CLOCK_DENOMINATOR: u16 = 5;
+#[cfg(test)]
 pub const RESERVED_OUTPOSTS: usize = 17;
 pub const REGION_COLUMNS: u32 = 9;
+#[cfg(test)]
 pub const REGION_SPACING: f64 = 1_280.0;
 pub const TOWN_RADIUS: f64 = 384.0;
 pub const CHUNK_SIZE: f64 = 256.0;
@@ -56,6 +58,7 @@ pub fn chunks_in_radius(x: f64, z: f64, radius: f64) -> Vec<u32> {
     }
     result
 }
+#[cfg(test)]
 pub fn region_center(slot: u32) -> (f64, f64) {
     let origin = (REGION_COLUMNS - 1) as f64 / 2.0;
     (((slot % REGION_COLUMNS) as f64 - origin) * REGION_SPACING,

@@ -16,8 +16,12 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $modulePath = $scriptDir
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $scriptDir ".."))
 $outDir = [System.IO.Path]::GetFullPath((Join-Path $projectRoot "src\generated"))
+$sdkVersion = (Get-Content -LiteralPath (Join-Path $projectRoot "package.json") -Raw | ConvertFrom-Json).dependencies.spacetimedb
+$matchingCli = Join-Path $env:LOCALAPPDATA "SpacetimeDB\bin\$sdkVersion\spacetimedb-cli.exe"
 $spacetimeCommand = Get-Command spacetime -ErrorAction SilentlyContinue
-$spacetimeExe = if ($spacetimeCommand) {
+$spacetimeExe = if (Test-Path -LiteralPath $matchingCli) {
+  $matchingCli
+} elseif ($spacetimeCommand) {
   $spacetimeCommand.Source
 } else {
   Join-Path $env:LOCALAPPDATA "SpacetimeDB\spacetime.exe"
@@ -45,8 +49,8 @@ Assert-LastExit "Generate game balance"
 
 Set-Location $modulePath
 
-Write-Host "[BUILD] Clearing database and deploying fresh module..." -ForegroundColor Yellow
-& $spacetimeExe publish -c --no-config -p . city-builder -y
+Write-Host "[BUILD] Clearing local database and deploying fresh module at http://127.0.0.1:3000..." -ForegroundColor Yellow
+& $spacetimeExe publish --server http://127.0.0.1:3000 -c --no-config -p . city-builder -y
 Assert-LastExit "Clean publish to local database"
 
 Write-Host "[GEN] Regenerating client bindings..." -ForegroundColor Yellow

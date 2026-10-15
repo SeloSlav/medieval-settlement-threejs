@@ -217,6 +217,8 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
         log::debug!("Canonical route cache heartbeat: {} queries, {} hits, {} entries, {} points",
             queries.saturating_sub(queries_before), hits.saturating_sub(hits_before), entries, points);
     }
+    #[cfg(feature = "local-loadtest")]
+    drop(heartbeat_phase);
 }
 
 fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
@@ -733,4 +735,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_reclamation_piles(ctx, &tick, &clock, reclamation_pile_ids);
     phase!(tail_phase, "founding sites");
     step_founding_sites(ctx, &tick, &clock);
+    #[cfg(feature = "local-loadtest")]
+    drop(tail_phase);
 }

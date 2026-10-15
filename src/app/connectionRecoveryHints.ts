@@ -74,7 +74,7 @@ export function formatConnectionUnavailable(): RecoveryErrorPresentation {
     label: 'SpacetimeDB unavailable',
     detail: 'Could not connect to the game server.',
     recoveryHint: isDevEnvironment()
-      ? 'Run `spacetime start` and `npm run deploy:local`, then retry.'
+      ? 'Run `npm run dev`, then `npm run deploy:local` in another terminal and retry.'
       : 'Check your network connection and retry. If the problem continues, try again later or clear this site\'s stored data and reload.',
     showNewWorldAction: false,
   };

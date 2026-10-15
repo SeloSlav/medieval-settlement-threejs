@@ -1,13 +1,21 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const sdkVersion = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+).dependencies.spacetimedb;
+const matchingInstall = process.env.LOCALAPPDATA
+  ? join(process.env.LOCALAPPDATA, 'SpacetimeDB', 'bin', sdkVersion, 'spacetimedb-cli.exe')
+  : undefined;
 const windowsInstall = process.env.LOCALAPPDATA
   ? join(process.env.LOCALAPPDATA, 'SpacetimeDB', 'spacetime.exe')
   : undefined;
-const executable = windowsInstall && existsSync(windowsInstall)
-  ? windowsInstall
-  : 'spacetime';
+const executable = matchingInstall && existsSync(matchingInstall)
+  ? matchingInstall
+  : windowsInstall && existsSync(windowsInstall)
+    ? windowsInstall
+    : 'spacetime';
 
 let child;
 let keepAlive;

@@ -1,6 +1,5 @@
 //! Clients can only subscribe to these identity-scoped views; backing tables are private.
 use spacetimedb::{Query, ViewContext};
-use crate::db::*;
 use crate::tables::*;
 
 #[spacetimedb::view(accessor = visible_player_resources, public, primary_key = owner)]

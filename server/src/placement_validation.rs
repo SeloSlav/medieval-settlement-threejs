@@ -230,9 +230,9 @@ pub fn building_footprint_polygon_at_yaw(kind: &str, x: f64, z: f64, yaw: f64) -
     )
 }
 
-/// Tests the exact road-aware/yawed placement footprint against a circular
-/// world-space area. Keeping this beside `building_footprint_polygon` makes
-/// simulation effects use the same authored rectangle/estate as placement.
+/// Reference predicate for footprint/circle regression tests, using the same
+/// road-aware/yawed rectangle or estate polygon as placement.
+#[cfg(test)]
 pub fn building_footprint_overlaps_circle(
     kind: &str,
     x: f64,

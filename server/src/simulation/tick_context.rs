@@ -854,8 +854,9 @@ impl SimTickContext {
             .insert(owner, sources);
     }
 
-    /// Returns the nearest completed well claimed by this household. The well's
-    /// physical service extent remains part of the authoritative claim.
+    /// Reference lookup for well-distribution parity tests. The well's physical
+    /// service extent remains part of the authoritative household claim.
+    #[cfg(test)]
     pub fn well_supplier_for(
         &self,
         ctx: &ReducerContext,
@@ -886,8 +887,8 @@ impl SimTickContext {
         self.water_claims.borrow_mut().insert(owner, claims);
     }
 
-    /// The same authoritative territory as well_supplier_for, indexed in the
-    /// reverse direction. Callers still reload each home's live eligibility.
+    /// Households in this well's authoritative service territory. Callers still
+    /// reload each home's live eligibility.
     pub fn well_residence_ids(
         &self,
         ctx: &ReducerContext,

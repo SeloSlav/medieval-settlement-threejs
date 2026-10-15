@@ -160,6 +160,7 @@ struct EdgeProjection {
 
 impl RoadNetwork {
     /// Immutable map data can be shared across every owner's graph and clone.
+    #[cfg(any(test, feature = "persistent-world"))]
     pub fn set_river_navigation(&mut self, navigation: Arc<RiverNavigationGrid>) {
         self.river_navigation = Some(navigation);
         *self.route_cache.borrow_mut() = CanonicalRouteCache::default();
@@ -799,6 +800,7 @@ impl RoadNetwork {
         route
     }
 
+    #[cfg(any(test, feature = "local-loadtest"))]
     pub fn route_cache_stats(&self) -> RoadRouteCacheStats {
         self.route_cache.borrow().stats
     }
@@ -1347,6 +1349,7 @@ impl RiverNavigationGrid {
         }
         true
     }
+    #[cfg(any(test, feature = "persistent-world"))]
     pub fn from_json(json: &str) -> Option<Arc<Self>> {
         Self::from_row(serde_json::from_str(json).ok()?).map(Arc::new)
     }

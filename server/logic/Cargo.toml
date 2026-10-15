@@ -7,6 +7,10 @@ description = "Host-runnable pure logic extracted from the SpacetimeDB module fo
 [lib]
 crate-type = ["rlib"]
 
+[features]
+persistent-world = []
+local-loadtest = ["persistent-world"]
+
 [dependencies]
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
