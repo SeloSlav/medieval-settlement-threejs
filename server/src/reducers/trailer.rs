@@ -9,6 +9,9 @@ use crate::building_defs::building_def;
 
 #[derive(Deserialize)]
 struct Plan {
+    // Performance journeys need a normal village, without the trailer's huge
+    // temporary build-budget pile being rendered alongside the early hamlet.
+    #[serde(default)] profile_clear_build_budget: bool,
     #[serde(default)] buildings: Vec<Site>,
     #[serde(default)] zones: Vec<Zone>,
     #[serde(default)] roads: String,
@@ -120,7 +123,7 @@ fn author(ctx: &ReducerContext, json: &str) -> Result<(), String> {
             ctx.db.pasture_herd().insert(herd);
         }
     }
-    if p.tier>=4 {
+    if p.tier>=4 || p.profile_clear_build_budget {
         // Retire the initial build budget once the town exists. Its workshops,
         // fields, households and regional trade must now move real goods.
         for mut b in ctx.db.building().owner().filter(&owner).filter(|b|b.kind=="reclamation_pile").collect::<Vec<_>>() {
