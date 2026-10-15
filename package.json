@@ -43,6 +43,7 @@
     "test:delivery-cargo-batch-browser": "node scripts/testDeliveryCargoBatchBrowser.mjs",
     "test:delivery-worker-batches": "node --import tsx scripts/testDeliveryWorkerBatches.mts",
     "test:delivery-worker-ik-cache": "node --import tsx scripts/testDeliveryWorkerIkCache.mts",
+    "test:delivery-worker-gpu-browser": "node scripts/testDeliveryWorkerGpuBrowser.mjs",
     "test:road-surface-index": "node --import tsx scripts/testRoadSurfaceIndex.mts",
     "test:realm-clients": "node --import tsx scripts/testPersistentRealm.mts",
     "test:realm-production": "node --import tsx scripts/testRealmProduction.mts",

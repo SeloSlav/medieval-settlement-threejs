@@ -4,14 +4,14 @@ import { configureVillagerMaterialLighting } from '../settlement/villagerMateria
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { DeliveryCartWorkerSources, DeliveryCartWorkerVisual } from './deliveryCartWorker.ts';
 
-/** Exact AnimationMixer + hand-IK poses, submitted once per authored body layer. */
+/** Authored animation with CPU hand constraints, submitted once per body layer. */
 export class DeliveryWorkerBatches {
   private readonly batches: Record<VillagerModelVariant, AuthoredSkinnedInstanceBatch>;
   private readonly registered = new Map<DeliveryCartWorkerVisual, boolean>();
   private readonly previous: Record<VillagerModelVariant, DeliveryCartWorkerVisual[]> = { man: [], woman: [] };
   private readonly counts: Record<VillagerModelVariant, number> = { man: 0, woman: 0 };
   private readonly colors = new WeakMap<DeliveryCartWorkerVisual, THREE.Color[]>();
-  constructor(parent: THREE.Group, sources: DeliveryCartWorkerSources) {
+  constructor(parent: THREE.Group, sources: DeliveryCartWorkerSources, options: { gpuAnimation?: boolean } = {}) {
     const create = (variant: VillagerModelVariant) => {
       const materials = new Set<THREE.MeshStandardMaterial>();
       sources[variant].scene.traverse(object => {
@@ -23,7 +23,8 @@ export class DeliveryWorkerBatches {
       });
       for (const material of materials) configureVillagerMaterialLighting(material);
       return new AuthoredSkinnedInstanceBatch({ parent, sourceRoot: sources[variant].scene,
-        capacity: 8, name: `Exact delivery ${variant} workers`, castShadow: true, receiveShadow: true });
+        capacity: 8, name: `Exact delivery ${variant} workers`, castShadow: true, receiveShadow: true,
+        animations: options.gpuAnimation === false ? undefined : Object.values(sources[variant].clips) });
     };
     this.batches = { man: create('man'), woman: create('woman') };
   }
@@ -40,11 +41,14 @@ export class DeliveryWorkerBatches {
     this.colors.set(worker, batch.materialSlots().map(slot =>
       (materials[slot.layerIndex][slot.materialIndex] as THREE.MeshStandardMaterial).color.clone()));
     this.registered.set(worker, worker.model.visible);
+    worker.advanceAnimation = dt => batch.updateAnimation(worker.model, worker.mixer, dt, !worker.pinsCartHandles);
     worker.model.visible = false;
   }
   unregister(worker: DeliveryCartWorkerVisual): void {
     const visible = this.registered.get(worker);
     if (visible === undefined) return;
+    this.batches[this.variant(worker)].updateAnimation(worker.model, worker.mixer, 0, false);
+    delete worker.advanceAnimation;
     worker.model.visible = visible; this.registered.delete(worker); this.colors.delete(worker);
   }
   begin(): void { this.counts.man = 0; this.counts.woman = 0; }
@@ -64,8 +68,8 @@ export class DeliveryWorkerBatches {
   }
   diagnostics() { return { man: this.batches.man.diagnostics(), woman: this.batches.woman.diagnostics() }; }
   dispose(): void {
-    for (const [worker, visible] of this.registered) worker.model.visible = visible;
-    this.registered.clear(); for (const batch of Object.values(this.batches)) batch.dispose();
+    for (const worker of this.registered.keys()) this.unregister(worker);
+    for (const batch of Object.values(this.batches)) batch.dispose();
   }
   private variant(worker: DeliveryCartWorkerVisual): VillagerModelVariant {
     return worker.root.userData.villagerGender as VillagerModelVariant;

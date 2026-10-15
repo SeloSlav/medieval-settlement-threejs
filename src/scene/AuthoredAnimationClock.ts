@@ -43,7 +43,7 @@ export function advanceAuthoredAnimationClock(
   let single: ClockAction | null = null;
   let secondary: ClockAction | null = null;
   if (pose) { pose.primary = null; pose.secondary = null; pose.blend = 0; }
-  let supported = !clock._listeners || Object.keys(clock._listeners).length === 0;
+  let supported = !clock._listeners || !Object.values(clock._listeners).some(listeners => listeners.length > 0);
   for (let i = 0; i < clock._nActiveActions && supported; i++) {
     const action = clock._actions[i]!;
     if (!action.enabled) continue;

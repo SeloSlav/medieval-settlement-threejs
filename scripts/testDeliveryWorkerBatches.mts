@@ -22,7 +22,7 @@ const sources = {
   woman: await load('woman', 'public/assets/models/villagers/worker-female-common-01-v001.glb'),
 };
 const parent = new THREE.Group(); parent.position.set(18, 3, -8); parent.rotation.y = 0.21;
-const batches = new DeliveryWorkerBatches(parent, sources);
+const batches = new DeliveryWorkerBatches(parent, sources, { gpuAnimation: false });
 const workers = Array.from({ length: 48 }, (_, index) => {
   const cart = new THREE.Group(); cart.position.set(index * 3, 0, index % 5); cart.rotation.y = index * 0.14; parent.add(cart);
   const worker = createDeliveryCartWorkerVisual(index * 523 + 47, sources, index % 3, index % 2 === 0);

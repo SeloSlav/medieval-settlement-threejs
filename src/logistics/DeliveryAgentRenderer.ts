@@ -322,7 +322,7 @@ export class DeliveryAgentRenderer {
   }
 
   authoredCartDiagnostics() {
-    return this.cartBatches.diagnostics();
+    return { ...this.cartBatches.diagnostics(), workers: this.workerBatches?.diagnostics() ?? null };
   }
 
   private syncRoute(visual: TripVisual, trip: DeliveryTripState): void {

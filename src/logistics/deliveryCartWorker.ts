@@ -76,6 +76,8 @@ type ArmBones = {
   upper: THREE.Bone;
   lower: THREE.Bone;
   palm: THREE.Bone;
+  upperToPalm: readonly THREE.Object3D[];
+  lowerToPalm: readonly THREE.Object3D[];
 };
 
 export type DeliveryCartWorkerVisual = {
@@ -89,6 +91,7 @@ export type DeliveryCartWorkerVisual = {
   ownedMaterials: THREE.Material[];
   role: DeliveryCartWorkerRole;
   pinsCartHandles: boolean;
+  advanceAnimation?: (dt: number) => void;
 };
 
 export async function loadDeliveryCartWorkerSources(): Promise<DeliveryCartWorkerSources> {
@@ -264,7 +267,9 @@ export function updateDeliveryCartWorkerVisual(
   visual.actions.walk.setEffectiveTimeScale(
     Math.max(0.78, travelSpeed / 1.05),
   );
-  visual.mixer.update(Math.max(0, animationDt));
+  const dt = Math.max(0, animationDt);
+  if (visual.advanceAnimation) visual.advanceAnimation(dt);
+  else visual.mixer.update(dt);
   if (visual.pinsCartHandles) pinHandsToCartHandles(visual);
 }
 
@@ -302,7 +307,16 @@ function findArmBones(model: THREE.Object3D, side: 'L' | 'R'): ArmBones {
   ) {
     throw new Error(`Delivery worker rig is missing its ${side} arm chain.`);
   }
-  return { upper, lower, palm };
+  return { upper, lower, palm, upperToPalm: jointPath(upper, palm), lowerToPalm: jointPath(lower, palm) };
+}
+
+function jointPath(joint: THREE.Bone, palm: THREE.Bone): THREE.Object3D[] {
+  const path: THREE.Object3D[] = [];
+  for (let node: THREE.Object3D | null = palm; node; node = node.parent) {
+    path.push(node);
+    if (node === joint) return path.reverse();
+  }
+  throw new Error(`Delivery arm joint ${joint.name} is not an ancestor of ${palm.name}`);
 }
 
 function pinHandsToCartHandles(visual: DeliveryCartWorkerVisual): void {
@@ -321,15 +335,19 @@ function pinHandsToCartHandles(visual: DeliveryCartWorkerVisual): void {
 
 function solveArmIk(arm: ArmBones, target: THREE.Vector3): void {
   for (let iteration = 0; iteration < 4; iteration++) {
-    rotateJointToward(arm.lower, arm.palm, target);
-    rotateJointToward(arm.upper, arm.palm, target);
+    rotateJointToward(arm.lower, arm.palm, target, arm.lowerToPalm);
+    rotateJointToward(arm.upper, arm.palm, target, arm.upperToPalm);
   }
+  // Finger and auxiliary branches do not affect the palm's CCD target. Publish
+  // their final matrices once after the solve, rather than on every iteration.
+  arm.upper.updateMatrixWorld(true);
 }
 
 function rotateJointToward(
   joint: THREE.Bone,
   end: THREE.Bone,
   target: THREE.Vector3,
+  path: readonly THREE.Object3D[],
 ): void {
   // The full rig was updated once above; each CCD rotation updates this
   // joint's descendants below. World getters would redundantly recompute the
@@ -358,7 +376,7 @@ function rotateJointToward(
     .copy(IK_PARENT_WORLD.invert())
     .multiply(IK_DESIRED_WORLD)
     .normalize();
-  joint.updateMatrixWorld(true);
+  for (const node of path) node.updateWorldMatrix(false, false);
 }
 
 function findAnimationClip(

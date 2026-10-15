@@ -31,10 +31,15 @@ try {
     return pair;
   });
   const objects = parents.map(parent => { const result = new Set<THREE.Object3D>(); parent.traverse(o => result.add(o)); return result; });
-  const worldUpdates = [0, 0], updateWorld = THREE.Object3D.prototype.updateWorldMatrix;
+  const worldUpdates = [0, 0], matrixUpdates = [0, 0], updateWorld = THREE.Object3D.prototype.updateWorldMatrix,
+    updateMatrix = THREE.Object3D.prototype.updateMatrixWorld;
   THREE.Object3D.prototype.updateWorldMatrix = function(...args) {
     for (let side = 0; side < 2; side++) if (objects[side]!.has(this)) worldUpdates[side]!++;
     return updateWorld.apply(this, args);
+  };
+  THREE.Object3D.prototype.updateMatrixWorld = function(...args) {
+    for (let side = 0; side < 2; side++) if (objects[side]!.has(this)) matrixUpdates[side]!++;
+    return updateMatrix.apply(this, args);
   };
   let paletteFloats = 0;
   const variants = new Set<string>(), roles = new Set<string>();
@@ -72,11 +77,13 @@ try {
         }
       }
     }
-  } finally { THREE.Object3D.prototype.updateWorldMatrix = updateWorld; }
+  } finally { THREE.Object3D.prototype.updateWorldMatrix = updateWorld; THREE.Object3D.prototype.updateMatrixWorld = updateMatrix; }
   assert.deepEqual([...variants].sort(), ['man', 'woman']); assert.deepEqual([...roles].sort(), ['companion', 'guide', 'hauler']);
-  assert(worldUpdates[0]! < worldUpdates[1]! / 3, 'IK must remove repeated ancestor traversals');
+  assert(worldUpdates[0]! + matrixUpdates[0]! < (worldUpdates[1]! + matrixUpdates[1]!) / 2,
+    'IK must remove repeated ancestor and unrelated-branch traversals');
   for (const pair of workers) pair.forEach(worker => actual.disposeDeliveryCartWorkerVisual(worker));
   actual.disposeDeliveryCartWorkerSources(sources);
   console.log(JSON.stringify({ workers: 48, frames: 24, variants: [...variants], roles: [...roles], paletteFloats,
-    optimizedWorldUpdates: worldUpdates[0], referenceWorldUpdates: worldUpdates[1], exactGpuPalettes: true }));
+    optimizedWorldUpdates: worldUpdates[0], referenceWorldUpdates: worldUpdates[1], optimizedMatrixUpdates: matrixUpdates[0],
+    referenceMatrixUpdates: matrixUpdates[1], exactGpuPalettes: true }));
 } finally { unlinkSync(path); }

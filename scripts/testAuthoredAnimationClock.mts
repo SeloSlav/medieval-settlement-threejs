@@ -44,9 +44,12 @@ for (let frame = 0; frame < 720; frame++) {
 }
 assert.ok(gpuFrames > 400 && cpuFrames > 100);
 const observed = make();
-let loops = 0; observed.mixer.addEventListener('loop', () => loops++);
+let loops = 0; const onLoop = () => loops++; observed.mixer.addEventListener('loop', onLoop);
 for (let i = 0; i < 120; i++) assert.equal(advanceAuthoredAnimationClock(observed.mixer, 1/60, () => true), null);
 assert.ok(loops > 0, 'event-observed mixers retain normal dispatch');
+observed.mixer.removeEventListener('loop', onLoop);
+assert.equal(advanceAuthoredAnimationClock(observed.mixer, 0, () => true), observed.actions[0],
+  'Removing the last observer must restore GPU eligibility');
 const blended = make(), referenceBlend = make();
 const pose: AuthoredAnimationPose = { primary: null, secondary: null, blend: 0 };
 let blendedGpuFrames = 0;
