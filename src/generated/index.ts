@@ -151,6 +151,7 @@ import SpecializeOrchardReducer from "./specialize_orchard_reducer";
 import SpecializeVegetableGardenReducer from "./specialize_vegetable_garden_reducer";
 import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
+import TickSimReducer from "./tick_sim_reducer";
 import TradeLivestockReducer from "./trade_livestock_reducer";
 import UpgradeChapelReducer from "./upgrade_chapel_reducer";
 import UpgradeFlowerGardenLuxuryReducer from "./upgrade_flower_garden_luxury_reducer";
@@ -159,9 +160,56 @@ import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import ActiveGameSessionRow from "./active_game_session_table";
+import ActiveRaidRow from "./active_raid_table";
+import BackyardGardenRow from "./backyard_garden_table";
+import BanditCampRow from "./bandit_camp_table";
+import BanditIncidentRow from "./bandit_incident_table";
+import BuildingRow from "./building_table";
+import BurgageZoneRow from "./burgage_zone_table";
+import CavalryHorseRow from "./cavalry_horse_table";
+import CombatAgentRow from "./combat_agent_table";
+import CorpseRow from "./corpse_table";
+import DeliveryTripRow from "./delivery_trip_table";
+import FarmFieldRow from "./farm_field_table";
+import FireIncidentRow from "./fire_incident_table";
+import ForagingNodeRow from "./foraging_node_table";
+import GraveyardRow from "./graveyard_table";
+import GuardMusterRouteRow from "./guard_muster_route_table";
+import LivestockHerdRow from "./livestock_herd_table";
+import MarketStateRow from "./market_state_table";
+import MercenaryContractRow from "./mercenary_contract_table";
+import MilitaryCompanyRow from "./military_company_table";
+import MilitaryMemberRow from "./military_member_table";
+import MilitiaOrderRow from "./militia_order_table";
 import MyRealmFogRow from "./my_realm_fog_table";
 import MyRealmMemberRow from "./my_realm_member_table";
 import MyRealmScoutRow from "./my_realm_scout_table";
+import PastureRow from "./pasture_table";
+import PastureHerdRow from "./pasture_herd_table";
+import PlayerResourcesRow from "./player_resources_table";
+import QuarryRow from "./quarry_table";
+import RaidIncursionRouteRow from "./raid_incursion_route_table";
+import RealmClockRow from "./realm_clock_table";
+import RealmEntityRow from "./realm_entity_table";
+import RealmFogRow from "./realm_fog_table";
+import RealmInterestRow from "./realm_interest_table";
+import RealmMemberRow from "./realm_member_table";
+import RealmScoutRow from "./realm_scout_table";
+import RealmScoutRouteRow from "./realm_scout_route_table";
+import RealmSpawnRow from "./realm_spawn_table";
+import ResidenceRow from "./residence_table";
+import ResidenceNeedRow from "./residence_need_table";
+import ResourceUnitMigrationRow from "./resource_unit_migration_table";
+import RoadNetworkStateRow from "./road_network_state_table";
+import SettlementRow from "./settlement_table";
+import SettlementSecurityRow from "./settlement_security_table";
+import SimPacingStateRow from "./sim_pacing_state_table";
+import SimTickScheduleRow from "./sim_tick_schedule_table";
+import StableOxRow from "./stable_ox_table";
+import TradingPostTradeRuleRow from "./trading_post_trade_rule_table";
+import TreeEntityRow from "./tree_entity_table";
+import VineyardParcelRow from "./vineyard_parcel_table";
 import VisibleActiveRaidRow from "./visible_active_raid_table";
 import VisibleBackyardGardenRow from "./visible_backyard_garden_table";
 import VisibleBanditCampRow from "./visible_bandit_camp_table";
@@ -200,6 +248,724 @@ import WorldConfigRow from "./world_config_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  activeGameSession: __table({
+    name: 'active_game_session',
+    indexes: [
+      { accessor: 'connection_id', name: 'active_game_session_connection_id_idx_btree', algorithm: 'btree', columns: [
+        'connectionId',
+      ] },
+      { accessor: 'identity', name: 'active_game_session_identity_idx_btree', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_game_session_connection_id_key', constraint: 'unique', columns: ['connectionId'] },
+    ],
+  }, ActiveGameSessionRow),
+  activeRaid: __table({
+    name: 'active_raid',
+    indexes: [
+      { accessor: 'owner', name: 'active_raid_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_raid_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, ActiveRaidRow),
+  backyardGarden: __table({
+    name: 'backyard_garden',
+    indexes: [
+      { accessor: 'id', name: 'backyard_garden_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'backyard_garden_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'residence_id', name: 'backyard_garden_residence_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'backyard_garden_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BackyardGardenRow),
+  banditCamp: __table({
+    name: 'bandit_camp',
+    indexes: [
+      { accessor: 'id', name: 'bandit_camp_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'bandit_camp_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'bandit_camp_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BanditCampRow),
+  banditIncident: __table({
+    name: 'bandit_incident',
+    indexes: [
+      { accessor: 'id', name: 'bandit_incident_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'bandit_incident_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'bandit_incident_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BanditIncidentRow),
+  building: __table({
+    name: 'building',
+    indexes: [
+      { accessor: 'construction_complete', name: 'building_construction_complete_idx_btree', algorithm: 'btree', columns: [
+        'constructionComplete',
+      ] },
+      { accessor: 'id', name: 'building_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'kind', name: 'building_kind_idx_btree', algorithm: 'btree', columns: [
+        'kind',
+      ] },
+      { accessor: 'owner', name: 'building_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'settlement_id', name: 'building_settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
+    ],
+    constraints: [
+      { name: 'building_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BuildingRow),
+  burgageZone: __table({
+    name: 'burgage_zone',
+    indexes: [
+      { accessor: 'id', name: 'burgage_zone_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'burgage_zone_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'settlement_id', name: 'burgage_zone_settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
+    ],
+    constraints: [
+      { name: 'burgage_zone_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BurgageZoneRow),
+  cavalryHorse: __table({
+    name: 'cavalry_horse',
+    indexes: [
+      { accessor: 'assigned_combat_agent_id', name: 'cavalry_horse_assigned_combat_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'assignedCombatAgentId',
+      ] },
+      { accessor: 'assigned_company_id', name: 'cavalry_horse_assigned_company_id_idx_btree', algorithm: 'btree', columns: [
+        'assignedCompanyId',
+      ] },
+      { accessor: 'id', name: 'cavalry_horse_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'cavalry_horse_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'pasture_id', name: 'cavalry_horse_pasture_id_idx_btree', algorithm: 'btree', columns: [
+        'pastureId',
+      ] },
+    ],
+    constraints: [
+      { name: 'cavalry_horse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CavalryHorseRow),
+  combatAgent: __table({
+    name: 'combat_agent',
+    indexes: [
+      { accessor: 'assigned_building_id', name: 'combat_agent_assigned_building_id_idx_btree', algorithm: 'btree', columns: [
+        'assignedBuildingId',
+      ] },
+      { accessor: 'id', name: 'combat_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'combat_agent_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'raid_id', name: 'combat_agent_raid_id_idx_btree', algorithm: 'btree', columns: [
+        'raidId',
+      ] },
+    ],
+    constraints: [
+      { name: 'combat_agent_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CombatAgentRow),
+  corpse: __table({
+    name: 'corpse',
+    indexes: [
+      { accessor: 'chapel_id', name: 'corpse_chapel_id_idx_btree', algorithm: 'btree', columns: [
+        'chapelId',
+      ] },
+      { accessor: 'graveyard_id', name: 'corpse_graveyard_id_idx_btree', algorithm: 'btree', columns: [
+        'graveyardId',
+      ] },
+      { accessor: 'id', name: 'corpse_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'corpse_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'residence_id', name: 'corpse_residence_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'corpse_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CorpseRow),
+  deliveryTrip: __table({
+    name: 'delivery_trip',
+    indexes: [
+      { accessor: 'building_id', name: 'delivery_trip_building_id_idx_btree', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { accessor: 'id', name: 'delivery_trip_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'labor_building_id', name: 'delivery_trip_labor_building_id_idx_btree', algorithm: 'btree', columns: [
+        'laborBuildingId',
+      ] },
+      { accessor: 'owner', name: 'delivery_trip_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'residence_id', name: 'delivery_trip_residence_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+      { accessor: 'target_building_id', name: 'delivery_trip_target_building_id_idx_btree', algorithm: 'btree', columns: [
+        'targetBuildingId',
+      ] },
+    ],
+    constraints: [
+      { name: 'delivery_trip_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, DeliveryTripRow),
+  farmField: __table({
+    name: 'farm_field',
+    indexes: [
+      { accessor: 'farmstead_id', name: 'farm_field_farmstead_id_idx_btree', algorithm: 'btree', columns: [
+        'farmsteadId',
+      ] },
+      { accessor: 'id', name: 'farm_field_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'farm_field_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'farm_field_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FarmFieldRow),
+  fireIncident: __table({
+    name: 'fire_incident',
+    indexes: [
+      { accessor: 'id', name: 'fire_incident_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'fire_incident_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'target_id', name: 'fire_incident_target_id_idx_btree', algorithm: 'btree', columns: [
+        'targetId',
+      ] },
+    ],
+    constraints: [
+      { name: 'fire_incident_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FireIncidentRow),
+  foragingNode: __table({
+    name: 'foraging_node',
+    indexes: [
+      { accessor: 'chunk_id', name: 'foraging_node_chunk_id_idx_btree', algorithm: 'btree', columns: [
+        'chunkId',
+      ] },
+      { accessor: 'node_id', name: 'foraging_node_node_id_idx_btree', algorithm: 'btree', columns: [
+        'nodeId',
+      ] },
+    ],
+    constraints: [
+      { name: 'foraging_node_node_id_key', constraint: 'unique', columns: ['nodeId'] },
+    ],
+  }, ForagingNodeRow),
+  graveyard: __table({
+    name: 'graveyard',
+    indexes: [
+      { accessor: 'chapel_id', name: 'graveyard_chapel_id_idx_btree', algorithm: 'btree', columns: [
+        'chapelId',
+      ] },
+      { accessor: 'id', name: 'graveyard_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'graveyard_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'graveyard_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GraveyardRow),
+  guardMusterRoute: __table({
+    name: 'guard_muster_route',
+    indexes: [
+      { accessor: 'owner', name: 'guard_muster_route_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'source_building_id', name: 'guard_muster_route_source_building_id_idx_btree', algorithm: 'btree', columns: [
+        'sourceBuildingId',
+      ] },
+    ],
+    constraints: [
+      { name: 'guard_muster_route_source_building_id_key', constraint: 'unique', columns: ['sourceBuildingId'] },
+    ],
+  }, GuardMusterRouteRow),
+  livestockHerd: __table({
+    name: 'livestock_herd',
+    indexes: [
+      { accessor: 'building_id', name: 'livestock_herd_building_id_idx_btree', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { accessor: 'owner', name: 'livestock_herd_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'livestock_herd_building_id_key', constraint: 'unique', columns: ['buildingId'] },
+    ],
+  }, LivestockHerdRow),
+  marketState: __table({
+    name: 'market_state',
+    indexes: [
+      { accessor: 'owner', name: 'market_state_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'market_state_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, MarketStateRow),
+  mercenaryContract: __table({
+    name: 'mercenary_contract',
+    indexes: [
+      { accessor: 'company_id', name: 'mercenary_contract_company_id_idx_btree', algorithm: 'btree', columns: [
+        'companyId',
+      ] },
+      { accessor: 'owner', name: 'mercenary_contract_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'mercenary_contract_company_id_key', constraint: 'unique', columns: ['companyId'] },
+    ],
+  }, MercenaryContractRow),
+  militaryCompany: __table({
+    name: 'military_company',
+    indexes: [
+      { accessor: 'id', name: 'military_company_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'military_company_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'source_building_id', name: 'military_company_source_building_id_idx_btree', algorithm: 'btree', columns: [
+        'sourceBuildingId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_company_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, MilitaryCompanyRow),
+  militaryMember: __table({
+    name: 'military_member',
+    indexes: [
+      { accessor: 'combat_agent_id', name: 'military_member_combat_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { accessor: 'company_id', name: 'military_member_company_id_idx_btree', algorithm: 'btree', columns: [
+        'companyId',
+      ] },
+      { accessor: 'owner', name: 'military_member_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'residence_id', name: 'military_member_residence_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'military_member_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, MilitaryMemberRow),
+  militiaOrder: __table({
+    name: 'militia_order',
+    indexes: [
+      { accessor: 'combat_agent_id', name: 'militia_order_combat_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { accessor: 'owner', name: 'militia_order_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'militia_order_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, MilitiaOrderRow),
+  pasture: __table({
+    name: 'pasture',
+    indexes: [
+      { accessor: 'farmstead_id', name: 'pasture_farmstead_id_idx_btree', algorithm: 'btree', columns: [
+        'farmsteadId',
+      ] },
+      { accessor: 'id', name: 'pasture_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'pasture_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'pasture_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, PastureRow),
+  pastureHerd: __table({
+    name: 'pasture_herd',
+    indexes: [
+      { accessor: 'farmstead_id', name: 'pasture_herd_farmstead_id_idx_btree', algorithm: 'btree', columns: [
+        'farmsteadId',
+      ] },
+      { accessor: 'owner', name: 'pasture_herd_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'pasture_id', name: 'pasture_herd_pasture_id_idx_btree', algorithm: 'btree', columns: [
+        'pastureId',
+      ] },
+    ],
+    constraints: [
+      { name: 'pasture_herd_pasture_id_key', constraint: 'unique', columns: ['pastureId'] },
+    ],
+  }, PastureHerdRow),
+  playerResources: __table({
+    name: 'player_resources',
+    indexes: [
+      { accessor: 'owner', name: 'player_resources_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'player_resources_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, PlayerResourcesRow),
+  quarry: __table({
+    name: 'quarry',
+    indexes: [
+      { accessor: 'chunk_id', name: 'quarry_chunk_id_idx_btree', algorithm: 'btree', columns: [
+        'chunkId',
+      ] },
+      { accessor: 'quarry_id', name: 'quarry_quarry_id_idx_btree', algorithm: 'btree', columns: [
+        'quarryId',
+      ] },
+    ],
+    constraints: [
+      { name: 'quarry_quarry_id_key', constraint: 'unique', columns: ['quarryId'] },
+    ],
+  }, QuarryRow),
+  raidIncursionRoute: __table({
+    name: 'raid_incursion_route',
+    indexes: [
+      { accessor: 'combat_agent_id', name: 'raid_incursion_route_combat_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'combatAgentId',
+      ] },
+      { accessor: 'owner', name: 'raid_incursion_route_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'raid_incursion_route_combat_agent_id_key', constraint: 'unique', columns: ['combatAgentId'] },
+    ],
+  }, RaidIncursionRouteRow),
+  realmClock: __table({
+    name: 'realm_clock',
+    indexes: [
+      { accessor: 'id', name: 'realm_clock_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_clock_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RealmClockRow),
+  realmEntity: __table({
+    name: 'realm_entity',
+    indexes: [
+      { accessor: 'chunk', name: 'realm_entity_chunk_idx_btree', algorithm: 'btree', columns: [
+        'chunk',
+      ] },
+      { accessor: 'id', name: 'realm_entity_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'kind', name: 'realm_entity_kind_idx_btree', algorithm: 'btree', columns: [
+        'kind',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_entity_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RealmEntityRow),
+  realmFog: __table({
+    name: 'realm_fog',
+    indexes: [
+      { accessor: 'id', name: 'realm_fog_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'realm_fog_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_fog_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RealmFogRow),
+  realmInterest: __table({
+    name: 'realm_interest',
+    indexes: [
+      { accessor: 'owner', name: 'realm_interest_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_interest_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, RealmInterestRow),
+  realmMember: __table({
+    name: 'realm_member',
+    indexes: [
+      { accessor: 'owner', name: 'realm_member_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_member_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, RealmMemberRow),
+  realmScout: __table({
+    name: 'realm_scout',
+    indexes: [
+      { accessor: 'owner', name: 'realm_scout_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'settlement_id', name: 'realm_scout_settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_scout_settlement_id_key', constraint: 'unique', columns: ['settlementId'] },
+    ],
+  }, RealmScoutRow),
+  realmScoutRoute: __table({
+    name: 'realm_scout_route',
+    indexes: [
+      { accessor: 'settlement_id', name: 'realm_scout_route_settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_scout_route_settlement_id_key', constraint: 'unique', columns: ['settlementId'] },
+    ],
+  }, RealmScoutRouteRow),
+  realmSpawn: __table({
+    name: 'realm_spawn',
+    indexes: [
+      { accessor: 'slot', name: 'realm_spawn_slot_idx_btree', algorithm: 'btree', columns: [
+        'slot',
+      ] },
+    ],
+    constraints: [
+      { name: 'realm_spawn_slot_key', constraint: 'unique', columns: ['slot'] },
+    ],
+  }, RealmSpawnRow),
+  residence: __table({
+    name: 'residence',
+    indexes: [
+      { accessor: 'id', name: 'residence_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'residence_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'settlement_id', name: 'residence_settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'settlementId',
+      ] },
+      { accessor: 'zone_id', name: 'residence_zone_id_idx_btree', algorithm: 'btree', columns: [
+        'zoneId',
+      ] },
+    ],
+    constraints: [
+      { name: 'residence_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResidenceRow),
+  residenceNeed: __table({
+    name: 'residence_need',
+    indexes: [
+      { accessor: 'id', name: 'residence_need_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'residence_need_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'residence_id', name: 'residence_need_residence_id_idx_btree', algorithm: 'btree', columns: [
+        'residenceId',
+      ] },
+    ],
+    constraints: [
+      { name: 'residence_need_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResidenceNeedRow),
+  resourceUnitMigration: __table({
+    name: 'resource_unit_migration',
+    indexes: [
+      { accessor: 'id', name: 'resource_unit_migration_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'resource_unit_migration_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResourceUnitMigrationRow),
+  roadNetworkState: __table({
+    name: 'road_network_state',
+    indexes: [
+      { accessor: 'owner', name: 'road_network_state_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'road_network_state_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, RoadNetworkStateRow),
+  settlement: __table({
+    name: 'settlement',
+    indexes: [
+      { accessor: 'id', name: 'settlement_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'settlement_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'settlement_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SettlementRow),
+  settlementSecurity: __table({
+    name: 'settlement_security',
+    indexes: [
+      { accessor: 'owner', name: 'settlement_security_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'settlement_security_owner_key', constraint: 'unique', columns: ['owner'] },
+    ],
+  }, SettlementSecurityRow),
+  simPacingState: __table({
+    name: 'sim_pacing_state',
+    indexes: [
+      { accessor: 'id', name: 'sim_pacing_state_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'sim_pacing_state_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SimPacingStateRow),
+  simTickSchedule: __table({
+    name: 'sim_tick_schedule',
+    indexes: [
+      { accessor: 'schedule_id', name: 'sim_tick_schedule_schedule_id_idx_btree', algorithm: 'btree', columns: [
+        'scheduleId',
+      ] },
+    ],
+    constraints: [
+      { name: 'sim_tick_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
+    ],
+  }, SimTickScheduleRow),
+  stableOx: __table({
+    name: 'stable_ox',
+    indexes: [
+      { accessor: 'assigned_building_id', name: 'stable_ox_assigned_building_id_idx_btree', algorithm: 'btree', columns: [
+        'assignedBuildingId',
+      ] },
+      { accessor: 'id', name: 'stable_ox_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'stable_ox_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+      { accessor: 'stable_id', name: 'stable_ox_stable_id_idx_btree', algorithm: 'btree', columns: [
+        'stableId',
+      ] },
+    ],
+    constraints: [
+      { name: 'stable_ox_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, StableOxRow),
+  tradingPostTradeRule: __table({
+    name: 'trading_post_trade_rule',
+    indexes: [
+      { accessor: 'building_id', name: 'trading_post_trade_rule_building_id_idx_btree', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { accessor: 'id', name: 'trading_post_trade_rule_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'trading_post_trade_rule_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'trading_post_trade_rule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TradingPostTradeRuleRow),
+  treeEntity: __table({
+    name: 'tree_entity',
+    indexes: [
+      { accessor: 'chunk_id', name: 'tree_entity_chunk_id_idx_btree', algorithm: 'btree', columns: [
+        'chunkId',
+      ] },
+      { accessor: 'tree_id', name: 'tree_entity_tree_id_idx_btree', algorithm: 'btree', columns: [
+        'treeId',
+      ] },
+    ],
+    constraints: [
+      { name: 'tree_entity_tree_id_key', constraint: 'unique', columns: ['treeId'] },
+    ],
+  }, TreeEntityRow),
+  vineyardParcel: __table({
+    name: 'vineyard_parcel',
+    indexes: [
+      { accessor: 'building_id', name: 'vineyard_parcel_building_id_idx_btree', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { accessor: 'id', name: 'vineyard_parcel_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'owner', name: 'vineyard_parcel_owner_idx_btree', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'vineyard_parcel_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, VineyardParcelRow),
   worldConfig: __table({
     name: 'world_config',
     indexes: [
@@ -577,6 +1343,7 @@ const reducersSchema = __reducers(
   __reducerSchema("specialize_vegetable_garden", SpecializeVegetableGardenReducer),
   __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
+  __reducerSchema("tick_sim", TickSimReducer),
   __reducerSchema("trade_livestock", TradeLivestockReducer),
   __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
   __reducerSchema("upgrade_flower_garden_luxury", UpgradeFlowerGardenLuxuryReducer),
@@ -589,6 +1356,86 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `activeGameSession` instead. This alias will be removed in the next major version. */
+    readonly "active_game_session": Omit<typeof tablesSchema.schemaType.tables["activeGameSession"], "accessorName"> & { readonly accessorName: "active_game_session" };
+    /** @deprecated Use `activeRaid` instead. This alias will be removed in the next major version. */
+    readonly "active_raid": Omit<typeof tablesSchema.schemaType.tables["activeRaid"], "accessorName"> & { readonly accessorName: "active_raid" };
+    /** @deprecated Use `backyardGarden` instead. This alias will be removed in the next major version. */
+    readonly "backyard_garden": Omit<typeof tablesSchema.schemaType.tables["backyardGarden"], "accessorName"> & { readonly accessorName: "backyard_garden" };
+    /** @deprecated Use `banditCamp` instead. This alias will be removed in the next major version. */
+    readonly "bandit_camp": Omit<typeof tablesSchema.schemaType.tables["banditCamp"], "accessorName"> & { readonly accessorName: "bandit_camp" };
+    /** @deprecated Use `banditIncident` instead. This alias will be removed in the next major version. */
+    readonly "bandit_incident": Omit<typeof tablesSchema.schemaType.tables["banditIncident"], "accessorName"> & { readonly accessorName: "bandit_incident" };
+    /** @deprecated Use `burgageZone` instead. This alias will be removed in the next major version. */
+    readonly "burgage_zone": Omit<typeof tablesSchema.schemaType.tables["burgageZone"], "accessorName"> & { readonly accessorName: "burgage_zone" };
+    /** @deprecated Use `cavalryHorse` instead. This alias will be removed in the next major version. */
+    readonly "cavalry_horse": Omit<typeof tablesSchema.schemaType.tables["cavalryHorse"], "accessorName"> & { readonly accessorName: "cavalry_horse" };
+    /** @deprecated Use `combatAgent` instead. This alias will be removed in the next major version. */
+    readonly "combat_agent": Omit<typeof tablesSchema.schemaType.tables["combatAgent"], "accessorName"> & { readonly accessorName: "combat_agent" };
+    /** @deprecated Use `deliveryTrip` instead. This alias will be removed in the next major version. */
+    readonly "delivery_trip": Omit<typeof tablesSchema.schemaType.tables["deliveryTrip"], "accessorName"> & { readonly accessorName: "delivery_trip" };
+    /** @deprecated Use `farmField` instead. This alias will be removed in the next major version. */
+    readonly "farm_field": Omit<typeof tablesSchema.schemaType.tables["farmField"], "accessorName"> & { readonly accessorName: "farm_field" };
+    /** @deprecated Use `fireIncident` instead. This alias will be removed in the next major version. */
+    readonly "fire_incident": Omit<typeof tablesSchema.schemaType.tables["fireIncident"], "accessorName"> & { readonly accessorName: "fire_incident" };
+    /** @deprecated Use `foragingNode` instead. This alias will be removed in the next major version. */
+    readonly "foraging_node": Omit<typeof tablesSchema.schemaType.tables["foragingNode"], "accessorName"> & { readonly accessorName: "foraging_node" };
+    /** @deprecated Use `guardMusterRoute` instead. This alias will be removed in the next major version. */
+    readonly "guard_muster_route": Omit<typeof tablesSchema.schemaType.tables["guardMusterRoute"], "accessorName"> & { readonly accessorName: "guard_muster_route" };
+    /** @deprecated Use `livestockHerd` instead. This alias will be removed in the next major version. */
+    readonly "livestock_herd": Omit<typeof tablesSchema.schemaType.tables["livestockHerd"], "accessorName"> & { readonly accessorName: "livestock_herd" };
+    /** @deprecated Use `marketState` instead. This alias will be removed in the next major version. */
+    readonly "market_state": Omit<typeof tablesSchema.schemaType.tables["marketState"], "accessorName"> & { readonly accessorName: "market_state" };
+    /** @deprecated Use `mercenaryContract` instead. This alias will be removed in the next major version. */
+    readonly "mercenary_contract": Omit<typeof tablesSchema.schemaType.tables["mercenaryContract"], "accessorName"> & { readonly accessorName: "mercenary_contract" };
+    /** @deprecated Use `militaryCompany` instead. This alias will be removed in the next major version. */
+    readonly "military_company": Omit<typeof tablesSchema.schemaType.tables["militaryCompany"], "accessorName"> & { readonly accessorName: "military_company" };
+    /** @deprecated Use `militaryMember` instead. This alias will be removed in the next major version. */
+    readonly "military_member": Omit<typeof tablesSchema.schemaType.tables["militaryMember"], "accessorName"> & { readonly accessorName: "military_member" };
+    /** @deprecated Use `militiaOrder` instead. This alias will be removed in the next major version. */
+    readonly "militia_order": Omit<typeof tablesSchema.schemaType.tables["militiaOrder"], "accessorName"> & { readonly accessorName: "militia_order" };
+    /** @deprecated Use `pastureHerd` instead. This alias will be removed in the next major version. */
+    readonly "pasture_herd": Omit<typeof tablesSchema.schemaType.tables["pastureHerd"], "accessorName"> & { readonly accessorName: "pasture_herd" };
+    /** @deprecated Use `playerResources` instead. This alias will be removed in the next major version. */
+    readonly "player_resources": Omit<typeof tablesSchema.schemaType.tables["playerResources"], "accessorName"> & { readonly accessorName: "player_resources" };
+    /** @deprecated Use `raidIncursionRoute` instead. This alias will be removed in the next major version. */
+    readonly "raid_incursion_route": Omit<typeof tablesSchema.schemaType.tables["raidIncursionRoute"], "accessorName"> & { readonly accessorName: "raid_incursion_route" };
+    /** @deprecated Use `realmClock` instead. This alias will be removed in the next major version. */
+    readonly "realm_clock": Omit<typeof tablesSchema.schemaType.tables["realmClock"], "accessorName"> & { readonly accessorName: "realm_clock" };
+    /** @deprecated Use `realmEntity` instead. This alias will be removed in the next major version. */
+    readonly "realm_entity": Omit<typeof tablesSchema.schemaType.tables["realmEntity"], "accessorName"> & { readonly accessorName: "realm_entity" };
+    /** @deprecated Use `realmFog` instead. This alias will be removed in the next major version. */
+    readonly "realm_fog": Omit<typeof tablesSchema.schemaType.tables["realmFog"], "accessorName"> & { readonly accessorName: "realm_fog" };
+    /** @deprecated Use `realmInterest` instead. This alias will be removed in the next major version. */
+    readonly "realm_interest": Omit<typeof tablesSchema.schemaType.tables["realmInterest"], "accessorName"> & { readonly accessorName: "realm_interest" };
+    /** @deprecated Use `realmMember` instead. This alias will be removed in the next major version. */
+    readonly "realm_member": Omit<typeof tablesSchema.schemaType.tables["realmMember"], "accessorName"> & { readonly accessorName: "realm_member" };
+    /** @deprecated Use `realmScout` instead. This alias will be removed in the next major version. */
+    readonly "realm_scout": Omit<typeof tablesSchema.schemaType.tables["realmScout"], "accessorName"> & { readonly accessorName: "realm_scout" };
+    /** @deprecated Use `realmScoutRoute` instead. This alias will be removed in the next major version. */
+    readonly "realm_scout_route": Omit<typeof tablesSchema.schemaType.tables["realmScoutRoute"], "accessorName"> & { readonly accessorName: "realm_scout_route" };
+    /** @deprecated Use `realmSpawn` instead. This alias will be removed in the next major version. */
+    readonly "realm_spawn": Omit<typeof tablesSchema.schemaType.tables["realmSpawn"], "accessorName"> & { readonly accessorName: "realm_spawn" };
+    /** @deprecated Use `residenceNeed` instead. This alias will be removed in the next major version. */
+    readonly "residence_need": Omit<typeof tablesSchema.schemaType.tables["residenceNeed"], "accessorName"> & { readonly accessorName: "residence_need" };
+    /** @deprecated Use `resourceUnitMigration` instead. This alias will be removed in the next major version. */
+    readonly "resource_unit_migration": Omit<typeof tablesSchema.schemaType.tables["resourceUnitMigration"], "accessorName"> & { readonly accessorName: "resource_unit_migration" };
+    /** @deprecated Use `roadNetworkState` instead. This alias will be removed in the next major version. */
+    readonly "road_network_state": Omit<typeof tablesSchema.schemaType.tables["roadNetworkState"], "accessorName"> & { readonly accessorName: "road_network_state" };
+    /** @deprecated Use `settlementSecurity` instead. This alias will be removed in the next major version. */
+    readonly "settlement_security": Omit<typeof tablesSchema.schemaType.tables["settlementSecurity"], "accessorName"> & { readonly accessorName: "settlement_security" };
+    /** @deprecated Use `simPacingState` instead. This alias will be removed in the next major version. */
+    readonly "sim_pacing_state": Omit<typeof tablesSchema.schemaType.tables["simPacingState"], "accessorName"> & { readonly accessorName: "sim_pacing_state" };
+    /** @deprecated Use `simTickSchedule` instead. This alias will be removed in the next major version. */
+    readonly "sim_tick_schedule": Omit<typeof tablesSchema.schemaType.tables["simTickSchedule"], "accessorName"> & { readonly accessorName: "sim_tick_schedule" };
+    /** @deprecated Use `stableOx` instead. This alias will be removed in the next major version. */
+    readonly "stable_ox": Omit<typeof tablesSchema.schemaType.tables["stableOx"], "accessorName"> & { readonly accessorName: "stable_ox" };
+    /** @deprecated Use `tradingPostTradeRule` instead. This alias will be removed in the next major version. */
+    readonly "trading_post_trade_rule": Omit<typeof tablesSchema.schemaType.tables["tradingPostTradeRule"], "accessorName"> & { readonly accessorName: "trading_post_trade_rule" };
+    /** @deprecated Use `treeEntity` instead. This alias will be removed in the next major version. */
+    readonly "tree_entity": Omit<typeof tablesSchema.schemaType.tables["treeEntity"], "accessorName"> & { readonly accessorName: "tree_entity" };
+    /** @deprecated Use `vineyardParcel` instead. This alias will be removed in the next major version. */
+    readonly "vineyard_parcel": Omit<typeof tablesSchema.schemaType.tables["vineyardParcel"], "accessorName"> & { readonly accessorName: "vineyard_parcel" };
     /** @deprecated Use `worldConfig` instead. This alias will be removed in the next major version. */
     readonly "world_config": Omit<typeof tablesSchema.schemaType.tables["worldConfig"], "accessorName"> & { readonly accessorName: "world_config" };
     /** @deprecated Use `myRealmFog` instead. This alias will be removed in the next major version. */
@@ -679,6 +1526,46 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "active_game_session": "activeGameSession",
+  "active_raid": "activeRaid",
+  "backyard_garden": "backyardGarden",
+  "bandit_camp": "banditCamp",
+  "bandit_incident": "banditIncident",
+  "burgage_zone": "burgageZone",
+  "cavalry_horse": "cavalryHorse",
+  "combat_agent": "combatAgent",
+  "delivery_trip": "deliveryTrip",
+  "farm_field": "farmField",
+  "fire_incident": "fireIncident",
+  "foraging_node": "foragingNode",
+  "guard_muster_route": "guardMusterRoute",
+  "livestock_herd": "livestockHerd",
+  "market_state": "marketState",
+  "mercenary_contract": "mercenaryContract",
+  "military_company": "militaryCompany",
+  "military_member": "militaryMember",
+  "militia_order": "militiaOrder",
+  "pasture_herd": "pastureHerd",
+  "player_resources": "playerResources",
+  "raid_incursion_route": "raidIncursionRoute",
+  "realm_clock": "realmClock",
+  "realm_entity": "realmEntity",
+  "realm_fog": "realmFog",
+  "realm_interest": "realmInterest",
+  "realm_member": "realmMember",
+  "realm_scout": "realmScout",
+  "realm_scout_route": "realmScoutRoute",
+  "realm_spawn": "realmSpawn",
+  "residence_need": "residenceNeed",
+  "resource_unit_migration": "resourceUnitMigration",
+  "road_network_state": "roadNetworkState",
+  "settlement_security": "settlementSecurity",
+  "sim_pacing_state": "simPacingState",
+  "sim_tick_schedule": "simTickSchedule",
+  "stable_ox": "stableOx",
+  "trading_post_trade_rule": "tradingPostTradeRule",
+  "tree_entity": "treeEntity",
+  "vineyard_parcel": "vineyardParcel",
   "world_config": "worldConfig",
   "my_realm_fog": "myRealmFog",
   "my_realm_member": "myRealmMember",
@@ -735,6 +1622,86 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `activeGameSession` instead. This alias will be removed in the next major version. */
+  readonly "active_game_session": __DbViewBase["activeGameSession"];
+  /** @deprecated Use `activeRaid` instead. This alias will be removed in the next major version. */
+  readonly "active_raid": __DbViewBase["activeRaid"];
+  /** @deprecated Use `backyardGarden` instead. This alias will be removed in the next major version. */
+  readonly "backyard_garden": __DbViewBase["backyardGarden"];
+  /** @deprecated Use `banditCamp` instead. This alias will be removed in the next major version. */
+  readonly "bandit_camp": __DbViewBase["banditCamp"];
+  /** @deprecated Use `banditIncident` instead. This alias will be removed in the next major version. */
+  readonly "bandit_incident": __DbViewBase["banditIncident"];
+  /** @deprecated Use `burgageZone` instead. This alias will be removed in the next major version. */
+  readonly "burgage_zone": __DbViewBase["burgageZone"];
+  /** @deprecated Use `cavalryHorse` instead. This alias will be removed in the next major version. */
+  readonly "cavalry_horse": __DbViewBase["cavalryHorse"];
+  /** @deprecated Use `combatAgent` instead. This alias will be removed in the next major version. */
+  readonly "combat_agent": __DbViewBase["combatAgent"];
+  /** @deprecated Use `deliveryTrip` instead. This alias will be removed in the next major version. */
+  readonly "delivery_trip": __DbViewBase["deliveryTrip"];
+  /** @deprecated Use `farmField` instead. This alias will be removed in the next major version. */
+  readonly "farm_field": __DbViewBase["farmField"];
+  /** @deprecated Use `fireIncident` instead. This alias will be removed in the next major version. */
+  readonly "fire_incident": __DbViewBase["fireIncident"];
+  /** @deprecated Use `foragingNode` instead. This alias will be removed in the next major version. */
+  readonly "foraging_node": __DbViewBase["foragingNode"];
+  /** @deprecated Use `guardMusterRoute` instead. This alias will be removed in the next major version. */
+  readonly "guard_muster_route": __DbViewBase["guardMusterRoute"];
+  /** @deprecated Use `livestockHerd` instead. This alias will be removed in the next major version. */
+  readonly "livestock_herd": __DbViewBase["livestockHerd"];
+  /** @deprecated Use `marketState` instead. This alias will be removed in the next major version. */
+  readonly "market_state": __DbViewBase["marketState"];
+  /** @deprecated Use `mercenaryContract` instead. This alias will be removed in the next major version. */
+  readonly "mercenary_contract": __DbViewBase["mercenaryContract"];
+  /** @deprecated Use `militaryCompany` instead. This alias will be removed in the next major version. */
+  readonly "military_company": __DbViewBase["militaryCompany"];
+  /** @deprecated Use `militaryMember` instead. This alias will be removed in the next major version. */
+  readonly "military_member": __DbViewBase["militaryMember"];
+  /** @deprecated Use `militiaOrder` instead. This alias will be removed in the next major version. */
+  readonly "militia_order": __DbViewBase["militiaOrder"];
+  /** @deprecated Use `pastureHerd` instead. This alias will be removed in the next major version. */
+  readonly "pasture_herd": __DbViewBase["pastureHerd"];
+  /** @deprecated Use `playerResources` instead. This alias will be removed in the next major version. */
+  readonly "player_resources": __DbViewBase["playerResources"];
+  /** @deprecated Use `raidIncursionRoute` instead. This alias will be removed in the next major version. */
+  readonly "raid_incursion_route": __DbViewBase["raidIncursionRoute"];
+  /** @deprecated Use `realmClock` instead. This alias will be removed in the next major version. */
+  readonly "realm_clock": __DbViewBase["realmClock"];
+  /** @deprecated Use `realmEntity` instead. This alias will be removed in the next major version. */
+  readonly "realm_entity": __DbViewBase["realmEntity"];
+  /** @deprecated Use `realmFog` instead. This alias will be removed in the next major version. */
+  readonly "realm_fog": __DbViewBase["realmFog"];
+  /** @deprecated Use `realmInterest` instead. This alias will be removed in the next major version. */
+  readonly "realm_interest": __DbViewBase["realmInterest"];
+  /** @deprecated Use `realmMember` instead. This alias will be removed in the next major version. */
+  readonly "realm_member": __DbViewBase["realmMember"];
+  /** @deprecated Use `realmScout` instead. This alias will be removed in the next major version. */
+  readonly "realm_scout": __DbViewBase["realmScout"];
+  /** @deprecated Use `realmScoutRoute` instead. This alias will be removed in the next major version. */
+  readonly "realm_scout_route": __DbViewBase["realmScoutRoute"];
+  /** @deprecated Use `realmSpawn` instead. This alias will be removed in the next major version. */
+  readonly "realm_spawn": __DbViewBase["realmSpawn"];
+  /** @deprecated Use `residenceNeed` instead. This alias will be removed in the next major version. */
+  readonly "residence_need": __DbViewBase["residenceNeed"];
+  /** @deprecated Use `resourceUnitMigration` instead. This alias will be removed in the next major version. */
+  readonly "resource_unit_migration": __DbViewBase["resourceUnitMigration"];
+  /** @deprecated Use `roadNetworkState` instead. This alias will be removed in the next major version. */
+  readonly "road_network_state": __DbViewBase["roadNetworkState"];
+  /** @deprecated Use `settlementSecurity` instead. This alias will be removed in the next major version. */
+  readonly "settlement_security": __DbViewBase["settlementSecurity"];
+  /** @deprecated Use `simPacingState` instead. This alias will be removed in the next major version. */
+  readonly "sim_pacing_state": __DbViewBase["simPacingState"];
+  /** @deprecated Use `simTickSchedule` instead. This alias will be removed in the next major version. */
+  readonly "sim_tick_schedule": __DbViewBase["simTickSchedule"];
+  /** @deprecated Use `stableOx` instead. This alias will be removed in the next major version. */
+  readonly "stable_ox": __DbViewBase["stableOx"];
+  /** @deprecated Use `tradingPostTradeRule` instead. This alias will be removed in the next major version. */
+  readonly "trading_post_trade_rule": __DbViewBase["tradingPostTradeRule"];
+  /** @deprecated Use `treeEntity` instead. This alias will be removed in the next major version. */
+  readonly "tree_entity": __DbViewBase["treeEntity"];
+  /** @deprecated Use `vineyardParcel` instead. This alias will be removed in the next major version. */
+  readonly "vineyard_parcel": __DbViewBase["vineyardParcel"];
   /** @deprecated Use `worldConfig` instead. This alias will be removed in the next major version. */
   readonly "world_config": __DbViewBase["worldConfig"];
   /** @deprecated Use `myRealmFog` instead. This alias will be removed in the next major version. */
@@ -811,6 +1778,86 @@ export type DbView = __DbViewBase & {
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `activeGameSession` instead. This alias will be removed in the next major version. */
+  readonly "active_game_session": __TablesBase["activeGameSession"];
+  /** @deprecated Use `activeRaid` instead. This alias will be removed in the next major version. */
+  readonly "active_raid": __TablesBase["activeRaid"];
+  /** @deprecated Use `backyardGarden` instead. This alias will be removed in the next major version. */
+  readonly "backyard_garden": __TablesBase["backyardGarden"];
+  /** @deprecated Use `banditCamp` instead. This alias will be removed in the next major version. */
+  readonly "bandit_camp": __TablesBase["banditCamp"];
+  /** @deprecated Use `banditIncident` instead. This alias will be removed in the next major version. */
+  readonly "bandit_incident": __TablesBase["banditIncident"];
+  /** @deprecated Use `burgageZone` instead. This alias will be removed in the next major version. */
+  readonly "burgage_zone": __TablesBase["burgageZone"];
+  /** @deprecated Use `cavalryHorse` instead. This alias will be removed in the next major version. */
+  readonly "cavalry_horse": __TablesBase["cavalryHorse"];
+  /** @deprecated Use `combatAgent` instead. This alias will be removed in the next major version. */
+  readonly "combat_agent": __TablesBase["combatAgent"];
+  /** @deprecated Use `deliveryTrip` instead. This alias will be removed in the next major version. */
+  readonly "delivery_trip": __TablesBase["deliveryTrip"];
+  /** @deprecated Use `farmField` instead. This alias will be removed in the next major version. */
+  readonly "farm_field": __TablesBase["farmField"];
+  /** @deprecated Use `fireIncident` instead. This alias will be removed in the next major version. */
+  readonly "fire_incident": __TablesBase["fireIncident"];
+  /** @deprecated Use `foragingNode` instead. This alias will be removed in the next major version. */
+  readonly "foraging_node": __TablesBase["foragingNode"];
+  /** @deprecated Use `guardMusterRoute` instead. This alias will be removed in the next major version. */
+  readonly "guard_muster_route": __TablesBase["guardMusterRoute"];
+  /** @deprecated Use `livestockHerd` instead. This alias will be removed in the next major version. */
+  readonly "livestock_herd": __TablesBase["livestockHerd"];
+  /** @deprecated Use `marketState` instead. This alias will be removed in the next major version. */
+  readonly "market_state": __TablesBase["marketState"];
+  /** @deprecated Use `mercenaryContract` instead. This alias will be removed in the next major version. */
+  readonly "mercenary_contract": __TablesBase["mercenaryContract"];
+  /** @deprecated Use `militaryCompany` instead. This alias will be removed in the next major version. */
+  readonly "military_company": __TablesBase["militaryCompany"];
+  /** @deprecated Use `militaryMember` instead. This alias will be removed in the next major version. */
+  readonly "military_member": __TablesBase["militaryMember"];
+  /** @deprecated Use `militiaOrder` instead. This alias will be removed in the next major version. */
+  readonly "militia_order": __TablesBase["militiaOrder"];
+  /** @deprecated Use `pastureHerd` instead. This alias will be removed in the next major version. */
+  readonly "pasture_herd": __TablesBase["pastureHerd"];
+  /** @deprecated Use `playerResources` instead. This alias will be removed in the next major version. */
+  readonly "player_resources": __TablesBase["playerResources"];
+  /** @deprecated Use `raidIncursionRoute` instead. This alias will be removed in the next major version. */
+  readonly "raid_incursion_route": __TablesBase["raidIncursionRoute"];
+  /** @deprecated Use `realmClock` instead. This alias will be removed in the next major version. */
+  readonly "realm_clock": __TablesBase["realmClock"];
+  /** @deprecated Use `realmEntity` instead. This alias will be removed in the next major version. */
+  readonly "realm_entity": __TablesBase["realmEntity"];
+  /** @deprecated Use `realmFog` instead. This alias will be removed in the next major version. */
+  readonly "realm_fog": __TablesBase["realmFog"];
+  /** @deprecated Use `realmInterest` instead. This alias will be removed in the next major version. */
+  readonly "realm_interest": __TablesBase["realmInterest"];
+  /** @deprecated Use `realmMember` instead. This alias will be removed in the next major version. */
+  readonly "realm_member": __TablesBase["realmMember"];
+  /** @deprecated Use `realmScout` instead. This alias will be removed in the next major version. */
+  readonly "realm_scout": __TablesBase["realmScout"];
+  /** @deprecated Use `realmScoutRoute` instead. This alias will be removed in the next major version. */
+  readonly "realm_scout_route": __TablesBase["realmScoutRoute"];
+  /** @deprecated Use `realmSpawn` instead. This alias will be removed in the next major version. */
+  readonly "realm_spawn": __TablesBase["realmSpawn"];
+  /** @deprecated Use `residenceNeed` instead. This alias will be removed in the next major version. */
+  readonly "residence_need": __TablesBase["residenceNeed"];
+  /** @deprecated Use `resourceUnitMigration` instead. This alias will be removed in the next major version. */
+  readonly "resource_unit_migration": __TablesBase["resourceUnitMigration"];
+  /** @deprecated Use `roadNetworkState` instead. This alias will be removed in the next major version. */
+  readonly "road_network_state": __TablesBase["roadNetworkState"];
+  /** @deprecated Use `settlementSecurity` instead. This alias will be removed in the next major version. */
+  readonly "settlement_security": __TablesBase["settlementSecurity"];
+  /** @deprecated Use `simPacingState` instead. This alias will be removed in the next major version. */
+  readonly "sim_pacing_state": __TablesBase["simPacingState"];
+  /** @deprecated Use `simTickSchedule` instead. This alias will be removed in the next major version. */
+  readonly "sim_tick_schedule": __TablesBase["simTickSchedule"];
+  /** @deprecated Use `stableOx` instead. This alias will be removed in the next major version. */
+  readonly "stable_ox": __TablesBase["stableOx"];
+  /** @deprecated Use `tradingPostTradeRule` instead. This alias will be removed in the next major version. */
+  readonly "trading_post_trade_rule": __TablesBase["tradingPostTradeRule"];
+  /** @deprecated Use `treeEntity` instead. This alias will be removed in the next major version. */
+  readonly "tree_entity": __TablesBase["treeEntity"];
+  /** @deprecated Use `vineyardParcel` instead. This alias will be removed in the next major version. */
+  readonly "vineyard_parcel": __TablesBase["vineyardParcel"];
   /** @deprecated Use `worldConfig` instead. This alias will be removed in the next major version. */
   readonly "world_config": __TablesBase["worldConfig"];
   /** @deprecated Use `myRealmFog` instead. This alias will be removed in the next major version. */
