@@ -17,6 +17,8 @@ const referencePaths = [
   'src/props/ForestFloorIvy.ts',
   'src/props/ForestFloorNettles.ts',
   'src/scene/InstanceDrawCompaction.ts',
+  'src/scene/InstanceAttributeGather.ts',
+  'src/grass/wildflowerPrefixWrites.ts',
   'src/scene/GroupedInstanceDraws.ts',
   'src/scene/SceneManager.ts',
   'src/props/ForestManager.ts',
@@ -180,6 +182,26 @@ try {
         const stream=scene.grassField.getStreamTelemetry();
         scene.render(0, distance);
         const helpers = window.__vegetationCompactions.filter(helper => !helper.disposed);
+        const gpuGround = helpers.filter(helper=>helper.gather);
+        if(!gpuGround.length)throw Error('The shared ground-plant GPU path was not exercised');
+        // Expose each resident source once before measuring camera-only work.
+        // A previously hidden plant category legitimately needs its first upload.
+        for(const helper of gpuGround) {helper.prepare(null);helper.prepare(scene.camera);}
+        const uploaded = () => gpuGround.reduce((sum,h)=>({source:sum.source+h.gather.stats.sourceUploadBytes,
+          selection:sum.selection+h.gather.stats.selectionUploadBytes}),{source:0,selection:0});
+        const beforeCamera = uploaded(), probe = scene.camera.clone();
+        const direction = new THREE.Vector3(); scene.camera.getWorldDirection(direction);
+        direction.applyAxisAngle(new THREE.Vector3(0,1,0),.2);
+        probe.lookAt(probe.position.clone().add(direction.multiplyScalar(100)));probe.updateMatrixWorld(true);
+        for(const helper of gpuGround) {helper.prepare(probe);helper.prepare(scene.camera);}
+        const afterCamera = uploaded();
+        const cameraOnlyUploads = {canonicalBytes:afterCamera.source-beforeCamera.source,selectionBytes:afterCamera.selection-beforeCamera.selection};
+        if(cameraOnlyUploads.canonicalBytes)throw Error('Camera movement reuploaded canonical ground-plant data');
+        const visibleGpuGroundDraws = gpuGround.filter(helper=>{
+          if(!helper.draw.count)return false;
+          for(let object=helper.draw;object;object=object.parent)if(!object.visible)return false;
+          return true;
+        }).length;
         pairs = helpers.map(unculledInstanceReference);
         const owners = new Map(), lodTrees = [new Set(),new Set(),new Set()];
         let edgeNearTrees = 0;
@@ -269,7 +291,7 @@ try {
         if(finalColoredPixels<1024)throw Error('Final pipeline capture is empty');
         images.push({name:`${imageLabel}-final-optimized`,png:png(finalActual)},{name:`${imageLabel}-final-reference`,png:png(finalReference)});
         scene.sky.visible=false;scene.precipitation.group.visible=false;scene.riverSystem.group.visible=false;
-        poses.push({x,z,distance,lodTrees:lodTrees.map(set=>set.size),edgeNearTrees,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
+        poses.push({x,z,distance,gpuGroundDraws:visibleGpuGroundDraws,cameraOnlyUploads,lodTrees:lodTrees.map(set=>set.size),edgeNearTrees,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
           stream:{mode:stream.mode,pendingSlots:stream.pendingSlots,liveInstances:stream.liveInstances,wildflowerLiveInstances:stream.wildflowerLiveInstances},
           finalPipeline:{channelsOver2:finalChannelsOver2,maxDelta:finalMaxDelta,stabilityChannelsOver2:finalStabilityChannelsOver2,coloredPixels:finalColoredPixels}});
         for (const pair of pairs) { pair.draw.visible=true; pair.dispose(); }

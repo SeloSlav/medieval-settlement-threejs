@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { StorageInstancedBufferAttribute } from 'three/webgpu';
 import { inheritExactInstancePrototype } from './ExactInstancePrototype.ts';
+import { InstanceAttributeGather } from './InstanceAttributeGather.ts';
+import type { SupportedRenderer } from './RendererBackend.ts';
 
 type AttributePair = { source: THREE.InstancedBufferAttribute; output: THREE.InstancedBufferAttribute; version: number };
 
@@ -25,6 +27,8 @@ export class InstanceDrawCompaction {
   private readonly skipCollapsed: boolean;
   private readonly groupVisible?: (group: number) => boolean;
   private readonly selectionVersion?: () => number;
+  private readonly gather?: InstanceAttributeGather;
+  private boundedCount = 0;
   private previousSelectionVersion = -1;
   private matrixVersion = -1;
   private selectedCount = -1;
@@ -35,7 +39,7 @@ export class InstanceDrawCompaction {
   private previousCamera: THREE.Camera | null | undefined;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number; groupVisible?: (group: number) => boolean; selectionVersion?: () => number } = {}) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number; groupVisible?: (group: number) => boolean; selectionVersion?: () => number; renderer?: SupportedRenderer } = {}) {
     const materials = Array.isArray(source.material) ? source.material : [source.material];
     if (source.geometry.getIndirect() || materials.some(material => material.transparent)) throw new Error('Instance compaction requires opaque materials');
     const attributes = Object.entries(source.geometry.attributes);
@@ -43,6 +47,7 @@ export class InstanceDrawCompaction {
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
     this.skipCollapsed = options.skipCollapsed === true;
     this.groupVisible = options.groupVisible; this.selectionVersion = options.selectionVersion;
+    const gpuRenderer = InstanceAttributeGather.supports(source, options.renderer) ? options.renderer : undefined;
     const geometry = new THREE.BufferGeometry();
     inheritExactInstancePrototype(geometry, source.geometry);
     geometry.name = source.geometry.name;
@@ -54,6 +59,7 @@ export class InstanceDrawCompaction {
     for (const [name, raw] of attributes) {
       const attribute = raw as THREE.InstancedBufferAttribute;
       if (!attribute.isInstancedBufferAttribute) { geometry.setAttribute(name, raw); continue; }
+      if (gpuRenderer) continue;
       const output = attribute.clone() as THREE.InstancedBufferAttribute; output.setUsage(THREE.StaticDrawUsage);
       geometry.setAttribute(name, output); this.pairs.push({ source: attribute, output, version: -1 });
     }
@@ -68,16 +74,19 @@ export class InstanceDrawCompaction {
     // Storage attributes are uploaded directly before drawing. They avoid the
     // deferred internal interleaved-copy version and do not reupload a whole
     // forest allocation every frame when the selected prefix is unchanged.
-    this.draw.instanceMatrix = new StorageInstancedBufferAttribute(source.instanceMatrix.count, 16);
-    this.draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-    if (source.instanceColor) {
-      // WGSL vec3 storage has a vec4 stride. Allocate that stride explicitly so
-      // Three never replaces/pads the backing array after our first upload.
-      const output = new StorageInstancedBufferAttribute(source.instanceColor.count, 4);
-      output.setUsage(THREE.StaticDrawUsage); this.draw.instanceColor = output;
-      this.pairs.push({ source: source.instanceColor, output, version: -1 });
+    if (gpuRenderer) this.gather = new InstanceAttributeGather(source, this.draw, gpuRenderer);
+    else {
+      this.draw.instanceMatrix = new StorageInstancedBufferAttribute(source.instanceMatrix.count, 16);
+      this.draw.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+      if (source.instanceColor) {
+        // WGSL vec3 storage has a vec4 stride. Allocate that stride explicitly so
+        // Three never replaces/pads the backing array after our first upload.
+        const output = new StorageInstancedBufferAttribute(source.instanceColor.count, 4);
+        output.setUsage(THREE.StaticDrawUsage); this.draw.instanceColor = output;
+        this.pairs.push({ source: source.instanceColor, output, version: -1 });
+      }
+      this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
     }
-    this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
     this.bounds = new Float64Array(source.instanceMatrix.count * 4);
     this.groupSize = Math.max(1, Math.floor(options.instanceGroupSize ?? 1));
     this.groupBounds = new Float64Array(this.groupSize > 1 ? Math.ceil(source.instanceMatrix.count / this.groupSize) * 4 : 0);
@@ -104,18 +113,19 @@ export class InstanceDrawCompaction {
    */
   prepare(camera: THREE.Camera | null): void {
     const source = this.source;
-    let changed = false;
+    let changed = this.gather?.updateInputs() ?? false;
     for (const pair of this.pairs) {
       if (pair.version !== pair.source.version) { pair.version = pair.source.version; changed = true; }
     }
-    if (source.instanceMatrix.version !== this.matrixVersion) {
+    if (source.instanceMatrix.version !== this.matrixVersion || source.count > this.boundedCount) {
       // A skipped version can contain a sparse edit whose upload range has
       // already been consumed. Rebuild the bounds rather than retaining it.
+      const matrixChanged = source.instanceMatrix.version !== this.matrixVersion;
       const ranges = source.instanceMatrix.version === this.matrixVersion + 1
         && this.matrixVersion >= 0 ? source.instanceMatrix.updateRanges : [];
       this.matrixVersion = source.instanceMatrix.version;
-      for (let i = 0; i < source.instanceMatrix.count; i++) {
-        if (ranges.length && !ranges.some(range => range.start < (i + 1) * 16 && range.start + range.count > i * 16)) continue;
+      for (let i = 0; i < source.count; i++) {
+        if (i < this.boundedCount && (!matrixChanged || (ranges.length && !ranges.some(range => range.start < (i + 1) * 16 && range.start + range.count > i * 16)))) continue;
         source.getMatrixAt(i, this.matrix); this.sphere.copy(source.geometry.boundingSphere!).applyMatrix4(this.matrix);
         const p = this.sphere.center, offset = i * 4;
         this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
@@ -123,10 +133,10 @@ export class InstanceDrawCompaction {
       if (this.groupSize > 1) {
         // Forest cards are contiguous per tree. Reject a whole crown, or accept
         // an entirely visible crown, before inspecting cards on its boundary.
-        for (let start = 0, group = 0; start < source.instanceMatrix.count; start += this.groupSize, group++) {
+        for (let start = 0, group = 0; start < source.count; start += this.groupSize, group++) {
           let minX = Infinity, minY = Infinity, minZ = Infinity;
           let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity, live = 0;
-          for (let i = start; i < Math.min(start + this.groupSize, source.instanceMatrix.count); i++) {
+          for (let i = start; i < Math.min(start + this.groupSize, source.count); i++) {
             const at = i * 4, r = this.bounds[at + 3]!;
             if (this.skipCollapsed && r === 0) continue;
             live++;
@@ -142,6 +152,7 @@ export class InstanceDrawCompaction {
           this.groupBounds[at + 3] = live ? Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2 : 0;
         }
       }
+      this.boundedCount = source.count;
     }
     if (camera) {
       camera.updateWorldMatrix(true, false);
@@ -210,12 +221,18 @@ export class InstanceDrawCompaction {
         append(i, 1);
       }
     }
-    changed ||= this.copyRanges.length !== this.previousRanges.length
+    const selectionChanged = this.copyRanges.length !== this.previousRanges.length
       || this.copyRanges.some((value, i) => value !== this.previousRanges[i]);
-    if (this.selectedCount !== count) { this.selectedCount = count; changed = true; }
+    const countChanged = this.selectedCount !== count;
+    changed ||= selectionChanged || countChanged;
+    this.selectedCount = count;
     source.userData.compactedInstanceCount = count;
     this.draw.count = count;
     if (!changed) return;
+    if (this.gather) {
+      this.gather.gather(count, this.copyRanges, selectionChanged || countChanged);
+      return;
+    }
     for (const pair of this.pairs) {
       const size = pair.source.itemSize, stride = pair.output.itemSize, input = pair.source.array, output = pair.output.array;
       for (let i = 0; i < this.copyRanges.length; i += 3) {
@@ -234,6 +251,7 @@ export class InstanceDrawCompaction {
 
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
+    this.gather?.dispose(this.source);
     this.draw.removeFromParent(); this.draw.dispose(); this.draw.geometry.dispose();
     this.source.layers.mask = this.layers;
     delete this.source.userData.instanceCompactionSource; delete this.source.userData.compactedInstanceCount;

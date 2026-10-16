@@ -19,17 +19,22 @@ try {
     renderer.shadowMap.enabled = true;
     const reports = [];
     // Exercise both uniform-backed and large interleaved instance matrices.
-    for (const n of [400, 1600]) for (const indexed of [true, false]) for (const grouped of [false, true]) {
+    for (const gpu of [false,true]) for (const n of [400, 1601]) for (const indexed of [true, false]) for (const grouped of [false, true]) {
     const sourceGeometry = new THREE.SphereGeometry(.9, 8, 5);
     const geometry = indexed ? sourceGeometry : sourceGeometry.toNonIndexed();
     const offsets = new Float32Array(n * 3), colors = new Float32Array(n * 3);
     for (let i=0;i<n;i++) { offsets.set([Math.sin(i),.5*Math.cos(i),Math.sin(i*.31)],i*3); colors.set([(i%5)/5,.3+(i%7)/10,.2+(i%3)/3],i*3); }
     geometry.setAttribute('offset',new THREE.InstancedBufferAttribute(offsets,3));
     geometry.setAttribute('tint',new THREE.InstancedBufferAttribute(colors,3));
+    const byteColors = new Uint8Array(n*3);
+    for(let i=0;i<byteColors.length;i++)byteColors[i]=40+(i*47)%216;
+    const byteTint = new THREE.InstancedBufferAttribute(byteColors,3,true);
+    geometry.setAttribute('byteTint',byteTint);geometry.setAttribute('byteTintAlias',byteTint);geometry.setAttribute('color',byteTint);
     const clock = TSL.uniform(.5);
     const material = new THREE.MeshBasicNodeMaterial();
+    material.vertexColors=true;material.alphaTest=.25;
     material.positionNode = TSL.positionLocal.add(TSL.attribute('offset','vec3').mul(clock));
-    material.colorNode = TSL.attribute('tint','vec3');
+    material.colorNode = TSL.attribute('tint','vec3').mul(TSL.attribute('byteTint','vec3'));
     const otherMaterial = new THREE.MeshBasicNodeMaterial({ color: 0xc4a627 });
     if (grouped) {
       geometry.clearGroups(); const count = geometry.index?.count ?? geometry.getAttribute('position').count;
@@ -37,6 +42,8 @@ try {
     }
     const drawMaterial = grouped ? [material,otherMaterial] : material;
     const actual = new THREE.InstancedMesh(geometry,drawMaterial,n), expected = new THREE.InstancedMesh(geometry.clone(),drawMaterial,n);
+    expected.geometry.setAttribute('color',expected.geometry.getAttribute('byteTint'));
+    expected.geometry.setAttribute('byteTintAlias',expected.geometry.getAttribute('byteTint'));
     // The full reference must upload this frame's matrices independently of
     // Three's deferred interleaved-version synchronization for large forests.
     actual.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -65,11 +72,13 @@ try {
       ground.rotation.x=-Math.PI/2;ground.position.y=-3;ground.receiveShadow=true;scene.add(ground);
       scene.add(new THREE.AmbientLight(0xffffff,.4));
     }
-    const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true,instanceGroupSize:16});
+    const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true,instanceGroupSize:16,renderer:gpu?renderer:undefined});
+    if(!!compaction.gather !== (gpu&&n>=1024))throw Error('Use the same hardware/capacity selection in every mode');
+    if(compaction.gather && compaction.draw.geometry.getAttribute('byteTint')!==compaction.draw.geometry.getAttribute('byteTintAlias'))throw Error('Retain aliased plant attributes');
     const shadowCompaction = new InstanceDrawCompaction(shadowSource,2,{skipCollapsed:true,instanceGroupSize:16});
     if(compaction.draw.count!==0||shadowCompaction.draw.count!==0)throw new Error('Uninitialized draws must be empty');
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
-    const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
+    const pixels = async scene => {renderer._nodes.nodeFrame.update();renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
     const frames = [];
     for(let frame=0;frame<20;frame++) {
       const angle=frame*.43;clock.value=Math.sin(frame);
@@ -98,8 +107,26 @@ try {
         for(const mesh of [actual,expected]) {mesh.instanceColor.setXYZ(14,1,.1,.9);mesh.instanceColor.needsUpdate=true;}
       }
       if(frame===14||frame===15) { if(frame===14)matrix.makeScale(0,0,0);else matrix.makeTranslation(0,1,0);actual.setMatrixAt(23,matrix);expected.setMatrixAt(23,matrix);actual.instanceMatrix.needsUpdate=expected.instanceMatrix.needsUpdate=true; }
+      if(frame===18) for(const mesh of [actual,expected]) {
+        mesh.setMatrixAt(n-1,new THREE.Matrix4().makeTranslation(0,2,3));
+        mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange((n-1)*16,16);mesh.instanceMatrix.needsUpdate=true;
+        const tint=mesh.geometry.getAttribute('byteTint');tint.array[(n-1)*3]=239;
+        tint.clearUpdateRanges();tint.addUpdateRange((n-1)*3,1);tint.needsUpdate=true;
+      }
       shadowSource.count=actual.count;
+      const uploadBefore=compaction.gather?.stats.sourceUploadBytes ?? 0;
       compaction.prepare(camera);shadowCompaction.prepare(null);
+      if(compaction.gather&&frame>0&&frame<5&&compaction.gather.stats.sourceUploadBytes!==uploadBefore)throw Error('Camera movement reuploaded canonical plant data');
+      if(frame===16) for(const row of [7,8]) {
+        for(const mesh of [actual,expected]) {
+          const tint=mesh.geometry.getAttribute('byteTint');
+          tint.array[row*3]=row*19;tint.clearUpdateRanges();tint.addUpdateRange(row*3,1);tint.needsUpdate=true;
+          mesh.instanceMatrix.array[row*16+12]+=.25;mesh.instanceMatrix.clearUpdateRanges();
+          mesh.instanceMatrix.addUpdateRange(row*16+12,1);mesh.instanceMatrix.needsUpdate=true;
+        }
+        compaction.prepare(camera);shadowCompaction.prepare(null);
+      }
+      if(frame===16) { expected.geometry.getAttribute('byteTint').clearUpdateRanges();expected.instanceMatrix.clearUpdateRanges(); }
       if(frame===10)actual.instanceMatrix.clearUpdateRanges();
       const a=await pixels(scenes[0]), b=await pixels(scenes[1]);let difference=0;
       for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)difference++;
@@ -108,11 +135,16 @@ try {
         const start=compaction.copyRanges[range],length=compaction.copyRanges[range+2];
         for(let i=0;i<length;i++)selected.push(start+i);
       }
-      for(const pair of compaction.pairs) {
-        const data=new Uint32Array(pair.output.array.buffer);
-        const canonical=new Uint32Array(pair.source.array.buffer);
+      for(const pair of compaction.gather?.pairs ?? compaction.pairs) {
+        const raw = compaction.gather ? new Float32Array(await renderer.getArrayBufferAsync(pair.output)) : pair.output.array;
+        const floats=pair.source.array instanceof Float32Array;
+        const data=floats?new Uint32Array(raw.buffer,raw.byteOffset,raw.byteLength/4):raw;
+        const canonical=floats?new Uint32Array(pair.source.array.buffer,pair.source.array.byteOffset,pair.source.array.length):pair.source.array;
         for(let row=0;row<compaction.submittedInstances;row++)for(let k=0;k<pair.source.itemSize;k++) {
-          if(data[row*pair.output.itemSize+k]!==canonical[selected[row]*pair.source.itemSize+k])throw new Error(`Compaction changed an authored attribute bit: n=${n}, frame=${frame}, row=${row}, component=${k}, sourceSize=${pair.source.itemSize}, outputSize=${pair.output.itemSize}, sourceLength=${canonical.length}, outputLength=${data.length}`);
+          const expected=canonical[selected[row]*pair.source.itemSize+k];
+          const difference=compaction.gather&&!floats ? Math.abs(data[row*pair.output.itemSize+k] - expected/(pair.source.normalized?255:1))
+            : data[row*pair.output.itemSize+k]===expected?0:1;
+          if(difference>1e-7)throw new Error(`Compaction changed an authored attribute: gpu=${gpu}, n=${n}, frame=${frame}, row=${row}, component=${k}, delta=${difference}`);
         }
       }
       frames.push({frame,submitted:compaction.submittedInstances,shadowSubmitted:shadowCompaction.submittedInstances,total:actual.count,difference});
@@ -123,7 +155,7 @@ try {
     shadowCompaction.dispose();shadowSource.removeFromParent();actual.castShadow=true;
     const a=await pixels(scenes[0]),b=await pixels(scenes[1]);let restoredDifference=0;
     for(let i=0;i<a.length;i++)if(a[i]!==b[i])restoredDifference++;
-    reports.push({n,indexed,grouped,frames,restoredDifference});
+    reports.push({gpu,n,indexed,grouped,frames,restoredDifference});
     target.dispose();actual.dispose();expected.dispose();geometry.dispose();sourceGeometry.dispose();expected.geometry.dispose();material.dispose();otherMaterial.dispose();
     }
     renderer.dispose();return reports;

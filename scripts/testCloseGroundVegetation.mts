@@ -297,7 +297,7 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /const updateWildflowerSpatialLods[\s\S]*?record\.wildflowerGeometryLod = nextLod;[\s\S]*?const repackCompactMesh[\s\S]*?record\.wildflowerGeometryLod === 'detail'[\s\S]*?detailCount[\s\S]*?footprintCount/,
+  /const updateWildflowerSpatialLods[\s\S]*?record\.wildflowerGeometryLod = nextLod;[\s\S]*?const repackCompactMesh[\s\S]*?writeWildflowerPrefixes\([\s\S]*?detailCount[\s\S]*?footprintCount/,
   'camera movement must classify whole stream chunks with hysteresis and compact both exact prefixes',
 );
 assert.match(

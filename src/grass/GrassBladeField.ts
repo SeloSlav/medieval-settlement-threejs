@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { InstanceDrawCompaction } from '../scene/InstanceDrawCompaction.ts';
+import { writeWildflowerPrefixes, type WildflowerPrefixLayout, type WildflowerPrefixRange } from './wildflowerPrefixWrites.ts';
 import { windStrength } from '@seedthree/core/wind.js';
 import {
   createSeedThreeGrassMaterial,
@@ -11,7 +12,7 @@ import {
   setSeedThreeGrassSeason,
   type SeedThreeTuftVariant,
 } from '../vegetation/seedthree/seedThreeGrass.ts';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import type { RendererBackendKind, SupportedRenderer } from '../scene/RendererBackend.ts';
 import {
   createSeedThreeWildflowerFootprintGeometries,
   createSeedThreeWildflowerVariantGeometries,
@@ -224,6 +225,7 @@ type GrassStreamMesh = {
   variant?: SeedThreeTuftVariant;
   wildflowerVariantIndex?: number;
   compactLivePrefix?: true;
+  compactPrefixLayout?: WildflowerPrefixLayout;
   wildflowerDetailGeometry?: THREE.BufferGeometry;
   wildflowerFootprintGeometry?: THREE.BufferGeometry;
   wildflowerFootprintMesh?: THREE.InstancedMesh;
@@ -236,6 +238,7 @@ export type GrassBladeFieldOptions = {
   isBlockedAt?: (x: number, z: number) => boolean;
   maxAnisotropy?: number;
   rendererBackend?: RendererBackendKind;
+  renderer?: SupportedRenderer;
   lodFadeMode?: GrassBladeLodFadeMode;
 };
 
@@ -414,6 +417,7 @@ export async function createGrassBladeField(
   const flowerCompactions = streamMeshes.flatMap(entry => entry.wildflowerFootprintMesh
     ? [entry.mesh, entry.wildflowerFootprintMesh].map(mesh => new InstanceDrawCompaction(
       mesh, () => .01 + .2 * Math.abs(windStrength.value),
+      { renderer: options?.renderer },
     )) : []);
   for (const entry of streamMeshes) {
     // Grass and wildflowers share streaming, but remain independent render tests.
@@ -735,21 +739,12 @@ export async function createGrassBladeField(
     if (!footprintMesh || !footprintMatrixArray || !footprintAnchorArray) {
       throw new Error('Spatial wildflower LOD requires a footprint mesh and anchor prefix.');
     }
-    let detailCount = 0;
-    let footprintCount = 0;
-    for (const record of slotRecords) {
-      const data = record.compactData[meshIndex];
-      if (!data || data.count <= 0) continue;
-      if (record.wildflowerGeometryLod === 'detail') {
-        detailMatrixArray.set(data.matrices, detailCount * 16);
-        detailAnchorArray?.set(data.anchors, detailCount * 4);
-        detailCount += data.count;
-      } else {
-        footprintMatrixArray.set(data.matrices, footprintCount * 16);
-        footprintAnchorArray.set(data.anchors, footprintCount * 4);
-        footprintCount += data.count;
-      }
-    }
+    if (!detailAnchorArray) throw new Error('Wildflowers require their authored anchors');
+    const {detailCount,footprintCount,detailRanges,footprintRanges} = writeWildflowerPrefixes(
+      slotRecords, meshIndex, entry.compactPrefixLayout ??= [],
+      {matrices:detailMatrixArray,anchors:detailAnchorArray},
+      {matrices:footprintMatrixArray,anchors:footprintAnchorArray},
+    );
     if (
       detailCount > entry.mesh.instanceMatrix.count
       || footprintCount > footprintMesh.instanceMatrix.count
@@ -765,34 +760,36 @@ export async function createGrassBladeField(
 
     const publishPrefix = (
       count: number,
+      ranges: WildflowerPrefixRange[],
       matrix: THREE.InstancedBufferAttribute,
       anchor: THREE.InstancedBufferAttribute | undefined,
     ): void => {
-      if (count <= 0) return;
+      if (count <= 0 || ranges.length === 0) return;
       const attributes = [matrix, anchor]
         .filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute);
       for (const attribute of attributes) {
         attribute.clearUpdateRanges();
-        attribute.addUpdateRange(0, count * attribute.itemSize);
+        for (const range of ranges) attribute.addUpdateRange(range.start * attribute.itemSize, range.count * attribute.itemSize);
         attribute.needsUpdate = true;
         streamTelemetry.gpuFlagUpdates += 1;
-        streamTelemetry.gpuUpdateRanges += 1;
+        streamTelemetry.gpuUpdateRanges += ranges.length;
         if (wildflowerLodRepackDirty) {
           streamTelemetry.wildflowerLodGpuFlagUpdates =
             (streamTelemetry.wildflowerLodGpuFlagUpdates ?? 0) + 1;
           streamTelemetry.wildflowerLodGpuUpdateRanges =
-            (streamTelemetry.wildflowerLodGpuUpdateRanges ?? 0) + 1;
+            (streamTelemetry.wildflowerLodGpuUpdateRanges ?? 0) + ranges.length;
         }
-        streamTelemetry.bytesUploaded +=
-          count * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
+        const bytes = ranges.reduce((sum,range)=>sum+range.count,0) * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
+        streamTelemetry.bytesUploaded += bytes;
         streamTelemetry.wildflowerCompactionBytesUploaded =
           (streamTelemetry.wildflowerCompactionBytesUploaded ?? 0)
-          + count * attribute.itemSize * attribute.array.BYTES_PER_ELEMENT;
+          + bytes;
       }
     };
-    publishPrefix(detailCount, entry.mesh.instanceMatrix, entry.anchorAttr);
+    publishPrefix(detailCount, detailRanges, entry.mesh.instanceMatrix, entry.anchorAttr);
     publishPrefix(
       footprintCount,
+      footprintRanges,
       footprintMesh.instanceMatrix,
       entry.wildflowerFootprintAnchorAttr,
     );

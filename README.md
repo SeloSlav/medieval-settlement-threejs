@@ -523,6 +523,20 @@ stable. This command skips FPS profiling. Run
 `npm run test:seedthree-streamed-batches-browser` for authored multiplayer
 chunk loading, unloading, tree hiding/restoration, seasonal and shadow rendering checks.
 
+Flowers, ivy, nettles and large undergrowth batches share one instance selector
+and GPU attribute gather in solo and multiplayer. Plant transforms and colors
+stay resident during camera-only changes; the visible row IDs change. Small
+batches and unsupported attribute/device combinations use the same selector
+with direct CPU copying. Geometry, density, materials, wind and LOD distances
+are unchanged. Flower streaming copies/uploads only changed slot runs within
+the existing detail and footprint prefixes.
+`npm run test:instance-draw-compaction-browser` checks images, authored buffer
+values, normalized byte colors, sparse edits and hidden/restored instances.
+`npm run test:ground-plant-streaming-browser` compares both modes across flower
+streaming, placement clearance and seasons. `npm run test:wildflower-prefix-writes`
+checks incremental flower buffers against full reference copies. These checks
+do not measure FPS.
+
 ## Production build
 
 Create an optimized build:

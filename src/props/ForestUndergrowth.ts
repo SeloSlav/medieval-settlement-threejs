@@ -532,6 +532,7 @@ export function buildUndergrowthInstances(
   terrain: Terrain,
   materials: UndergrowthMaterials,
   rng: () => number,
+  renderer?: import('../scene/RendererBackend.ts').SupportedRenderer,
 ): UndergrowthInstances {
   const group = new THREE.Group();
   group.name = 'SeedThree temperate undergrowth';
@@ -572,7 +573,7 @@ export function buildUndergrowthInstances(
   const compactions = UNDERGROWTH_KINDS.flatMap(kind => buckets[kind])
     .filter(bucket => (Array.isArray(bucket.mesh.material) ? bucket.mesh.material : [bucket.mesh.material])
       .every(material => (material as THREE.Material & { isNodeMaterial?: boolean }).isNodeMaterial))
-    .map(bucket => new InstanceDrawCompaction(bucket.mesh, () => .01 + 2 * Math.abs(windStrength.value), { skipCollapsed: true }));
+    .map(bucket => new InstanceDrawCompaction(bucket.mesh, () => .01 + 2 * Math.abs(windStrength.value), { skipCollapsed: true, renderer }));
 
   return {
     group,

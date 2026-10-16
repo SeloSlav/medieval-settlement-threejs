@@ -192,6 +192,7 @@ export async function createForestFloorNettleInstances(
   seed = FOREST_FLOOR_NETTLE_SEED,
   isBlockedAt?: ForestFloorNettleBlocker,
   providedPlacements?: ForestFloorNettlePlacement[],
+  renderer?: import('../scene/RendererBackend.ts').SupportedRenderer,
 ): Promise<ForestFloorNettleInstances> {
   const [leafTextures, stemTextures] = await Promise.all([
     loadLeafTextures(maxAnisotropy),
@@ -231,6 +232,7 @@ export async function createForestFloorNettleInstances(
   const placementVisible = placements.map(() => true);
   const compactions = useNodeMaterials ? buckets.map(bucket => new InstanceDrawCompaction(
     bucket.mesh, () => .01 + .1 * Math.abs(windStrength.value),
+    { renderer },
   )) : [];
   let streamDirty = true;
   let seasonalDormancy = 0;

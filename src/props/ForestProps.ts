@@ -186,6 +186,7 @@ export async function createForestProps(
     options?.rendererBackend,
     (options?.treeSeed ?? 0x5eedf0a5) ^ 0x1f1c0a7,
     isBlockedAt,
+    options?.webgpuRenderer,
   );
   const nettlesPromise = createForestFloorNettleInstances(
     allTreePlacements,
@@ -195,6 +196,7 @@ export async function createForestProps(
     nettleSeed,
     isBlockedAt,
     nettlePlacements,
+    options?.webgpuRenderer,
   );
   const twigsPromise = createForestFloorTwigInstances(
     allTreePlacements,
@@ -220,7 +222,7 @@ export async function createForestProps(
     nettlesPromise,
     twigsPromise,
   ]);
-  const undergrowth = buildUndergrowthInstances(undergrowthPlacements, terrain, undergrowthMaterials, rng);
+  const undergrowth = buildUndergrowthInstances(undergrowthPlacements, terrain, undergrowthMaterials, rng, options?.webgpuRenderer);
 
   if (options?.rendererBackend === 'webgpu') {
     if (!options.webgpuRenderer) {

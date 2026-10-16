@@ -20,6 +20,7 @@ import {
 import {
   supportsNodeMaterials,
   type RendererBackendKind,
+  type SupportedRenderer,
 } from '../scene/RendererBackend.ts';
 import { chainMaterialShaderPatch } from '../scene/materialShaderPatch.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -626,6 +627,7 @@ export async function createForestFloorIvyInstances(
   rendererBackend: RendererBackendKind | undefined,
   seed = FOREST_FLOOR_IVY_SEED,
   isBlockedAt?: ForestFloorIvyBlocker,
+  renderer?: SupportedRenderer,
 ): Promise<ForestFloorIvyInstances> {
   const textures = await loadSeedThreeGroundCoverTextures({
     albedo: FOREST_FLOOR_IVY_TEXTURE_PATH,
@@ -680,7 +682,7 @@ export async function createForestFloorIvyInstances(
   group.add(mesh);
   const compaction = supportsNodeMaterials(rendererBackend ?? 'webgl')
     ? new InstanceDrawCompaction(mesh, FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT,
-      { instanceGroupSize: FOREST_FLOOR_IVY_LEAVES_PER_PATCH }) : null;
+      { instanceGroupSize: FOREST_FLOOR_IVY_LEAVES_PER_PATCH, renderer }) : null;
 
   const placementVisible = placements.map(() => true);
   const residentCandidates: Array<{

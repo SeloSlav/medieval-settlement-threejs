@@ -770,6 +770,7 @@ export class SceneManager {
             || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
           maxAnisotropy: this.maxAnisotropy,
           rendererBackend: this.rendererBackend,
+          renderer: this.renderer,
         }))
       : Promise.resolve(null);
     const worldDetailsPromise = startStage('details', () => Promise.all([
