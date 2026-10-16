@@ -18,7 +18,7 @@ try {
     const { THREE } = await import('/scripts/fixtures/webgpuTestImports.ts');
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { StreamedInstanceBatches } = await import('/src/scene/StreamedInstanceBatches.ts');
-    const { createSeedThreeForest, createSeedThreeForestController } = await import('/src/vegetation/seedthree/seedThreeForestBuilder.ts');
+    const { createSeedThreeForest, createSeedThreeForestController, updateSeedThreeForestCameraBudgeted } = await import('/src/vegetation/seedthree/seedThreeForestBuilder.ts');
     const { setWorldAnimationTime } = await import('/src/scene/worldAnimationTime.ts');
     const { windStrength } = await import('/vendor/seedthree/src/core/wind.js');
     const { TREE_SHADOW_CAST_LAYER } = await import('/src/scene/SceneLayers.ts');
@@ -76,7 +76,7 @@ try {
       return { draws: renderer.info.render.drawCalls, triangles: renderer.info.render.triangles,pixels };
     };
     const each = fn => { for (const pair of chunks) if (pair) for (const { controller } of pair) fn(controller); };
-    for (let frame = 0; frame < 21; frame++) {
+    for (let frame = 0; frame < 24; frame++) {
       setWorldAnimationTime(frame * .8); windStrength.value = frame === 1 ? 0 : .9;
       let distance = 185, firstPerson = false;
       camera.position.set(115, 90, 120); camera.lookAt(0, 14, 0);
@@ -111,8 +111,36 @@ try {
         for (const { forest, controller } of chunks[3]) { forest.group.removeFromParent(); controller.dispose(); }
         chunks[3] = null;
       }
+      const casterBounds = frame >= 21 ? {minX:-20,maxX:20,minZ:-20,maxZ:20}
+        : {minX:-110,maxX:110,minZ:-100,maxZ:100};
+      if (frame >= 21) {
+        firstPerson = true; distance = 38;
+        camera.position.set(0,12,38); camera.lookAt(0,17,0);
+      }
+      if (frame === 22) for (const {controller} of chunks[1]) controller.hideTree(17);
+      if (frame === 23) for (const {controller} of chunks[1]) controller.showTree(17);
       camera.updateMatrixWorld(true); scenes.forEach(s => s.updateMatrixWorld(true));
-      each(c => { c.commit(); c.updateCamera(camera, distance, firstPerson, { minX: -110, maxX: 110, minZ: -100, maxZ: 100 }, false, 1 / 60); });
+      if (frame >= 21) for (const pair of chunks) if (pair) for (const {forest,controller} of pair) {
+        controller.commit();
+        updateSeedThreeForestCameraBudgeted(forest,camera,true,casterBounds,{
+          maxBucketCompactions:Infinity,maxUpdateDurationMs:Infinity,maxMatrixWritesPerChunk:Infinity,
+        });
+      }
+      each(c => { c.commit(); c.updateCamera(camera, distance, firstPerson, casterBounds, false, 1 / 60); });
+      let verifiedCasterPhases = 0, selectedCasters = 0;
+      if (frame >= 21) for (const pair of chunks) if (pair) for (const {forest} of pair) for (const bucket of forest.buckets) {
+        if (bucket.nearSlotIndices.some((slot,index,list)=>index>0 && slot<=list[index-1])) throw Error('Caster identities must remain sorted for sparse harvest patches');
+        selectedCasters += bucket.nearSlotIndices.length;
+        for (const mesh of bucket.nearShadowSet.cards) {
+          const source = mesh.userData.seedThreeColorSource;
+          const canonical = source.userData.seedThreeCanonicalThickness;
+          const actual = mesh.geometry.getAttribute('aThickness'), k = mesh.userData.k;
+          for (let rank=0;rank<bucket.nearSlotIndices.length;rank++) for(let card=0;card<k;card++) {
+            if(actual.getX(rank*k+card)!==canonical.getX(bucket.nearSlotIndices[rank]*k+card)) throw Error('Caster repack changed the tree wind phase');
+            verifiedCasterPhases++;
+          }
+        }
+      }
       const before = batches.stats().uploads;
       const state = batches.prepare();
       const actual = await render(scenes[0]), reference = await render(scenes[1]);
@@ -124,7 +152,7 @@ try {
       if(changedPixels || [0,9,10,13,14,17,19,20].includes(frame)) {
         images.push({name:`${frame}-combined`,png:png(actual.pixels)},{name:`${frame}-reference`,png:png(reference.pixels)});
       }
-      frames.push({ frame, changedPixels, maxDifference, totalDifference, actualDraws: actual.draws, referenceDraws: reference.draws,
+      frames.push({ frame, verifiedCasterPhases,selectedCasters,changedPixels, maxDifference, totalDifference, actualDraws: actual.draws, referenceDraws: reference.draws,
         actualTriangles: actual.triangles, referenceTriangles: reference.triangles, uploads: batches.stats().uploads - before,
         state, color: batches.stats(), shadow: batches.stats(true) });
     }
@@ -148,4 +176,6 @@ try {
   assert(result.frames[0].shadow.sourceDraws > result.frames[0].shadow.draws);
   assert(result.frames[19].shadow.capacityInstances > result.frames[18].shadow.capacityInstances,
     'Loading another authored chunk must exercise growth of a shared GPU allocation');
+  assert(result.frames.slice(21).every(frame=>frame.verifiedCasterPhases>0 && frame.selectedCasters < 192),
+    'Exercise a subset of exact shadow casters and their canonical wind phases');
 } finally { await browser?.close(); await server.close(); }
