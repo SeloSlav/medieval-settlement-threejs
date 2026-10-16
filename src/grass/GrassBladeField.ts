@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
+import { InstanceDrawCompaction } from '../scene/InstanceDrawCompaction.ts';
+import { windStrength } from '@seedthree/core/wind.js';
 import {
   createSeedThreeGrassMaterial,
   createSeedThreeTuftVariants,
@@ -94,6 +97,7 @@ export type GrassBladeField = {
     cameraDistance: number,
     firstPersonActive?: boolean,
   ) => void;
+  prepareRender: (camera: THREE.Camera) => void;
   dispose: () => void;
 };
 
@@ -386,6 +390,7 @@ export async function createGrassBladeField(
   }
   displayMaterials = [grassMaterial, wildflowerMaterial];
   disposeResources = () => {
+    for (const compaction of flowerCompactions) compaction.dispose();
     const geometries = new Set<THREE.BufferGeometry>();
     for (const entry of streamMeshes) {
       geometries.add(entry.mesh.geometry);
@@ -406,9 +411,18 @@ export async function createGrassBladeField(
 
   const group = new THREE.Group();
   group.name = 'SeedThree grass field';
+  const flowerCompactions = streamMeshes.flatMap(entry => entry.wildflowerFootprintMesh
+    ? [entry.mesh, entry.wildflowerFootprintMesh].map(mesh => new InstanceDrawCompaction(
+      mesh, () => .01 + .2 * Math.abs(windStrength.value),
+    )) : []);
   for (const entry of streamMeshes) {
+    // Grass and wildflowers share streaming, but remain independent render tests.
+    registerRenderDiagnosticRoot(entry.mesh, entry.wildflowerVariantIndex === undefined ? 'grass' : 'groundPlants');
     group.add(entry.mesh);
-    if (entry.wildflowerFootprintMesh) group.add(entry.wildflowerFootprintMesh);
+    if (entry.wildflowerFootprintMesh) {
+      registerRenderDiagnosticRoot(entry.wildflowerFootprintMesh, 'groundPlants');
+      group.add(entry.wildflowerFootprintMesh);
+    }
   }
   group.userData.groundcoverSubmission =
     'two-grass-plus-ten-spatial-wildflower-lod-meshes';
@@ -1279,6 +1293,22 @@ export async function createGrassBladeField(
 
       stepPendingSlots();
     },
+    prepareRender(camera) {
+      if (!grassZoomVisible) return;
+      let submittedInstances = 0, submittedTriangles = 0;
+      for (const compaction of flowerCompactions) {
+        compaction.syncRenderState();
+        compaction.prepare(camera);
+        submittedInstances += compaction.submittedInstances;
+        const geometry = compaction.draw.geometry;
+        submittedTriangles += (geometry.index?.count ?? geometry.getAttribute('position').count) / 3 * compaction.submittedInstances;
+      }
+      streamTelemetry.wildflowerSubmittedInstances = submittedInstances;
+      streamTelemetry.wildflowerLodCulledInstances = Math.max(0, (streamTelemetry.wildflowerLiveInstances ?? 0) - submittedInstances);
+      streamTelemetry.wildflowerSubmittedTriangles = submittedTriangles;
+      Object.assign(group.userData.wildflowerStream, { submittedInstances, submittedTriangles,
+        lodCulledInstances: streamTelemetry.wildflowerLodCulledInstances });
+    },
     dispose() {
       disposeResources();
     },
@@ -1340,6 +1370,7 @@ function createDisabledGrassBladeField(): GrassBladeField {
       return false;
     },
     updateCameraState() {},
+    prepareRender() {},
     dispose() {},
   };
 }

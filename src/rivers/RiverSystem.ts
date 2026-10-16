@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { setWorldAnimationTime } from '../scene/worldAnimationTime.ts';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 import { attribute, float, mix, normalMap, pow, texture, uv, vec2, vec3 } from 'three/tsl';
@@ -140,6 +141,8 @@ export async function createRiverSystem(
       lilyPads = nextLilyPads;
       group.add(nextShoreStones.group, bankMeshes);
       group.add(nextLilyPads.group);
+      registerRenderDiagnosticRoot(nextShoreStones.group, 'groundScatter');
+      registerRenderDiagnosticRoot(nextLilyPads.group, 'groundPlants');
       reedsGroup.add(nextReeds.group);
       if (clearance) {
         nextShoreStones.syncPlacementClearance(clearance.buildings, clearance.farmFieldPolygons);

@@ -65,8 +65,8 @@ try {
       ground.rotation.x=-Math.PI/2;ground.position.y=-3;ground.receiveShadow=true;scene.add(ground);
       scene.add(new THREE.AmbientLight(0xffffff,.4));
     }
-    const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true});
-    const shadowCompaction = new InstanceDrawCompaction(shadowSource,2,{skipCollapsed:true});
+    const compaction = new InstanceDrawCompaction(actual,2,{skipCollapsed:true,instanceGroupSize:16});
+    const shadowCompaction = new InstanceDrawCompaction(shadowSource,2,{skipCollapsed:true,instanceGroupSize:16});
     if(compaction.draw.count!==0||shadowCompaction.draw.count!==0)throw new Error('Uninitialized draws must be empty');
     const target = new THREE.RenderTarget(480,320), camera = new THREE.PerspectiveCamera(45,1.5,.1,110);
     const pixels = async scene => {renderer.setRenderTarget(target);renderer.render(scene,camera);return renderer.readRenderTargetPixelsAsync(target,0,0,480,320);};
@@ -103,16 +103,21 @@ try {
       if(frame===10)actual.instanceMatrix.clearUpdateRanges();
       const a=await pixels(scenes[0]), b=await pixels(scenes[1]);let difference=0;
       for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>6)difference++;
+      const selected = [];
+      for(let range=0;range<compaction.copyRanges.length;range+=3) {
+        const start=compaction.copyRanges[range],length=compaction.copyRanges[range+2];
+        for(let i=0;i<length;i++)selected.push(start+i);
+      }
       for(const pair of compaction.pairs) {
         const data=new Uint32Array(pair.output.array.buffer);
         const canonical=new Uint32Array(pair.source.array.buffer);
         for(let row=0;row<compaction.submittedInstances;row++)for(let k=0;k<pair.source.itemSize;k++) {
-          if(data[row*pair.output.itemSize+k]!==canonical[compaction.selected[row]*pair.source.itemSize+k])throw new Error(`Compaction changed an authored attribute bit: n=${n}, frame=${frame}, row=${row}, component=${k}, sourceSize=${pair.source.itemSize}, outputSize=${pair.output.itemSize}, sourceLength=${canonical.length}, outputLength=${data.length}`);
+          if(data[row*pair.output.itemSize+k]!==canonical[selected[row]*pair.source.itemSize+k])throw new Error(`Compaction changed an authored attribute bit: n=${n}, frame=${frame}, row=${row}, component=${k}, sourceSize=${pair.source.itemSize}, outputSize=${pair.output.itemSize}, sourceLength=${canonical.length}, outputLength=${data.length}`);
         }
       }
       frames.push({frame,submitted:compaction.submittedInstances,shadowSubmitted:shadowCompaction.submittedInstances,total:actual.count,difference});
-      if(frame===14&&compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Collapsed cleared-tree slot was submitted');
-      if(frame===15&&!compaction.selected.slice(0,compaction.submittedInstances).includes(23))throw new Error('Restored tree did not re-enter the draw');
+      if(frame===14&&selected.includes(23))throw new Error('Collapsed cleared-tree slot was submitted');
+      if(frame===15&&!selected.includes(23))throw new Error('Restored tree did not re-enter the draw');
     }
     compaction.dispose();
     shadowCompaction.dispose();shadowSource.removeFromParent();actual.castShadow=true;

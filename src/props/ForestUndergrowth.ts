@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { InstanceDrawCompaction } from '../scene/InstanceDrawCompaction.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
@@ -221,6 +222,8 @@ export type UndergrowthInstances = {
   stats: UndergrowthStats;
   setDeciduousFoliage: (presentation: DeciduousFoliagePresentation) => boolean;
   setSnowCoverage: (coverage: number) => boolean;
+  prepareRender: (camera: THREE.Camera) => void;
+  disposeRender: () => void;
 };
 
 export type UndergrowthStats = {
@@ -564,12 +567,25 @@ export function buildUndergrowthInstances(
   ) as Record<UndergrowthKind, UndergrowthBucket[]>;
 
   const stats = createUndergrowthStats(placements, buckets);
+  // These high-detail shrubs are world-resident. Only their color instances
+  // need camera selection; the independent shadow proxies keep their light view.
+  const compactions = UNDERGROWTH_KINDS.flatMap(kind => buckets[kind])
+    .filter(bucket => (Array.isArray(bucket.mesh.material) ? bucket.mesh.material : [bucket.mesh.material])
+      .every(material => (material as THREE.Material & { isNodeMaterial?: boolean }).isNodeMaterial))
+    .map(bucket => new InstanceDrawCompaction(bucket.mesh, () => .01 + 2 * Math.abs(windStrength.value), { skipCollapsed: true }));
 
   return {
     group,
     placements,
     buckets,
     stats,
+    prepareRender(camera): void {
+      if (!group.visible) return;
+      for (const compaction of compactions) {
+        compaction.syncRenderState(); compaction.prepare(camera);
+      }
+    },
+    disposeRender(): void { for (const compaction of compactions) compaction.dispose(); },
     setDeciduousFoliage(presentation): boolean {
       const dormancy = clampSeasonAmount(presentation.dormancy);
       let changed = false;
@@ -597,6 +613,7 @@ export function buildUndergrowthInstances(
 }
 
 export function disposeUndergrowthInstances(instances: UndergrowthInstances, materials: UndergrowthMaterials): void {
+  instances.disposeRender();
   for (const kind of UNDERGROWTH_KINDS) {
     for (const bucket of instances.buckets[kind]) {
       bucket.mesh.geometry.dispose();

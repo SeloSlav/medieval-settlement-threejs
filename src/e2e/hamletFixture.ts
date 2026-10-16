@@ -1560,6 +1560,7 @@ function createEmptyGrassField(): GrassBladeField {
       return false;
     },
     updateCameraState() {},
+    prepareRender() {},
     dispose() {},
   };
 }

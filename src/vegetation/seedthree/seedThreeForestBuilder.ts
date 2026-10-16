@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { isMultiplayer } from '../../multiplayer/gameMode.ts';
 import { InstanceDrawCompaction } from '../../scene/InstanceDrawCompaction.ts';
+import { GroupedInstanceDraws } from '../../scene/GroupedInstanceDraws.ts';
 import { StaticRenderBundle } from '../../scene/StaticRenderBundle.ts';
 import { setExactInstancePrototype } from '../../scene/ExactInstancePrototype.ts';
 import type { WebGPURenderer } from 'three/webgpu';
@@ -134,6 +134,7 @@ type PassPartitionedBucketSelection = SeedThreeBucketSelection & {
 };
 
 export type SeedThreeForestInstances = {
+  renderer: WebGPURenderer;
   group: THREE.Group;
   overviewBillboardGroup: THREE.Group;
   placements: ForestTreePlacement[];
@@ -165,7 +166,7 @@ export type SeedThreeForestInstances = {
   overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
   ownedOverviewFadeMaterials: THREE.Material[];
   updateTelemetry: SeedThreeForestUpdateTelemetry;
-  compactedDraws?: InstanceDrawCompaction[];
+  compactedDraws?: Array<InstanceDrawCompaction | GroupedInstanceDraws>;
 };
 
 export type SeedThreeForestUpdateTelemetry = {
@@ -611,7 +612,9 @@ export function getSeedThreeForestStartupTiming(): SeedThreeForestStartupTiming 
   };
 }
 
-const realmPrototypeCache = new WeakMap<WebGPURenderer, Map<SeedThreePresetKey, { prototype: THREE.LOD; assets: SeedThreeSpeciesAssets }>>();
+const forestPrototypeCache = new WeakMap<WebGPURenderer, Map<SeedThreePresetKey, {
+  prototype: THREE.LOD; assets: SeedThreeSpeciesAssets; branchCards: Awaited<ReturnType<typeof ensureSeedThreeBranchCards>>;
+}>>();
 
 export async function createSeedThreeForest(
   placements: ForestTreePlacement[],
@@ -646,8 +649,8 @@ export async function createSeedThreeForest(
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
   const prototypeByPreset = new Map<SeedThreePresetKey, THREE.LOD>();
   const speciesStartupTimings: SeedThreeForestSpeciesStartupTiming[] = [];
-  const prototypeCache = isMultiplayer() ? (realmPrototypeCache.get(renderer) ?? new Map()) : null;
-  if (prototypeCache) realmPrototypeCache.set(renderer, prototypeCache);
+  const prototypeCache = forestPrototypeCache.get(renderer) ?? new Map();
+  forestPrototypeCache.set(renderer, prototypeCache);
 
   // Texture fetch/decode is independent across species. Start every request
   // before the renderer-exclusive branch-card bakes so network and image
@@ -667,10 +670,6 @@ export async function createSeedThreeForest(
     if (!entry) continue;
     const assetWaitMs = performance.now() - assetWaitStartedAt;
     const { presetKey, species, assets } = entry;
-    const cached = prototypeCache?.get(presetKey);
-    if (cached) {
-      assetsByPreset.set(presetKey, cached.assets); prototypeByPreset.set(presetKey, cached.prototype); continue;
-    }
     assetsByPreset.set(presetKey, assets);
     const branchCardsStartedAt = performance.now();
     const branchCards = await ensureSeedThreeBranchCards(
@@ -680,6 +679,11 @@ export async function createSeedThreeForest(
       FOREST_LOD_OPTS.mobileTarget,
     );
     const branchCardsMs = performance.now() - branchCardsStartedAt;
+    const cached = prototypeCache.get(presetKey);
+    // Resource identity invalidates resets/rebakes in either game mode.
+    if (cached?.assets === assets && cached.branchCards === branchCards) {
+      prototypeByPreset.set(presetKey, cached.prototype); continue;
+    }
     if (!branchCards) {
       console.warn('[SeedThree] no branch cards for', presetKey, '— foliage may be missing');
     }
@@ -689,7 +693,7 @@ export async function createSeedThreeForest(
       branchCards: branchCards ?? undefined,
     });
     prototypeByPreset.set(presetKey, prototype as THREE.LOD);
-    prototypeCache?.set(presetKey, { prototype: prototype as THREE.LOD, assets });
+    prototypeCache.set(presetKey, { prototype: prototype as THREE.LOD, assets, branchCards });
     speciesStartupTimings.push({
       preset: presetKey,
       assetWaitMs,
@@ -868,6 +872,7 @@ export async function createSeedThreeForest(
   return {
     group,
     overviewBillboardGroup,
+    renderer,
     placements,
     buckets,
     slotByLayoutIndex,
@@ -1715,10 +1720,12 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
   forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
     bucket.nearSet.branches, bucket.nearShadowSet.branches,
-    ...(isMultiplayer() ? [...bucket.nearSet.cards, ...bucket.nearShadowSet.cards, ...bucket.overviewSet.cards] : []),
+    // Shadow cards already use the selector's exact compact caster prefix.
+    ...bucket.nearSet.cards, ...bucket.overviewSet.cards,
   ])
     .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24
       && !Array.isArray(mesh.material) && !mesh.material.transparent)
+    .filter(mesh => !mesh.userData.k || GroupedInstanceDraws.supports(mesh, forest.renderer))
     .map(mesh => {
       const wind = mesh.geometry.getAttribute('aWind');
       let maximumWeight = wind ? 0 : 1;
@@ -1730,14 +1737,17 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       if (thickness) for (let i = 0; i < thickness.count; i++) maximumThickness = Math.max(maximumThickness, Math.abs(thickness.getX(i)));
       mesh.geometry.computeBoundingBox();
       const flutterBound = thickness ? Math.sqrt(2.36) * .05 * maximumThickness * Math.max(0, mesh.geometry.boundingBox!.max.y) : 0;
-      return new InstanceDrawCompaction(mesh, () => {
+      const padding = () => {
         if (vectors && version !== (vectors as THREE.BufferAttribute).version) {
           version = (vectors as THREE.BufferAttribute).version; maximumVector = 0;
           for (let i = 0; i < vectors.count; i++) maximumVector = Math.max(maximumVector, Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)));
         }
         // Exact bound for the bark shader: its two sine weights sum to one.
         return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutterBound);
-      }, { skipCollapsed: true });
+      };
+      return mesh.userData.k && !mesh.userData.seedThreeShadowOnly
+        ? new GroupedInstanceDraws(mesh, forest.renderer, padding)
+        : new InstanceDrawCompaction(mesh, padding, { skipCollapsed: true, instanceGroupSize: Math.max(1, Number(mesh.userData.k) || 1) });
     });
   return {
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),

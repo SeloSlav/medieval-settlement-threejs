@@ -9,14 +9,17 @@ export class InstanceDrawCompaction {
   readonly draw: THREE.InstancedMesh;
   private readonly source: THREE.InstancedMesh;
   private readonly pairs: AttributePair[];
-  private readonly selected: Uint32Array;
   private readonly bounds: Float64Array;
+  private readonly groupSize: number;
+  private readonly groupBounds: Float64Array;
+  private readonly groupLiveCounts: Uint32Array;
   private readonly frustum = new THREE.Frustum();
   private readonly projection = new THREE.Matrix4();
   private readonly matrix = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
   private readonly previousProjection = new THREE.Matrix4();
-  private readonly copyRanges: number[] = [];
+  private copyRanges: number[] = [];
+  private previousRanges: number[] = [];
   private readonly layers: number;
   private readonly padding: number | (() => number);
   private readonly skipCollapsed: boolean;
@@ -29,7 +32,7 @@ export class InstanceDrawCompaction {
   private previousCamera: THREE.Camera | null | undefined;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean } = {}) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number } = {}) {
     const materials = Array.isArray(source.material) ? source.material : [source.material];
     if (source.geometry.getIndirect() || materials.some(material => material.transparent)) throw new Error('Instance compaction requires opaque materials');
     const attributes = Object.entries(source.geometry.attributes);
@@ -71,8 +74,10 @@ export class InstanceDrawCompaction {
       this.pairs.push({ source: source.instanceColor, output, version: -1 });
     }
     this.pairs.unshift({ source: source.instanceMatrix, output: this.draw.instanceMatrix, version: -1 });
-    this.selected = new Uint32Array(source.instanceMatrix.count);
     this.bounds = new Float64Array(source.instanceMatrix.count * 4);
+    this.groupSize = Math.max(1, Math.floor(options.instanceGroupSize ?? 1));
+    this.groupBounds = new Float64Array(this.groupSize > 1 ? Math.ceil(source.instanceMatrix.count / this.groupSize) * 4 : 0);
+    this.groupLiveCounts = new Uint32Array(this.groupBounds.length / 4);
     source.geometry.computeBoundingSphere();
     source.layers.mask = 0; source.userData.instanceCompactionSource = true;
     source.add(this.draw);
@@ -111,6 +116,28 @@ export class InstanceDrawCompaction {
         const p = this.sphere.center, offset = i * 4;
         this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
       }
+      if (this.groupSize > 1) {
+        // Forest cards are contiguous per tree. Reject a whole crown, or accept
+        // an entirely visible crown, before inspecting cards on its boundary.
+        for (let start = 0, group = 0; start < source.instanceMatrix.count; start += this.groupSize, group++) {
+          let minX = Infinity, minY = Infinity, minZ = Infinity;
+          let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity, live = 0;
+          for (let i = start; i < Math.min(start + this.groupSize, source.instanceMatrix.count); i++) {
+            const at = i * 4, r = this.bounds[at + 3]!;
+            if (this.skipCollapsed && r === 0) continue;
+            live++;
+            minX = Math.min(minX, this.bounds[at]! - r); maxX = Math.max(maxX, this.bounds[at]! + r);
+            minY = Math.min(minY, this.bounds[at + 1]! - r); maxY = Math.max(maxY, this.bounds[at + 1]! + r);
+            minZ = Math.min(minZ, this.bounds[at + 2]! - r); maxZ = Math.max(maxZ, this.bounds[at + 2]! + r);
+          }
+          const at = group * 4;
+          this.groupLiveCounts[group] = live;
+          this.groupBounds[at] = live ? (minX + maxX) / 2 : 0;
+          this.groupBounds[at + 1] = live ? (minY + maxY) / 2 : 0;
+          this.groupBounds[at + 2] = live ? (minZ + maxZ) / 2 : 0;
+          this.groupBounds[at + 3] = live ? Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2 : 0;
+        }
+      }
     }
     if (camera) {
       camera.updateWorldMatrix(true, false);
@@ -122,7 +149,11 @@ export class InstanceDrawCompaction {
       && this.previousCamera === camera
       && (!camera || (this.previousCoordinateSystem === camera.coordinateSystem
         && this.previousReversedDepth === camera.reversedDepth
-        && this.previousProjection.equals(this.projection)))) return;
+        && this.previousProjection.equals(this.projection)))) {
+      // Covered startup prewarm may temporarily override a draw's count.
+      this.draw.count = Math.max(0, this.selectedCount);
+      return;
+    }
     this.previousCamera = camera;
     this.previousProjection.copy(this.projection); this.previousCount = source.count; this.previousPadding = padding;
     if (camera) {
@@ -131,24 +162,48 @@ export class InstanceDrawCompaction {
     }
     let count = 0;
     const planes = camera ? this.frustum.planes : [];
+    [this.copyRanges, this.previousRanges] = [this.previousRanges, this.copyRanges];
     this.copyRanges.length = 0;
-    for (let i = 0; i < source.count; i++) {
-      const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
-      // Explicit owner opt-in: harvested/cleared forest slots collapse every
-      // source vertex and its wind vector, producing no rasterized triangles.
-      if (this.skipCollapsed && this.bounds[at + 3] === 0) continue;
-      let visible = true;
-      for (const plane of planes) {
-        const normal = plane.normal;
-        if (normal.x * x + normal.y * y + normal.z * z + plane.constant < -radius) { visible = false; break; }
-      }
-      if (!visible) continue;
+    const append = (start: number, length: number): void => {
       const previous = this.copyRanges.length - 3;
-      if (previous >= 0 && this.copyRanges[previous]! + this.copyRanges[previous + 2]! === i) this.copyRanges[previous + 2]!++;
-      else this.copyRanges.push(i, count, 1);
-      if (this.selected[count] !== i) { this.selected[count] = i; changed = true; }
-      count++;
+      if (previous >= 0 && this.copyRanges[previous]! + this.copyRanges[previous + 2]! === start) this.copyRanges[previous + 2]! += length;
+      else this.copyRanges.push(start, count, length);
+      count += length;
+    };
+    for (let start = 0; start < source.count; start += this.groupSize) {
+      const end = Math.min(start + this.groupSize, source.count);
+      if (this.groupSize > 1) {
+        const group = start / this.groupSize, at = group * 4;
+        if (!this.groupLiveCounts[group]) continue;
+        let outside = false, inside = true;
+        for (const plane of planes) {
+          const normal = plane.normal;
+          const distance = normal.x * this.groupBounds[at]! + normal.y * this.groupBounds[at + 1]!
+            + normal.z * this.groupBounds[at + 2]! + plane.constant;
+          const radius = this.groupBounds[at + 3]! + padding;
+          if (distance < -radius) { outside = true; break; }
+          if (distance < radius) inside = false;
+        }
+        if (outside) continue;
+        const allocated = Math.min(this.groupSize, source.instanceMatrix.count - start);
+        if (inside && this.groupLiveCounts[group] === allocated) { append(start, end - start); continue; }
+      }
+      for (let i = start; i < end; i++) {
+        const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
+        // Explicit owner opt-in: harvested/cleared forest slots collapse every
+        // source vertex and its wind vector, producing no rasterized triangles.
+        if (this.skipCollapsed && this.bounds[at + 3] === 0) continue;
+        let visible = true;
+        for (const plane of planes) {
+          const normal = plane.normal;
+          if (normal.x * x + normal.y * y + normal.z * z + plane.constant < -radius) { visible = false; break; }
+        }
+        if (!visible) continue;
+        append(i, 1);
+      }
     }
+    changed ||= this.copyRanges.length !== this.previousRanges.length
+      || this.copyRanges.some((value, i) => value !== this.previousRanges[i]);
     if (this.selectedCount !== count) { this.selectedCount = count; changed = true; }
     source.userData.compactedInstanceCount = count;
     this.draw.count = count;

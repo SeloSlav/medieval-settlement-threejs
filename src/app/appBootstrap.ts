@@ -128,6 +128,7 @@ const HOSTILE_COMPANY_FOCUS_ZOOM_PERCENT = 200;
 
 export type AppBootstrapBridge = {
   syncToolbar: () => void;
+  onStartDevelopmentProfile?: () => Promise<void>;
   /** Fixed offline worlds, such as the combat sandbox, bypass save probing. */
   worldSettingsOverride?: WorldGenerationSettings;
   deferGameplayMusic?: boolean;
@@ -529,6 +530,7 @@ export async function bootstrapAppSession(
     terrainProjector: sceneManager.terrainProjector,
     onToggle: toggleRoadTool,
     onNetworkChanged: (change) => {
+      sceneManager.renderDiagnostics.profiler.event('road-edit', { change, edges: roadNetwork.edges.size });
       sceneManager.syncRoadNetwork(roadNetwork);
       worldMapUi.minimap.syncRoads();
       syncPlacedBuildingTerrain({
@@ -1260,6 +1262,7 @@ export async function bootstrapAppSession(
     };
     debugMenu = new DebugMenu(uiRoot, {
       renderDiagnostics: sceneManager.renderDiagnostics,
+      onStartProfile: bridge.onStartDevelopmentProfile,
       domElement: sceneManager.renderer.domElement,
       getDate: () => {
         const clock = gameClock(spacetimeStore.snapshot.simTick);
@@ -1323,11 +1326,9 @@ export async function bootstrapAppSession(
       },
       canOpenFromKeyboard: () =>
         !toolbar.isGameMenuOpen()
-        && !roadTool.isEnabled()
-        && !buildingTool.isEnabled()
-        && !burgageTool.isEnabled()
-        && !farmFieldTool.isEnabled()
-        && !forestryWorkAreaTool.isEnabled()
+        && (sceneManager.renderDiagnostics.profiler.isRecording()
+          || (!roadTool.isEnabled() && !buildingTool.isEnabled() && !burgageTool.isEnabled()
+            && !farmFieldTool.isEnabled() && !forestryWorkAreaTool.isEnabled()))
         && !uiRoot.querySelector('.alert-dialog-backdrop:not([hidden])')
         && !tutorialOverlay.isGameplayBlocking(),
     });

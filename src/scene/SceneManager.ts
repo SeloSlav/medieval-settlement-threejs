@@ -486,7 +486,7 @@ export class SceneManager {
     );
     this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
     registerRenderDiagnosticRoot(this.sky, 'sky');
-    registerRenderDiagnosticRoot(this.riverSystem.reedsGroup, 'vegetation');
+    registerRenderDiagnosticRoot(this.riverSystem.reedsGroup, 'reeds');
     this.addLighting();
     this.postProcessor = createPostProcessor(
       backend,
@@ -820,10 +820,10 @@ export class SceneManager {
     this.berryPatchVisuals = await berryPatchPromise;
     if (this.environment) this.berryPatchVisuals.setEnvironment(this.environment);
     this.scene.add(this.berryPatchVisuals.group);
-    registerRenderDiagnosticRoot(this.berryPatchVisuals.group, 'vegetation');
+    registerRenderDiagnosticRoot(this.berryPatchVisuals.group, 'shrubs');
     this.mushroomPatchVisuals = await mushroomPatchPromise;
     this.scene.add(this.mushroomPatchVisuals.group);
-    registerRenderDiagnosticRoot(this.mushroomPatchVisuals.group, 'vegetation');
+    registerRenderDiagnosticRoot(this.mushroomPatchVisuals.group, 'groundPlants');
     this.deerWildlifeVisuals = await deerVisualsPromise;
     if (this.deerWildlifeVisuals) this.scene.add(this.deerWildlifeVisuals.group);
     if (this.deerWildlifeVisuals) registerRenderDiagnosticRoot(this.deerWildlifeVisuals.group, 'animals');
@@ -836,7 +836,6 @@ export class SceneManager {
       if (this.grassField) {
         if (this.environment) this.grassField.setEnvironment(this.environment);
         this.scene.add(this.grassField.group);
-        registerRenderDiagnosticRoot(this.grassField.group, 'vegetation');
       }
       // Keep reeds at the scene root; their explicit render order lets the
       // water film veil submerged stems while the grass-blocked shore band
@@ -1197,6 +1196,7 @@ export class SceneManager {
         firstPersonActive,
       );
     }
+    this.grassField?.prepareRender(this.camera);
     const forestShadowCastersChanged = this.forestManager?.updateCameraState(
       this.camera,
       cameraDistance,
@@ -1573,6 +1573,31 @@ export class SceneManager {
         reasonCounts: { ...this.directionalShadowReasonCounts },
       },
     };
+  }
+
+  instrumentDevelopmentProfile(): void {
+    const profiler = this.renderDiagnostics.profiler;
+    const work: Array<[object | null, string, string]> = [
+      [this, 'render', 'scene.prepare+render'],
+      [this.postProcessor, 'render', 'render.submit'],
+      [this.postProcessor, 'renderIllustratedMap', 'map.render'],
+      [this.forestManager, 'updateCameraState', 'forest.camera+uploads'],
+      [this.forestManager, 'syncRoadClearance', 'forest.road-clearance'],
+      [this.forestManager, 'syncPlacementClearance', 'forest.placement-clearance'],
+      [this.grassField, 'updateCameraState', 'grass.camera+streaming'],
+      [this.grassField, 'prepareRender', 'flowers.camera-culling'],
+      [this.sky, 'updateTime', 'sky.update'],
+      [this.riverSystem, 'updateCameraState', 'water.camera'],
+      [this.riverSystem, 'tick', 'water.simulation'],
+      [this.precipitation, 'update', 'weather.update'],
+      [this.deerWildlifeVisuals, 'update', 'wildlife.deer'],
+      [this.fishWildlifeVisuals, 'update', 'wildlife.fish'],
+      [this, 'syncRoadNetwork', 'roads.mesh-sync'],
+      [this, 'syncQuarryNodes', 'deposits.sync'],
+      [this.scene, 'updateMatrixWorld', 'scene.transforms'],
+      [this.renderDiagnostics, 'beginRender', 'diagnostics.substitutions'],
+    ];
+    for (const [owner, method, label] of work) profiler.instrument(owner, method, label);
   }
 
   getRendererAdapterEvidence(): RendererAdapterEvidence {

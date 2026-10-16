@@ -17,19 +17,39 @@
 .debug-menu-simulation { margin-top: 14px; font-size: 12px; }
 .debug-menu-simulation summary { cursor: pointer; color: #cfa74f; }
 .debug-render-buildings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
-.debug-render-buildings > div { display: flex; gap: 5px; }
+.debug-render-buildings > div { display: flex; flex-wrap: wrap; gap: 5px; }
 .debug-render-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-.debug-render-toggles button, .debug-render-buildings button, .debug-render-actions button {
+.debug-render-vegetation { margin: 0; padding: 10px; border: 1px solid #505548; border-radius: 5px; }
+.debug-render-vegetation legend { padding: 0 5px; color: #cfa74f; font-size: 12px; }
+.debug-render-vegetation p { padding-bottom: 8px; }
+.debug-render-vegetation [data-render-category='vegetation'] { grid-column: 1 / -1; }
+.debug-render-toggles button, .debug-render-buildings button, .debug-render-actions button,
+.debug-profile-controls button, .debug-profile-recording button {
   padding: 8px 10px; border: 1px solid #505548; border-radius: 5px;
   color: #e9e0c9; background: #252b21; cursor: pointer; font: inherit; font-size: 11px;
 }
 .debug-render-toggles button { display: grid; text-align: left; gap: 4px; }
 .debug-render-toggles small { color: #b1b6a7; font-size: 10px; }
 .debug-render-toggles [aria-pressed='true'] { border-color: #dba671; background: #432d20; }
+.debug-render-toggles button:disabled { opacity: .65; cursor: default; }
 .debug-render-buildings [aria-pressed='true'] { border-color: #d1a84f; background: #55451f; }
 .debug-render-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .debug-render-actions label { font-size: 11px; }
 .debug-render-actions button:disabled { opacity: .5; cursor: default; }
+.debug-profile-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.debug-profile-controls button:disabled { opacity: .5; cursor: default; }
+.debug-profile-controls [data-profile-record] { border-color: #b97764; background: #48261f; }
+.debug-profile-controls [data-profile-stop] { border-color: #b7964d; }
+.debug-profile-controls [hidden], .debug-profile-export[hidden], .debug-profile-recording[hidden] { display: none; }
+.debug-profile-export {
+  width: 100%; min-height: 130px; resize: vertical; color: #e9e0c9; background: #10140f;
+  border: 1px solid #70725b; padding: 8px; font: 11px/1.4 ui-monospace, monospace;
+}
+.debug-profile-recording {
+  position: fixed; top: 94px; right: 16px; z-index: 186; display: flex; gap: 10px; align-items: center;
+  padding: 7px 10px; color: #f4c1a8; background: #21150ff2; border: 1px solid #a65b43;
+  border-radius: 5px; font: 11px/1.5 ui-monospace, monospace; pointer-events: auto;
+}
 .debug-menu-performance [data-render-summary] { color: #e4cb8c; font: 12px/1.6 ui-monospace, monospace; }
 .debug-performance-meter {
   position: fixed; top: 92px; left: 12px; z-index: 184; padding: 7px 10px;

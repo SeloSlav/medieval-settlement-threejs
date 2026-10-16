@@ -34,7 +34,8 @@ export class StreamedInstanceBatches {
     root.updateMatrixWorld(true);
     root.traverse(object => {
       const mesh = object as THREE.InstancedMesh;
-      if (!mesh.isInstancedMesh || mesh.userData.instanceCompactionSource || mesh.frustumCulled || mesh.morphTexture) return;
+      // GPU-produced prefixes have no CPU mirror for this CPU batch compiler.
+      if (!mesh.isInstancedMesh || mesh.userData.instanceCompactionSource || mesh.userData.gpuInstanceGather || mesh.frustumCulled || mesh.morphTexture) return;
       const prototype = exactInstancePrototype(mesh.geometry);
       if (!prototype || !this.compatibleGeometry(mesh.geometry, prototype)) return;
       const attributes = Object.entries(mesh.geometry.attributes)

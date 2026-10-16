@@ -147,7 +147,7 @@ const QUERY_RESOLVE_OFFSET_ALIGNMENT = 256;
 const TIMESTAMP_PAIR_BYTE_LENGTH = 16;
 
 export function createVisualGpuTimestampProfiler(
-  backend: RendererBackend,
+  backend: Pick<RendererBackend, 'kind' | 'renderer'>,
   options: VisualGpuTimestampProfilerOptions = {},
 ): VisualGpuTimestampProfiler {
   if (options.submitTimestampMarkers === false) {

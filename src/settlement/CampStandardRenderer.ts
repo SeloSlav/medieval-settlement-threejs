@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import {
   CompanyStandardRenderer,
   type CompanyStandardRenderAgent,
@@ -43,6 +44,7 @@ export class CampStandardRenderer {
     this.getGroundHeight = getGroundHeight;
     this.parent = new THREE.Group();
     this.parent.name = 'Planted camp standards';
+    registerRenderDiagnosticRoot(this.parent, 'buildings');
     this.parent.userData.fpNoCollision = true;
     parent.add(this.parent);
   }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   addCampAFrameShelter,
@@ -35,6 +36,9 @@ export class BanditCampRenderer {
   constructor(terrain: Terrain, parent: THREE.Group) {
     this.terrain = terrain;
     this.root.name = 'Physical bandit camps';
+    registerRenderDiagnosticRoot(this.root, 'buildings', visit => {
+      for (const { root } of this.visuals.values()) visit(root, 15.2, 3.4, 13);
+    });
     parent.add(this.root);
     this.standards = new CampStandardRenderer(parent, (x, z) => this.terrain.getHeightAt(x, z));
   }

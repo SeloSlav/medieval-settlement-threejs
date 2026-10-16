@@ -120,7 +120,7 @@ export function createSeedThreeVineyardVines(
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'SeedThree cultivated grapevines';
-  registerRenderDiagnosticRoot(group, 'vegetation');
+  registerRenderDiagnosticRoot(group, 'crops');
 
   const capacity = Math.max(placements.length, 1);
   const leafGeometry = createVineyardCardClumpGeometry({

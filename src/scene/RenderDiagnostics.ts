@@ -1,10 +1,15 @@
 import * as THREE from 'three';
+import { DevelopmentProfiler } from '../performance/DevelopmentProfiler.ts';
 
 export const RENDER_DIAGNOSTIC_CATEGORIES = [
-  'buildings', 'people', 'carts', 'oxen', 'animals', 'trees', 'vegetation', 'sky',
+  'buildings', 'people', 'carts', 'oxen', 'animals', 'trees', 'grass',
+  'vegetation', 'crops', 'reeds', 'shrubs', 'groundPlants', 'groundScatter', 'sky',
 ] as const;
 export type RenderDiagnosticCategory = typeof RENDER_DIAGNOSTIC_CATEGORIES[number];
 export type BuildingDiagnosticMode = 'full' | 'placeholder' | 'hidden';
+export const VEGETATION_DIAGNOSTIC_CATEGORIES: readonly RenderDiagnosticCategory[] = [
+  'crops', 'reeds', 'shrubs', 'groundPlants',
+];
 type ProxyVisitor = (object: THREE.Object3D, width: number, height: number, depth: number) => void;
 type Registration = {
   category: RenderDiagnosticCategory;
@@ -34,6 +39,7 @@ export type RenderDiagnosticSample = {
 
 /** Temporary render substitutions. Simulation and animation retain their normal cadence. */
 export class RenderDiagnostics {
+  readonly profiler = new DevelopmentProfiler();
   private readonly scene: THREE.Scene;
   private readonly invalidateShadows: () => void;
   buildingMode: BuildingDiagnosticMode = 'full';
@@ -67,6 +73,12 @@ export class RenderDiagnostics {
 
   isHidden(category: RenderDiagnosticCategory): boolean { return this.hidden.has(category); }
 
+  isEffectivelyHidden(category: RenderDiagnosticCategory): boolean {
+    return this.hidden.has(category)
+      || (category === 'buildings' && this.buildingMode === 'hidden')
+      || (this.hidden.has('vegetation') && VEGETATION_DIAGNOSTIC_CATEGORIES.includes(category));
+  }
+
   setHidden(category: RenderDiagnosticCategory, hidden: boolean): void {
     if (this.hidden.has(category) === hidden) return;
     if (hidden) this.hidden.add(category);
@@ -88,7 +100,14 @@ export class RenderDiagnostics {
 
   isActive(): boolean { return this.hidden.size > 0 || this.buildingMode !== 'full'; }
 
+  getState(): { buildings: BuildingDiagnosticMode; hidden: RenderDiagnosticCategory[]; effectiveHidden: RenderDiagnosticCategory[] } {
+    const hidden = [...this.hidden].sort();
+    const effectiveHidden = RENDER_DIAGNOSTIC_CATEGORIES.filter(category => this.isEffectivelyHidden(category)).sort();
+    return { buildings: this.buildingMode, hidden, effectiveHidden };
+  }
+
   private changed(): void {
+    this.profiler.togglesChanged(this.getState());
     this.sampleCount = this.cursor = 0;
     this.collectedRevision = -1;
     this.roots.length = 0;
@@ -143,9 +162,8 @@ export class RenderDiagnostics {
     for (let i = proxyCount; i < this.proxies.length; i++) this.proxies[i].visible = false;
     this.proxyRoot.visible = proxyCount > 0;
     for (const { root, registration: { category } } of this.roots) {
-      const hidden = this.hidden.has(category)
-        || (category === 'buildings' && this.buildingMode !== 'full')
-        || (category === 'trees' && this.hidden.has('vegetation'));
+      const hidden = this.isEffectivelyHidden(category)
+        || (category === 'buildings' && this.buildingMode === 'placeholder');
       if (hidden && root.parent && root.visible) {
         root.visible = false;
         this.suppressed.push(root);
@@ -181,6 +199,7 @@ export class RenderDiagnostics {
   captureBaseline(): void { this.baseline = this.getSample(); }
 
   dispose(): void {
+    this.profiler.dispose();
     this.endRender();
     this.proxyRoot.removeFromParent();
     this.geometry?.dispose();

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { InstanceDrawCompaction } from '../scene/InstanceDrawCompaction.ts';
 import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
 import { setForestCardSnowCoverage } from '@seedthree/core/branch-cards.js';
 import {
@@ -357,6 +358,7 @@ export type ForestFloorIvyInstances = {
     cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>,
     closeDetailVisible: boolean,
   ) => boolean;
+  prepareRender: (camera: THREE.Camera) => void;
   commit: () => void;
   dispose: () => void;
 };
@@ -676,6 +678,9 @@ export async function createForestFloorIvyInstances(
   group.name = 'Live-tree terrain-conforming forest-floor ivy';
   group.visible = false;
   group.add(mesh);
+  const compaction = supportsNodeMaterials(rendererBackend ?? 'webgl')
+    ? new InstanceDrawCompaction(mesh, FOREST_FLOOR_IVY_ANIMATION_MAX_TIP_DISPLACEMENT,
+      { instanceGroupSize: FOREST_FLOOR_IVY_LEAVES_PER_PATCH }) : null;
 
   const placementVisible = placements.map(() => true);
   const residentCandidates: Array<{
@@ -819,11 +824,17 @@ export async function createForestFloorIvyInstances(
       rebuildResidentInstances(cameraPosition.x, cameraPosition.z);
       return true;
     },
+    prepareRender(camera): void {
+      if (!group.visible) return;
+      compaction?.syncRenderState();
+      compaction?.prepare(camera);
+    },
     commit(): void {
       if (!streamDirty || !group.visible || !Number.isFinite(lastStreamX)) return;
       rebuildResidentInstances(lastStreamX, lastStreamZ);
     },
     dispose(): void {
+      compaction?.dispose();
       mesh.dispose();
       resident.geometry.dispose();
       compiled.geometry.dispose();

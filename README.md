@@ -473,8 +473,13 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 | Start a new world | Game menu → **New world…** (resets the server database when connected; always clears local settings and player identity) |
 
 Press `M` to open the development menu. It can replace buildings and homes with one simple box each,
-or hide buildings, people, carts/cargo, oxen, other animals, trees, vegetation,
-and sky independently. All vegetation also hides trees. Simulation and CPU
+or **Hide all buildings**, including homes and construction sites. Separate
+switches control people, carts/cargo, oxen, other animals, trees, grass, ground
+scatter and sky. Vegetation has individual crop, reed, shrub/fern and flower/ground
+plant switches plus a master switch; the master preserves the individual
+preferences and leaves grass, trees and ground scatter independent. Ground
+scatter includes twigs, loose rocks, felled logs and stumps. Every switch and its
+effective visibility are included in recorded profiles. Simulation and CPU
 animation continue, so these controls isolate rendering cost. Save a baseline,
 change one switch, close the menu, and compare the persistent frame meter with
 the camera fixed. **Restore all models** resets every rendering switch.
@@ -484,6 +489,24 @@ checks. `node scripts/profileCityRuntime.mjs solo-building-isolation --large
 --normal --isolation` runs a repeated full-model/box comparison in the solo
 visual fixture (100 workplaces, 100 homes, 500 civilians, 100 dogs, 30 oxen).
 This fixture measures presentation, not a complete settlement economy.
+
+In the `M` development menu, **Record profile** starts a gameplay recording and
+closes the menu. Move, pan, zoom, place buildings, and change rendering switches
+as usual. A floating **Stop & copy** button remains available even during build
+placement; the same button is in the menu. Stopping copies a `SELO_PROFILE_V1`
+report to the clipboard for pasting into chat. **Copy last profile** retries the
+copy; if clipboard access is denied, the complete report is selected in a text
+box for manual copying. Recordings stay in memory until the page is refreshed.
+
+The report includes initial and changed rendering states, camera motion and
+position, active tools, placement request/result times, world counts, CPU system
+timings, draw/triangle/shadow workload, browser long tasks, sampled GPU queue
+spans where supported, a route/timing timeline, and the twenty worst frame
+intervals with their preceding frame's context. Menu/background frames are
+separated from gameplay. It captures spikes immediately after toggling, and
+marks unavailable GPU timings and any bounded-history truncation explicitly.
+CPU spans are inclusive; request response time and GPU queue spans are distinct
+measurements. Run `npm run test:development-profiler` for attribution checks.
 
 ## Production build
 

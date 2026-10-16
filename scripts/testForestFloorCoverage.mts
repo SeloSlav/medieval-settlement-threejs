@@ -1027,7 +1027,7 @@ assert.match(
 );
 assert.match(
   managerSource,
-  /isForestFloorPointWithinClearance[\s\S]*?isUndergrowthNearAnyEdge[\s\S]*?someBuildingNear[\s\S]*?someBurgageParcelNear[\s\S]*?someFarmFieldNear/,
+  /private isForestFloorPointWithinClearance[\s\S]*?this\.forestFloorRoadClearance\.isNear[\s\S]*?someBuildingNear[\s\S]*?someBurgageParcelNear[\s\S]*?someFarmFieldNear/,
   'forest-floor blockers must combine road, building, burgage, and farm footprints',
 );
 assert.match(managerSource, /this\.canopyOcclusion\?\.commit\(\);/);

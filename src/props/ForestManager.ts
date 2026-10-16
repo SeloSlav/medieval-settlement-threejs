@@ -246,11 +246,15 @@ export class ForestManager {
     this.timberLogs = new TimberLogVisuals((x, z) => terrain.getHeightAt(x, z));
     this.group.add(this.timberLogs.group);
     for (const treeRoot of [this.trunkMesh, this.coniferFoliageMesh, this.broadleafFoliageMesh,
-      this.coniferShadowMesh, this.broadleafShadowMesh, this.harvestStumps.group, this.timberLogs.group]) {
+      this.coniferShadowMesh, this.broadleafShadowMesh]) {
       registerRenderDiagnosticRoot(treeRoot, 'trees');
     }
-    for (const vegetationRoot of this.getCloseGroundGpuPrewarmRoots()) {
-      registerRenderDiagnosticRoot(vegetationRoot, 'vegetation');
+    for (const scatterRoot of [rockField.group, this.harvestStumps.group, this.timberLogs.group, forestFloorTwigs?.group]) {
+      if (scatterRoot) registerRenderDiagnosticRoot(scatterRoot, 'groundScatter');
+    }
+    if (undergrowth) registerRenderDiagnosticRoot(undergrowth.group, 'shrubs');
+    for (const plantRoot of [forestFloorIvy?.group, forestFloorNettles?.group]) {
+      if (plantRoot) registerRenderDiagnosticRoot(plantRoot, 'groundPlants');
     }
     for (let index = 0; index < this.placements.length; index++) {
       const stumpMaterials = this.harvestStumps.slots[index].mesh.material;
@@ -604,6 +608,10 @@ export class ForestManager {
       camera.position,
       visible,
     );
+    this.forestFloorIvy?.prepareRender(camera);
+    this.forestFloorNettles?.prepareRender(camera);
+    if (this.undergrowth) this.undergrowth.group.visible = visible;
+    this.undergrowth?.prepareRender(camera);
     if (visible === this.undergrowthVisible) {
       return shadowCastersChanged || harvestStumpVisibilityChanged;
     }

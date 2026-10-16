@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { DevelopmentProfiler } from '../performance/DevelopmentProfiler.ts';
 import {
   advanceCombatMotion, receiveCombatMotion, combatLocomotion, combatAnimationMovementSpeed,
   type CombatMotion, type CombatLocomotion,
@@ -1673,6 +1674,13 @@ export class VillagerRenderer {
       || this.oxen.hasVisibleShadowCasters()
       || this.combatAnimals.hasVisibleShadowCasters()
       || this.cavalryHorsesRenderer.hasVisibleShadowCasters();
+  }
+
+  instrumentDevelopmentProfile(profiler: DevelopmentProfiler): void {
+    profiler.instrument(this.renderer, 'syncAgents', 'people.animation+uploads');
+    profiler.instrument(this.oxen, 'tick', 'oxen.update');
+    profiler.instrument(this.combatAnimals, 'sync', 'dogs+hostiles.update');
+    profiler.instrument(this.cavalryHorsesRenderer, 'sync', 'horses.update');
   }
 
   /**

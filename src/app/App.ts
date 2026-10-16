@@ -323,6 +323,7 @@ export class App {
     try {
       session = await bootstrapAppSession(this.root, {
         syncToolbar: () => this.syncToolbar(),
+        onStartDevelopmentProfile: () => this.startDevelopmentProfile(),
         ...(this.combatPlaytestRequest
           ? { worldSettingsOverride: combatPlaytestWorldSettings(this.combatPlaytestRequest.seed) }
           : {}),
@@ -1008,6 +1009,78 @@ export class App {
     this.visualFrameProfiler = profiler;
   }
 
+  private async startDevelopmentProfile(): Promise<void> {
+    const manager = this.sceneManager;
+    if (!manager || this.disposed) throw new Error('The world is not ready to record.');
+    const profiler = manager.renderDiagnostics.profiler;
+    if (profiler.isRecording()) return;
+    const { createVisualGpuTimestampProfiler } = await import('../e2e/webGpuTimestampProfiler.ts');
+    const gpu = createVisualGpuTimestampProfiler({ kind: manager.rendererBackend, renderer: manager.renderer }, { slotCount: 8 });
+    if (this.disposed) { gpu.dispose(); return; }
+    const canvas = manager.renderer.domElement;
+    profiler.start({
+      metadata: {
+        mode: gameMode(), buildMode: import.meta.env.MODE, seed: this.gameState?.seed,
+        connected: this.spacetimeStore?.isConnected ?? false, simulationTick: this.spacetimeStore?.snapshot.simTick,
+        visualPreset: this.visualQaConditions?.preset ?? null, trailerClockActive: trailerClock.active,
+        mapSize: manager.terrain.generationSize, renderer: manager.rendererBackend,
+        adapter: manager.getRendererAdapterEvidence(), viewport: [canvas.clientWidth, canvas.clientHeight],
+        drawingBuffer: [canvas.width, canvas.height], devicePixelRatio: window.devicePixelRatio,
+        pixelRatio: manager.renderer.getPixelRatio(), userAgent: navigator.userAgent,
+        hardwareConcurrency: navigator.hardwareConcurrency, otherFrameProfilerActive: Boolean(this.visualFrameProfiler),
+        browserObservers: typeof PerformanceObserver === 'undefined' ? [] : PerformanceObserver.supportedEntryTypes,
+      },
+      toggles: manager.renderDiagnostics.getState(), gpu,
+      getContext: () => {
+        const state = this.gameState;
+        const firstPerson = this.firstPersonController?.isActive() ?? false;
+        return {
+          camera: {
+            position: manager.camera.position.toArray(), rotation: manager.camera.quaternion.toArray(),
+            target: manager.cameraTarget.toArray(), distance: this.cameraController?.getOrbitDistance() ?? 0,
+            mode: firstPerson ? 'walk' : this.cameraController?.isIllustratedMapActive() ? 'map' : 'orbit',
+            navigating: firstPerson ? this.firstPersonController?.isCameraNavigationActive() ?? false : this.cameraController?.isNavigationActive() ?? false,
+          },
+          tool: this.buildingTool?.isEnabled() ? `building:${this.buildingTool.getMode()}`
+            : this.roadTool?.isEnabled() ? `road:${this.roadTool.getMode()}`
+            : this.burgageTool?.isEnabled() ? 'residences'
+            : this.farmFieldTool?.isEnabled() ? 'farm-field'
+            : this.forestryWorkAreaTool?.isEnabled() ? 'forestry-area' : 'none',
+          menuOpen: this.debugMenu?.isOpen() ?? false,
+          visible: document.visibilityState === 'visible', gameSpeed: this.spacetimeStore?.snapshot.gameSpeed ?? 1,
+          world: { buildings: state?.buildings.size ?? 0, homes: state?.residences.size ?? 0,
+            carts: state?.deliveryTrips.size ?? 0, oxen: state?.stableOxen.size ?? 0,
+            herds: state?.livestockHerds.size ?? 0, fields: state?.farmFields.size ?? 0,
+            gardens: state?.backyardGardens.size ?? 0, roads: this.roadNetwork?.edges.size ?? 0 },
+        };
+      },
+    });
+    manager.instrumentDevelopmentProfile();
+    const work: Array<[object | null, string, string]> = [
+      [this, 'applySpacetimeSnapshot', 'snapshot.apply'],
+      [this.spacetimeStore, 'toGameState', 'snapshot.decode'],
+      [this.cameraController, 'update', 'camera.orbit'],
+      [this.firstPersonController, 'update', 'camera.walk+collision'],
+      [this.roadTool, 'update', 'preview.roads'], [this.buildingTool, 'update', 'preview.building'],
+      [this.burgageTool, 'update', 'preview.residences'], [this.farmFieldTool, 'update', 'preview.field'],
+      [this.forestryWorkAreaTool, 'update', 'preview.forestry'],
+      [this.buildingMarkers, 'tick', 'buildings.animate'], [this.buildingMarkers, 'syncBuildings', 'buildings.sync'],
+      [this.residenceMarkers, 'tick', 'homes.animate'], [this.residenceMarkers, 'syncResidences', 'homes.sync'],
+      [this.villagers, 'tick', 'people+oxen.update'], [this.villagers, 'sync', 'people.sync'],
+      [this.deliveryAgents, 'update', 'carts+crews.update'], [this.deliveryAgents, 'syncTrips', 'carts.sync'],
+      [this.livestockVisuals, 'tick', 'livestock.update'], [this.backyardGardenMarkers, 'tick', 'gardens+animals.update'],
+      [this.farmFieldMarkers, 'syncFields', 'fields.sync'], [this.banditCamps, 'tick', 'bandits.update'],
+      [this.worldMapUi, 'update', 'map-ui.update'], [this.ambientAudio, 'tick', 'audio.update'],
+      [this, 'syncResourceUi', 'ui.resource-sync'], [this, 'syncToolbar', 'ui.toolbar-sync'],
+    ];
+    for (const [owner, key, label] of work) profiler.instrument(owner, key, label);
+    this.villagers?.instrumentDevelopmentProfile(profiler);
+    for (const action of ['placeBuilding', 'demolishBuilding', 'placeBurgageZone', 'demolishBurgageZone',
+      'demolishResidence', 'upgradeResidence', 'placeFarmField', 'demolishFarmField', 'placePasture',
+      'placeVineyard', 'placeGraveyard', 'placeBackyardGarden', 'demolishBackyardGarden', 'setGameSpeed',
+      'grantCheatResources', 'setDebugDate', 'runDebugMapAction']) profiler.instrumentAction(this.spacetimeStore, action);
+  }
+
   private readonly tick = (time: number): void => {
     if (this.disposed) return;
     if (trailerClock.active) {
@@ -1018,6 +1091,8 @@ export class App {
     }
     const frameProfiler = this.visualFrameProfiler;
     frameProfiler?.beginFrame(time, performance.now());
+    const developmentProfiler = this.sceneManager?.renderDiagnostics.profiler;
+    if (developmentProfiler?.isRecording()) developmentProfiler.beginFrame(time, performance.now());
     const rawDt = (time - this.lastTime) / 1000;
     if (rawDt > 0.25) this.resetFpsSample(time);
     const dt = Math.min(0.05, Math.max(0.001, rawDt));
@@ -1118,6 +1193,9 @@ export class App {
           ? 'strategic'
           : 'settlement';
       frameProfiler.completeFrame(performance.now(), phase);
+    }
+    if (developmentProfiler?.isRecording() && this.sceneManager) {
+      developmentProfiler.completeFrame(performance.now(), this.sceneManager.getPerformanceStats());
     }
   };
 

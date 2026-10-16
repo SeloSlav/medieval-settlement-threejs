@@ -954,7 +954,7 @@ function createLegacyCropStand(
 ): THREE.Group {
   const crops = new THREE.Group();
   crops.name = 'Stage-aware crop stand';
-  registerRenderDiagnosticRoot(crops, 'vegetation');
+  registerRenderDiagnosticRoot(crops, 'crops');
   if (
     field.stage === 'ploughing'
     || field.stage === 'sowing'
@@ -1168,7 +1168,7 @@ function createSeedThreeCropStand(
 ): THREE.Group {
   const crops = new THREE.Group();
   crops.name = 'SeedThree stage-aware crop stand';
-  registerRenderDiagnosticRoot(crops, 'vegetation');
+  registerRenderDiagnosticRoot(crops, 'crops');
   crops.userData.seedThreeOwned = true;
   crops.userData.gameCrop = field.crop === 'wheat' ? 'maslin' : field.crop;
   if (
@@ -1411,7 +1411,7 @@ export class FarmFieldMarkers {
       }
       if (this.perimeterShrubs && list.length > 0) {
         this.perimeterGroup = createFieldPerimeterShrubGroup(list, this.getHeightAt, this.perimeterShrubs);
-        registerRenderDiagnosticRoot(this.perimeterGroup, 'vegetation');
+        registerRenderDiagnosticRoot(this.perimeterGroup, 'shrubs');
         this.root.add(this.perimeterGroup);
       }
     }

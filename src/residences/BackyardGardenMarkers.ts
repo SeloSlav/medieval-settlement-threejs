@@ -291,6 +291,11 @@ export class BackyardGardenMarkers {
               flowerLuxuryUpgraded: garden?.flowerLuxuryUpgraded ?? false,
               plantingPreview,
             });
+        if (constructionVisual) {
+          const constructionRoot = marker;
+          registerRenderDiagnosticRoot(constructionRoot, 'buildings', visit =>
+            visit(constructionRoot, placement.width, 2, placement.depth));
+        }
         marker.userData.visualKey = visualKey;
         this.root.add(marker);
         this.meshes.set(residence.id, marker);

@@ -11,13 +11,18 @@ let browser;
 try {
   browser = await chromium.launch({ channel: 'msedge', headless: true, args: ['--enable-unsafe-webgpu'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+  // Exercise the browser Clipboard API path without replacing the user's clipboard.
+  await page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', {
+    configurable: true, value: { writeText: async text => { window.__copiedProfile = text; } },
+  }));
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/render-diagnostics-probe', route => route.fulfill({ contentType: 'text/html', body: '<html><body><main id="app"></main></body></html>' }));
   await page.goto(new URL('/render-diagnostics-probe', server.resolvedUrls.local[0]).href);
   const result = await page.evaluate(async () => {
     const THREE = await import('/node_modules/three/build/three.module.js');
-    const { RenderDiagnostics, registerRenderDiagnosticRoot } = await import('/src/scene/RenderDiagnostics.ts');
+    const { RenderDiagnostics, registerRenderDiagnosticRoot, RENDER_DIAGNOSTIC_CATEGORIES,
+      VEGETATION_DIAGNOSTIC_CATEGORIES } = await import('/src/scene/RenderDiagnostics.ts');
     const { DebugMenu } = await import('/src/ui/DebugMenu.ts');
     const { FirstPersonController } = await import('/src/camera/FirstPersonController.ts');
     await import('/src/ui/debugMenu.css');
@@ -44,11 +49,11 @@ try {
     const shadow = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), source.children[0].material);
     shadow.layers.set(1); compound.add(shadow);
     registerRenderDiagnosticRoot(compound, 'buildings', visit => visit(source, 4, 4, 4));
-    const categories = ['people', 'carts', 'oxen', 'animals', 'trees', 'vegetation', 'sky'];
+    const categories = RENDER_DIAGNOSTIC_CATEGORIES.filter(category => category !== 'buildings');
     const roots = new Map();
     for (const [i, category] of categories.entries()) {
       const root = new THREE.Mesh(new THREE.BoxGeometry(.5, 1, .5), source.children[0].material);
-      root.position.set(i - 3, .5, 5); scene.add(root);
+      root.position.set((i % 7) - 3, .5, 5 - Math.floor(i / 7)); scene.add(root);
       registerRenderDiagnosticRoot(root, category); roots.set(category, root);
     }
     const render = () => {
@@ -76,16 +81,41 @@ try {
       diagnostics.setHidden(category, false);
     }
     diagnostics.setHidden('vegetation', true); diagnostics.beginRender();
-    invariants.push(!roots.get('trees').visible && !roots.get('vegetation').visible);
+    invariants.push(!roots.get('vegetation').visible);
+    for (const category of VEGETATION_DIAGNOSTIC_CATEGORIES) invariants.push(!roots.get(category).visible);
+    for (const category of ['trees', 'grass', 'groundScatter']) invariants.push(roots.get(category).visible);
+    invariants.push(JSON.stringify(diagnostics.getState().effectiveHidden) === JSON.stringify(
+      ['buildings', 'vegetation', ...VEGETATION_DIAGNOSTIC_CATEGORIES].sort()));
     diagnostics.endRender();
-    const late = new THREE.Group(); scene.add(late); registerRenderDiagnosticRoot(late, 'vegetation');
+    // Streamed plants added after a switch still inherit the master setting.
+    const late = new THREE.Group(); scene.add(late); registerRenderDiagnosticRoot(late, 'reeds');
     diagnostics.beginRender(); invariants.push(!late.visible); diagnostics.endRender();
+    diagnostics.setHidden('crops', true);
+    diagnostics.setHidden('vegetation', false); diagnostics.beginRender();
+    invariants.push(!roots.get('crops').visible && roots.get('reeds').visible && roots.get('grass').visible);
+    diagnostics.endRender();
     roots.get('animals').visible = false;
     diagnostics.setHidden('animals', true); diagnostics.beginRender(); diagnostics.endRender();
     invariants.push(!roots.get('animals').visible);
     diagnostics.reset(); roots.get('animals').visible = true;
     const restored = render();
     let menu;
+    let moving = false;
+    let distance = 20;
+    const work = { update() {} };
+    const originalWork = work.update;
+    const actions = { placeBuilding: async kind => kind };
+    const profileFrame = time => {
+      const profiler = diagnostics.profiler;
+      if (!profiler.isRecording()) return;
+      profiler.beginFrame(time, performance.now());
+      work.update();
+      if (moving) { camera.position.x += .1; distance -= .02; }
+      const stats = render();
+      profiler.completeFrame(performance.now(), stats);
+      menu.updatePerformance(time);
+      requestAnimationFrame(profileFrame);
+    };
     // Register the walk listener first, matching the real app's event order.
     const firstPerson = new FirstPersonController({
       camera, domElement: renderer.domElement,
@@ -95,6 +125,16 @@ try {
     });
     menu = new DebugMenu(document.getElementById('app'), {
       domElement: renderer.domElement, renderDiagnostics: diagnostics,
+      onStartProfile: async () => {
+        diagnostics.profiler.start({ metadata: { source: 'browser-validation' }, toggles: diagnostics.getState(),
+          getContext: () => ({ camera: { position: camera.position.toArray(), rotation: camera.quaternion.toArray(),
+            target: [camera.position.x, 0, 0], distance, mode: 'orbit', navigating: moving },
+            tool: moving ? 'building:well' : 'none', menuOpen: menu.isOpen(), visible: true, gameSpeed: 1, world: { buildings: 1 } }),
+        });
+        diagnostics.profiler.instrument(work, 'update', 'fixture.update');
+        diagnostics.profiler.instrumentAction(actions, 'placeBuilding');
+        requestAnimationFrame(profileFrame);
+      },
       getDate: () => ({ year: 1, month: 3, monthDay: 1 }), pickMapPoint: () => null,
       onGrantResources: async () => {}, onSetDate: async () => {}, onRunMapAction: async () => {},
     });
@@ -106,7 +146,7 @@ try {
     key('F8', 'F8'); invariants.push(!firstPerson.isPlacementActive() && !menu.isOpen());
     key('m', 'KeyM'); invariants.push(menu.isOpen());
     key('~', 'Backquote'); invariants.push(!firstPerson.isPlacementActive());
-    window.__diagnosticProbe = { diagnostics, menu, render };
+    window.__diagnosticProbe = { diagnostics, menu, render, move: () => { moving = true; }, actions, work, originalWork };
     // Wait past switch settling without starting a competing animation loop.
     await new Promise(resolve => setTimeout(resolve, 1600));
     for (let i = 0; i < 180; i++) diagnostics.recordFrame(i === 179 ? 35 : 16, normal);
@@ -127,6 +167,22 @@ try {
   }
   await page.locator('[data-render-reset]').click();
   assert.equal(await page.locator('[data-render-buildings="full"]').getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', { name: 'Hide all buildings', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.__diagnosticProbe.diagnostics.getState().buildings), 'hidden');
+  await page.locator('[data-render-category="crops"]').click();
+  await page.locator('[data-render-category="vegetation"]').click();
+  for (const category of ['crops', 'reeds', 'shrubs', 'groundPlants']) {
+    assert.equal(await page.locator(`[data-render-category="${category}"]`).getAttribute('aria-pressed'), 'true');
+    assert.ok(await page.locator(`[data-render-category="${category}"]`).isDisabled());
+  }
+  for (const category of ['trees', 'grass', 'groundScatter']) {
+    assert.equal(await page.locator(`[data-render-category="${category}"]`).getAttribute('aria-pressed'), 'false');
+  }
+  await page.locator('[data-render-category="vegetation"]').click();
+  assert.equal(await page.locator('[data-render-category="crops"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-render-category="reeds"]').getAttribute('aria-pressed'), 'false');
+  await page.locator('[data-render-reset]').click();
+  await page.locator('[data-profile-record]').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${output}/development-menu.png` });
   await page.keyboard.press('m');
   assert.ok(await page.locator('.debug-menu-backdrop').isHidden());
@@ -134,8 +190,47 @@ try {
   assert.ok(await page.locator('.debug-performance-meter').isVisible());
   await page.keyboard.press('Backquote');
   assert.ok(await page.locator('.debug-menu-backdrop').isHidden());
+  await page.keyboard.press('Backquote'); // Cancel walk placement before recording.
+  await page.keyboard.press('m');
+  await page.locator('[data-profile-record]').click();
+  await page.locator('.debug-profile-recording').waitFor({ state: 'visible' });
+  assert.ok(await page.locator('.debug-menu-backdrop').isHidden());
+  await page.waitForFunction(() => window.__diagnosticProbe.diagnostics.profiler.getFrameCount() >= 12);
+  await page.keyboard.press('m');
+  await page.locator('[data-render-category="trees"]').click();
+  for (const category of ['grass', 'crops', 'reeds', 'shrubs', 'groundPlants', 'groundScatter', 'vegetation']) {
+    await page.locator(`[data-render-category="${category}"]`).click();
+  }
+  await page.locator('[data-render-buildings="placeholder"]').click();
+  await page.locator('[data-render-buildings="hidden"]').click();
+  await page.keyboard.press('m');
+  await page.evaluate(() => { window.__diagnosticProbe.move(); return window.__diagnosticProbe.actions.placeBuilding('well'); });
+  await page.waitForFunction(() => window.__diagnosticProbe.diagnostics.profiler.getFrameCount() >= 28);
+  await page.locator('[data-profile-stop-floating]').click();
+  await page.waitForFunction(() => Boolean(window.__copiedProfile));
+  const exported = await page.evaluate(() => window.__copiedProfile);
+  assert.ok(exported.startsWith('SELO_PROFILE_V1\n'));
+  const profile = JSON.parse(exported.slice(exported.indexOf('\n') + 1));
+  assert.ok(profile.summary.frames >= 28);
+  assert.ok(profile.states.some(state => state.toggles.hidden.includes('trees')));
+  assert.ok(profile.states.some(state => state.toggles.buildings === 'placeholder'));
+  assert.ok(profile.states.some(state => state.toggles.buildings === 'hidden' && state.toggles.effectiveHidden.includes('buildings')));
+  for (const category of ['grass', 'crops', 'reeds', 'shrubs', 'groundPlants', 'groundScatter', 'vegetation']) {
+    assert.ok(profile.states.some(state => state.toggles.hidden.includes(category)), `profile records ${category}`);
+  }
+  assert.ok(profile.events.some(event => event.kind === 'action-request' && event.data.action === 'placeBuilding'));
+  assert.ok(profile.cohorts.some(cohort => cohort.key.includes('zoom+pan')));
+  assert.ok(await page.evaluate(() => window.__diagnosticProbe.work.update === window.__diagnosticProbe.originalWork));
+  await page.locator('[data-profile-copy]').waitFor({ state: 'visible' });
+  await page.screenshot({ path: `${output}/recorded-profile-menu.png` });
+  await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error('Denied for validation'); }; });
+  await page.locator('[data-profile-copy]').click();
+  await page.locator('[data-profile-export]').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('[data-profile-export]').inputValue(), exported);
+  assert.match(await page.locator('[data-profile-status]').innerText(), /Clipboard access was blocked/);
+  writeFileSync(`${output}/recorded-profile.txt`, exported);
   assert.deepEqual(errors, []);
-  writeFileSync(`${output}/browser-validation.json`, JSON.stringify({ ...result, errors }, null, 2));
+  writeFileSync(`${output}/browser-validation.json`, JSON.stringify({ ...result, recording: { frames: profile.summary.frames, chars: exported.length, clipboard: 'copied and denied fallback verified' }, errors }, null, 2));
   console.log(JSON.stringify(result));
 } finally {
   await browser?.close();

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { InstanceDrawCompaction } from '../scene/InstanceDrawCompaction.ts';
 import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   cameraViewMatrix,
@@ -16,7 +17,7 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
-import { WIND_DIR } from '@seedthree/core/wind.js';
+import { WIND_DIR, windStrength } from '@seedthree/core/wind.js';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { supportsNodeMaterials } from '../scene/RendererBackend.ts';
@@ -178,6 +179,7 @@ export type ForestFloorNettleInstances = {
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): boolean;
   setSnowCoverage(coverage: number): boolean;
   updateCamera(cameraPosition: Pick<THREE.Vector3, 'x' | 'z'>, closeDetailVisible: boolean): boolean;
+  prepareRender(camera: THREE.Camera): void;
   commit(): void;
   dispose(): void;
 };
@@ -227,6 +229,9 @@ export async function createForestFloorNettleInstances(
     return bucket;
   });
   const placementVisible = placements.map(() => true);
+  const compactions = useNodeMaterials ? buckets.map(bucket => new InstanceDrawCompaction(
+    bucket.mesh, () => .01 + .1 * Math.abs(windStrength.value),
+  )) : [];
   let streamDirty = true;
   let seasonalDormancy = 0;
   let lastStreamX = Number.NaN;
@@ -356,11 +361,19 @@ export async function createForestFloorNettleInstances(
       rebuildResidentInstances(cameraPosition.x, cameraPosition.z);
       return true;
     },
+    prepareRender(camera): void {
+      if (!group.visible) return;
+      for (const compaction of compactions) {
+        compaction.syncRenderState();
+        compaction.prepare(camera);
+      }
+    },
     commit(): void {
       if (!streamDirty || !group.visible || !Number.isFinite(lastStreamX)) return;
       rebuildResidentInstances(lastStreamX, lastStreamZ);
     },
     dispose(): void {
+      for (const compaction of compactions) compaction.dispose();
       group.removeFromParent();
       branchMaterial.dispose();
       foliageMaterial.dispose();

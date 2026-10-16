@@ -10,6 +10,7 @@ export type DebugCalendarDate = {
 
 type DebugMenuOptions = {
   renderDiagnostics?: RenderDiagnostics;
+  onStartProfile?: () => Promise<void>;
   domElement: HTMLElement;
   getDate: () => DebugCalendarDate;
   pickMapPoint: (clientX: number, clientY: number) => { x: number; z: number } | null;
@@ -33,6 +34,28 @@ const ACTION_LABELS: Record<DebugMapAction, string> = {
   company: 'your company',
 };
 
+type RenderSwitch = readonly [RenderDiagnosticCategory, string, string];
+const RENDER_SWITCHES: readonly RenderSwitch[] = [
+  ['people', 'People', 'Villagers, soldiers & cart crews'],
+  ['carts', 'Carts & cargo', 'Includes log hauls'],
+  ['oxen', 'Oxen', 'Includes yokes & ploughs'],
+  ['animals', 'Animals', 'Dogs, wildlife, livestock & horses'],
+  ['trees', 'All trees', 'Forest, horizon & orchard trees'],
+  ['grass', 'Grass', 'Grass blades & clumps'],
+  ['groundScatter', 'Ground scatter', 'Twigs, loose rocks, felled logs & stumps'],
+  ['sky', 'Sky & clouds', 'Keeps world lighting unchanged'],
+];
+const VEGETATION_SWITCHES: readonly RenderSwitch[] = [
+  ['vegetation', 'All vegetation', 'Crops, reeds, shrubs & ground plants'],
+  ['crops', 'Crops', 'Field crops, grapevines, vegetables & herbs'],
+  ['reeds', 'Reeds', 'Riverbank reed clusters'],
+  ['shrubs', 'Shrubs & ferns', 'Undergrowth, berry bushes & hedges'],
+  ['groundPlants', 'Flowers & ground plants', 'Wildflowers, ivy, nettles, mushrooms & lily pads'],
+];
+const renderToggleButtons = (switches: readonly RenderSwitch[]): string => switches.map(([category, label, description]) =>
+  `<button type="button" data-render-category="${category}" aria-pressed="false"><strong>${label}: <span data-render-state>ON</span></strong><small>${description}</small></button>`,
+).join('');
+
 export class DebugMenu {
   private readonly backdrop = document.createElement('div');
   private readonly dialog: HTMLElement;
@@ -52,6 +75,8 @@ export class DebugMenu {
   private readonly performanceMeter = document.createElement('div');
   private lastPerformanceUpdate = 0;
   private meterVisible = false;
+  private readonly recordingBar = document.createElement('div');
+  private profilePending = false;
 
   constructor(parent: HTMLElement, options: DebugMenuOptions) {
     this.options = options;
@@ -68,24 +93,27 @@ export class DebugMenu {
         </header>
 
         <section class="debug-menu-section debug-menu-performance" data-render-diagnostics ${options.renderDiagnostics ? '' : 'hidden'}>
-          <header><h3>Rendering isolation</h3><p>Keep the camera fixed and change one switch at a time. Simulation and CPU animation keep running. Switches affect this client only.</p></header>
+          <header><h3>Performance &amp; rendering</h3><p>Record while moving, zooming or building. Use the switches to isolate rendering cost; simulation and CPU animation keep running.</p></header>
+          <div class="debug-profile-controls">
+            <button type="button" data-profile-record>Record profile</button>
+            <button type="button" data-profile-stop disabled>Stop &amp; copy</button>
+            <button type="button" data-profile-copy hidden>Copy last profile</button>
+          </div>
+          <p data-profile-status role="status">Record, move the camera or build, then stop and paste the copied report into chat.</p>
+          <textarea class="debug-profile-export" data-profile-export aria-label="Recorded performance profile" readonly hidden></textarea>
           <div class="debug-render-buildings"><strong>Buildings &amp; homes</strong><div>
             <button type="button" data-render-buildings="full" aria-pressed="true">Full models</button>
             <button type="button" data-render-buildings="placeholder" aria-pressed="false">Single boxes</button>
-            <button type="button" data-render-buildings="hidden" aria-pressed="false">Hidden</button>
+            <button type="button" data-render-buildings="hidden" aria-pressed="false">Hide all buildings</button>
           </div></div>
           <p>Single boxes: one 12-triangle mesh per building, including homes and construction sites; simple material and shadows.</p>
           <div class="debug-render-toggles">
-            ${([
-              ['people', 'People', 'Villagers, soldiers & cart crews'],
-              ['carts', 'Carts & cargo', 'Includes log hauls'],
-              ['oxen', 'Oxen', 'Includes yokes & ploughs'],
-              ['animals', 'Animals', 'Dogs, wildlife, livestock & horses'],
-              ['trees', 'All trees', 'Includes horizon trees & stumps'],
-              ['vegetation', 'All vegetation', 'Trees, grass, shrubs, crops & reeds'],
-              ['sky', 'Sky & clouds', 'Keeps world lighting unchanged'],
-            ] as const).map(([category, label, description]) => `<button type="button" data-render-category="${category}" aria-pressed="false"><strong>${label}: <span data-render-state>ON</span></strong><small>${description}</small></button>`).join('')}
+            ${renderToggleButtons(RENDER_SWITCHES)}
           </div>
+          <fieldset class="debug-render-vegetation"><legend>Vegetation</legend>
+            <p>Grass, trees and ground scatter have their own switches above.</p>
+            <div class="debug-render-toggles">${renderToggleButtons(VEGETATION_SWITCHES)}</div>
+          </fieldset>
           <div class="debug-render-actions">
             <button type="button" data-render-actors>Hide all actors</button>
             <button type="button" data-render-baseline>Save baseline</button>
@@ -164,6 +192,14 @@ export class DebugMenu {
     this.performanceMeter.className = 'debug-performance-meter';
     this.performanceMeter.hidden = true;
     parent.append(this.performanceMeter);
+    this.recordingBar.className = 'debug-profile-recording';
+    this.recordingBar.hidden = true;
+    this.recordingBar.innerHTML = '<span data-profile-live></span><button type="button" data-profile-stop-floating>Stop &amp; copy</button>';
+    parent.append(this.recordingBar);
+    this.backdrop.querySelector('[data-profile-record]')?.addEventListener('click', () => void this.startProfile());
+    this.backdrop.querySelector('[data-profile-stop]')?.addEventListener('click', () => void this.stopAndCopyProfile());
+    this.backdrop.querySelector('[data-profile-copy]')?.addEventListener('click', () => void this.copyProfile());
+    this.recordingBar.querySelector('[data-profile-stop-floating]')?.addEventListener('click', () => void this.stopAndCopyProfile());
     for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-category]')) {
       button.addEventListener('click', () => {
         const diagnostics = this.options.renderDiagnostics;
@@ -184,6 +220,7 @@ export class DebugMenu {
     });
     this.backdrop.querySelector('[data-render-baseline]')?.addEventListener('click', () => {
       this.options.renderDiagnostics?.captureBaseline();
+      this.options.renderDiagnostics?.profiler.event('baseline-saved');
       this.lastPerformanceUpdate = 0;
     });
     this.backdrop.querySelector('[data-render-actors]')?.addEventListener('click', () => {
@@ -196,6 +233,7 @@ export class DebugMenu {
     });
     this.backdrop.querySelector<HTMLInputElement>('[data-render-meter]')?.addEventListener('change', (event) => {
       this.meterVisible = (event.target as HTMLInputElement).checked;
+      this.options.renderDiagnostics?.profiler.event('frame-meter', { visible: this.meterVisible });
       this.lastPerformanceUpdate = 0;
     });
 
@@ -221,13 +259,14 @@ export class DebugMenu {
   }
 
   isPerformanceMonitoring(): boolean {
-    return Boolean(this.options.renderDiagnostics) && (this.open || this.meterVisible);
+    return Boolean(this.options.renderDiagnostics) && (this.open || this.meterVisible || (this.options.renderDiagnostics?.profiler.isRecording() ?? false));
   }
 
   updatePerformance(time: number): void {
     const diagnostics = this.options.renderDiagnostics;
     if (!diagnostics || time - this.lastPerformanceUpdate < 400) return;
     this.lastPerformanceUpdate = time;
+    this.syncProfileControls();
     this.performanceMeter.hidden = !this.meterVisible || this.open;
     if (!this.open && !this.meterVisible) return;
     const sample = diagnostics.getSample();
@@ -235,8 +274,8 @@ export class DebugMenu {
       ? `${sample.fps.toFixed(1)} FPS · ${sample.meanMs.toFixed(2)} ms avg · ${sample.p95Ms.toFixed(2)} ms P95 · ${Math.round(sample.calls).toLocaleString()} draws · ${(sample.triangles / 1e6).toFixed(2)}M triangles`
       : 'Settling after switch / collecting frames…';
     const modes = [diagnostics.buildingMode === 'full' ? '' : `buildings: ${diagnostics.buildingMode}`,
-      ...(['people', 'carts', 'oxen', 'animals', 'trees', 'vegetation', 'sky'] as const)
-        .filter(category => diagnostics.isHidden(category)).map(category => `${category}: OFF`)].filter(Boolean);
+      ...[...RENDER_SWITCHES, ...VEGETATION_SWITCHES]
+        .filter(([category]) => diagnostics.isHidden(category)).map(([, label]) => `${label}: OFF`)].filter(Boolean);
     const baseline = diagnostics.baseline;
     const delta = baseline && sample ? ` · ${(sample.meanMs - baseline.meanMs).toFixed(2)} ms vs baseline` : '';
     this.performanceMeter.textContent = `${summary}\n${modes.join(' · ') || 'Full scene'}${delta} · M development menu`;
@@ -248,18 +287,94 @@ export class DebugMenu {
       : 'Save a baseline before changing switches. Frame times are animation-frame intervals, not GPU execution time.';
   }
 
+  private syncProfileControls(): void {
+    const profiler = this.options.renderDiagnostics?.profiler;
+    const recording = profiler?.isRecording() ?? false;
+    this.backdrop.querySelector<HTMLButtonElement>('[data-profile-record]')!.disabled = recording || this.profilePending;
+    this.backdrop.querySelector<HTMLButtonElement>('[data-profile-stop]')!.disabled = !recording || this.profilePending;
+    const copy = this.backdrop.querySelector<HTMLButtonElement>('[data-profile-copy]')!;
+    copy.hidden = !profiler?.getLastReport();
+    copy.disabled = recording || this.profilePending;
+    this.recordingBar.hidden = !recording || this.open;
+    if (recording && profiler) {
+      const seconds = Math.floor(profiler.getElapsedMs() / 1000);
+      const text = `● Recording ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} · ${profiler.getFrameCount().toLocaleString()} frames`;
+      this.recordingBar.querySelector('[data-profile-live]')!.textContent = text;
+      this.backdrop.querySelector('[data-profile-status]')!.textContent = `${text}. Move, zoom, pan, change toggles or build; every switch is recorded.`;
+    }
+  }
+
+  private async startProfile(): Promise<void> {
+    const diagnostics = this.options.renderDiagnostics;
+    if (!diagnostics || this.profilePending || diagnostics.profiler.isRecording()) return;
+    this.profilePending = true;
+    this.backdrop.querySelector('[data-profile-status]')!.textContent = 'Preparing profiler…';
+    this.syncProfileControls();
+    try {
+      if (this.options.onStartProfile) await this.options.onStartProfile();
+      else diagnostics.profiler.start({
+        metadata: { source: 'development-menu', gpu: 'unavailable' }, toggles: diagnostics.getState(),
+        getContext: () => ({ camera: { position: [], rotation: [], target: [], distance: 0, mode: 'unknown', navigating: false },
+          tool: 'none', menuOpen: this.open, visible: document.visibilityState === 'visible', gameSpeed: 1, world: {} }),
+      });
+      diagnostics.profiler.event('frame-meter', { visible: this.meterVisible });
+      this.backdrop.querySelector<HTMLTextAreaElement>('[data-profile-export]')!.hidden = true;
+      this.close();
+    } catch (error) {
+      diagnostics.profiler.stop();
+      this.backdrop.querySelector('[data-profile-status]')!.textContent = error instanceof Error ? error.message : 'Could not start profiling.';
+    } finally {
+      this.profilePending = false;
+      this.syncProfileControls();
+      this.lastPerformanceUpdate = 0;
+    }
+  }
+
+  private async stopAndCopyProfile(): Promise<void> {
+    if (this.profilePending) return;
+    this.options.renderDiagnostics?.profiler.stop();
+    this.syncProfileControls();
+    // Call the clipboard API in this click's user gesture; do not wait for GPU readback.
+    await this.copyProfile();
+  }
+
+  private async copyProfile(): Promise<void> {
+    const report = this.options.renderDiagnostics?.profiler.getLastReport();
+    if (!report || this.profilePending) return;
+    this.profilePending = true;
+    this.syncProfileControls();
+    const status = this.backdrop.querySelector('[data-profile-status]')!;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(report);
+      status.textContent = `Copied ${(report.length / 1024).toFixed(1)} KB. Paste the profile into chat for analysis.`;
+      this.openMenu(true);
+    } catch {
+      this.openMenu(true);
+      const field = this.backdrop.querySelector<HTMLTextAreaElement>('[data-profile-export]')!;
+      field.value = report;
+      field.hidden = false;
+      field.focus(); field.select();
+      status.textContent = 'Clipboard access was blocked. The report is selected below: press Ctrl+C (or Cmd+C), then paste it into chat. Copy last profile retries.';
+    } finally {
+      this.profilePending = false;
+      this.syncProfileControls();
+      this.lastPerformanceUpdate = 0;
+    }
+  }
+
   private syncPerformanceControls(): void {
     const diagnostics = this.options.renderDiagnostics;
     if (!diagnostics) return;
     for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-category]')) {
       const category = button.dataset.renderCategory as RenderDiagnosticCategory;
       const off = diagnostics.isHidden(category);
-      button.setAttribute('aria-pressed', String(off));
-      button.querySelector('[data-render-state]')!.textContent = off ? 'OFF' : 'ON';
-      // All-vegetation includes trees, without discarding the independent tree switch.
-      if (category === 'trees' && diagnostics.isHidden('vegetation')) {
-        button.querySelector('[data-render-state]')!.textContent = 'OFF (vegetation)';
-      }
+      const effectiveOff = diagnostics.isEffectivelyHidden(category);
+      button.setAttribute('aria-pressed', String(effectiveOff));
+      button.querySelector('[data-render-state]')!.textContent = off ? 'OFF' : effectiveOff ? 'OFF (vegetation)' : 'ON';
+      // Keep each child's saved preference; restore the master to edit it again.
+      button.disabled = category !== 'vegetation' && diagnostics.isHidden('vegetation')
+        && VEGETATION_SWITCHES.some(([child]) => child === category);
     }
     for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-buildings]')) {
       button.setAttribute('aria-pressed', String(button.dataset.renderBuildings === diagnostics.buildingMode));
@@ -282,25 +397,31 @@ export class DebugMenu {
     this.backdrop.remove();
     this.placementHint.remove();
     this.performanceMeter.remove();
+    this.recordingBar.remove();
+    this.options.renderDiagnostics?.profiler.dispose();
   }
 
-  private openMenu(): void {
-    if (this.open || this.actionPending || this.options.canOpenFromKeyboard?.() === false) return;
+  private openMenu(force = false): void {
+    if (this.open || this.actionPending || (!force && this.options.canOpenFromKeyboard?.() === false)) return;
     this.cancelPlacement();
     this.syncDate();
     this.open = true;
+    this.options.renderDiagnostics?.profiler.event('development-menu', { open: true });
     this.meterVisible = this.backdrop.querySelector<HTMLInputElement>('[data-render-meter]')?.checked ?? false;
     this.syncPerformanceControls();
     this.backdrop.hidden = false;
     this.options.onOpenChange?.(true);
+    this.syncProfileControls();
     this.backdrop.querySelector<HTMLButtonElement>('[data-debug-close]')?.focus({ preventScroll: true });
   }
 
   private close(): void {
     if (!this.open) return;
     this.open = false;
+    this.options.renderDiagnostics?.profiler.event('development-menu', { open: false });
     this.backdrop.hidden = true;
     this.options.onOpenChange?.(false);
+    this.syncProfileControls();
   }
 
   private syncDate(): void {
