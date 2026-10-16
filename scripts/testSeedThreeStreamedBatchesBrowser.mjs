@@ -58,11 +58,22 @@ try {
       scene.add(ground, sun, new THREE.AmbientLight(0xbecedf, .8));
     }
     const camera = new THREE.PerspectiveCamera(48, 400 / 280, .1, 2000);
-    const target = new THREE.RenderTarget(400, 280), frames = [];
+    const target = new THREE.RenderTarget(400, 280), frames = [], images = [];
+    const png = pixels => {
+      const canvas=document.createElement('canvas');canvas.width=400;canvas.height=280;
+      canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pixels),400,280),0,0);
+      return canvas.toDataURL('image/png').split(',')[1];
+    };
     const render = async scene => {
+      // Match the real animation loop's frame boundary so native instance
+      // mirrors and frame-group wind/season uniforms advance before rendering.
+      renderer._nodes.nodeFrame.update();
       renderer.info.reset(); renderer.setRenderTarget(target); renderer.render(scene, camera);
-      return { draws: renderer.info.render.drawCalls, triangles: renderer.info.render.triangles,
-        pixels: await renderer.readRenderTargetPixelsAsync(target, 0, 0, 400, 280) };
+      const raw=await renderer.readRenderTargetPixelsAsync(target,0,0,400,280);
+      // Three r185 returns WebGPU's 256-byte row alignment in its readback.
+      const pixels=new Uint8Array(400*280*4),stride=Math.ceil(400*4/256)*256;
+      for(let y=0;y<280;y++)pixels.set(raw.subarray(y*stride,y*stride+400*4),y*400*4);
+      return { draws: renderer.info.render.drawCalls, triangles: renderer.info.render.triangles,pixels };
     };
     const each = fn => { for (const pair of chunks) if (pair) for (const { controller } of pair) fn(controller); };
     for (let frame = 0; frame < 21; frame++) {
@@ -110,14 +121,20 @@ try {
         const difference = Math.abs(actual.pixels[i] - reference.pixels[i]) + Math.abs(actual.pixels[i + 1] - reference.pixels[i + 1]) + Math.abs(actual.pixels[i + 2] - reference.pixels[i + 2]);
         totalDifference += difference; maxDifference = Math.max(maxDifference, difference); if (difference > 6) changedPixels++;
       }
+      if(changedPixels || [0,9,10,13,14,17,19,20].includes(frame)) {
+        images.push({name:`${frame}-combined`,png:png(actual.pixels)},{name:`${frame}-reference`,png:png(reference.pixels)});
+      }
       frames.push({ frame, changedPixels, maxDifference, totalDifference, actualDraws: actual.draws, referenceDraws: reference.draws,
         actualTriangles: actual.triangles, referenceTriangles: reference.triangles, uploads: batches.stats().uploads - before,
         state, color: batches.stats(), shadow: batches.stats(true) });
     }
     batches.dispose(); each(c => c.dispose()); target.dispose(); renderer.dispose();
-    return { backend: kind, adapterEvidence, species, trees: placements.flat().length, frames };
+    return { backend: kind, adapterEvidence,seed:4193,viewport:[400,280],species,trees:placements.flat().length,frames,images };
   });
   mkdirSync('artifacts/city-performance', { recursive: true });
+  mkdirSync('artifacts/vegetation-culling/streamed', {recursive:true});
+  for(const {name,png} of result.images)writeFileSync(`artifacts/vegetation-culling/streamed/${name}.png`,Buffer.from(png,'base64'));
+  delete result.images;
   writeFileSync('artifacts/city-performance/seedthree-streamed-batch-parity.json', JSON.stringify({ result, errors }, null, 2));
   console.log(JSON.stringify({ result, errors }));
   assert.deepEqual(errors, []);

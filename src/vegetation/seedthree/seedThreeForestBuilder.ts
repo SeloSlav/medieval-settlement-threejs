@@ -3,7 +3,7 @@ import { InstanceDrawCompaction } from '../../scene/InstanceDrawCompaction.ts';
 import { GroupedInstanceDraws } from '../../scene/GroupedInstanceDraws.ts';
 import { StaticRenderBundle } from '../../scene/StaticRenderBundle.ts';
 import { setExactInstancePrototype } from '../../scene/ExactInstancePrototype.ts';
-import type { WebGPURenderer } from 'three/webgpu';
+import { StorageInstancedBufferAttribute, type WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
   forestCardMaterial,
@@ -1718,6 +1718,19 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
 }
 
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
+  const storageLimit = (forest.renderer.backend as unknown as {
+    device?: { limits: { maxStorageBufferBindingSize: number } };
+  }).device?.limits.maxStorageBufferBindingSize ?? 0;
+  // The selector already packs exact shadow prefixes. Upload their matrices
+  // directly so harvest/falling edits reach shadows in the same frame as color,
+  // without another compaction allocation or Three's deferred matrix mirror.
+  // Oversized allocations retain vertex buffers, respecting the device limit.
+  for (const bucket of forest.buckets) for (const mesh of [bucket.nearShadowSet.branches, ...bucket.nearShadowSet.cards]) {
+    if (mesh && mesh.instanceMatrix.array.byteLength <= storageLimit
+      && !(mesh.instanceMatrix instanceof StorageInstancedBufferAttribute)) {
+      mesh.instanceMatrix = new StorageInstancedBufferAttribute(mesh.instanceMatrix.array, 16);
+    }
+  }
   forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
     bucket.nearSet.branches, bucket.nearShadowSet.branches,
     // Shadow cards already use the selector's exact compact caster prefix.

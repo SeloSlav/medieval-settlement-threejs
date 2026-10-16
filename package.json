@@ -36,6 +36,8 @@
     "test:realm-road-snapshots": "node --import tsx scripts/testRealmRoadSnapshots.mts",
     "test:streamed-instance-batches-browser": "node scripts/testStreamedInstanceBatchesBrowser.mjs",
     "test:seedthree-streamed-batches-browser": "node scripts/testSeedThreeStreamedBatchesBrowser.mjs",
+    "test:vegetation-culling-browser": "node scripts/testVegetationCullingBrowser.mjs",
+    "test:solo-vegetation-visuals": "node scripts/profileSoloVegetation.mjs foliage-visuals --validate-only",
     "test:realm-terrain-buffers": "node --import tsx scripts/testRealmTerrainBuffers.mts",
     "test:spatial-terrain-draws": "node --import tsx scripts/testSpatialTerrainDraws.mts",
     "test:spatial-terrain-draws-browser": "node scripts/testSpatialTerrainDrawsBrowser.mjs",

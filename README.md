@@ -508,6 +508,17 @@ marks unavailable GPU timings and any bounded-history truncation explicitly.
 CPU spans are inclusive; request response time and GPU queue spans are distinct
 measurements. Run `npm run test:development-profiler` for attribution checks.
 
+Vegetation camera culling preserves the authored models, placement density,
+wind, seasons and independent shadow selection in both solo and multiplayer.
+`npm run test:vegetation-culling-browser` compares tree images and reads back
+GPU foliage data, including edits accumulated while crowns are offscreen.
+`npm run test:solo-vegetation-visuals` compares fixed close, medium and distant
+views with and without post-processing, saves reference/difference images in
+`artifacts/solo-vegetation/foliage-visuals/`, and checks that unchanged views stay
+stable. This command skips FPS profiling. Run
+`npm run test:seedthree-streamed-batches-browser` for authored multiplayer
+chunk loading, unloading, tree hiding/restoration, seasonal and shadow rendering checks.
+
 ## Production build
 
 Create an optimized build:

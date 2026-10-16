@@ -70,19 +70,73 @@ try {
         { minX: -130, maxX: 130, minZ: -130, maxZ: 130 }, true, 1 / 60);
       scene.updateMatrixWorld(true);
       const actual = await capture(false), reference = await capture(true);
+      let verifiedComponents = 0;
+      for (const c of compactions) if (c.draw.userData.gpuInstanceGather) {
+        for (const pair of c.pairs) {
+          if (pair.input.array !== pair.source.array) throw Error('GPU gather must retain the canonical input array');
+          if (pair.input.itemSize !== (pair.name === 'instanceMatrix' ? 16 : 1)) throw Error('GPU input storage stride changed on upload');
+          if (pair.output.itemSize !== (pair.source.itemSize === 3 ? 4 : pair.source.itemSize)) throw Error('GPU output storage stride changed on upload');
+          if (![0,12,13,14].includes(frame) || !c.draw.count) continue;
+          const data = new Uint32Array(await renderer.getArrayBufferAsync(pair.output));
+          const canonical = new Uint32Array(pair.source.array.buffer,pair.source.array.byteOffset,pair.source.array.length);
+          for (let row=0;row<c.draw.count;row++) {
+            const sourceRow = c.selected.array[Math.floor(row/c.groupSize)]*c.groupSize + row%c.groupSize;
+            for(let component=0;component<pair.source.itemSize;component++) {
+              if(data[row*pair.output.itemSize+component]!==canonical[sourceRow*pair.source.itemSize+component]) {
+                throw Error(`GPU gather changed authored ${pair.name}: frame ${frame}, row ${row}, component ${component}`);
+              }
+              verifiedComponents++;
+            }
+          }
+        }
+      }
       let changed = 0, max = 0;
       for (let i = 0; i < actual.pixels.length; i++) {
         const difference = Math.abs(actual.pixels[i] - reference.pixels[i]);
         max = Math.max(max, difference); if (difference > 2) changed++;
       }
-      frames.push({ frame, maxDelta: max, channelsOver2: changed, culledTriangles: actual.triangles, referenceTriangles: reference.triangles });
+      frames.push({ frame, maxDelta: max, channelsOver2: changed, verifiedComponents, culledTriangles: actual.triangles, referenceTriangles: reference.triangles });
+    }
+    // Multiple edits while a crown is entirely offscreen must survive the
+    // skipped dispatches. Exercise sparse+sparse and full+sparse uploads.
+    const gather = compactions.find(c => c.draw.userData.gpuInstanceGather && c.source.count >= c.groupSize*2);
+    if(!gather)throw Error('No crown draw for deferred-upload regression');
+    const away = camera.clone(); away.position.set(10000,20,10000); away.lookAt(20000,20,10000); away.updateMatrixWorld(true);
+    let deferredComponents = 0;
+    for(const fullFirst of [false,true]) {
+      gather.prepare(away);
+      if(gather.draw.count)throw Error('Deferred-upload camera must cull every crown');
+      for(const row of [0,gather.groupSize]) {
+        for(const pair of gather.pairs.filter(pair=>pair.name==='instanceMatrix'||pair.source.itemSize===3)) {
+          const offset=row*pair.source.itemSize+(pair.name==='instanceMatrix'?12:0);
+          pair.source.array[offset]+=.125;
+          pair.source.clearUpdateRanges();
+          if(!(fullFirst&&row===0))pair.source.addUpdateRange(offset,1);
+          pair.source.needsUpdate=true;
+        }
+        gather.prepare(away);
+      }
+      gather.prepare(null);
+      for(const pair of gather.pairs) {
+        const data=new Uint32Array(await renderer.getArrayBufferAsync(pair.output));
+        const canonical=new Uint32Array(pair.source.array.buffer,pair.source.array.byteOffset,pair.source.array.length);
+        for(let row=0;row<gather.draw.count;row++) {
+          const sourceRow=gather.selected.array[Math.floor(row/gather.groupSize)]*gather.groupSize+row%gather.groupSize;
+          for(let component=0;component<pair.source.itemSize;component++) {
+            if(data[row*pair.output.itemSize+component]!==canonical[sourceRow*pair.source.itemSize+component])throw Error(`Deferred GPU upload lost ${pair.name} edit`);
+            deferredComponents++;
+          }
+        }
+      }
     }
     controller.dispose(); renderer.dispose(); target.dispose();
-    return { frames };
+    return { seed:4193,viewport:[400,280],species:['beech','sessileOak','sycamoreMaple','ash','silverFir','norwaySpruce','scotsPine'],frames,deferredComponents };
   });
   writeFileSync(`${output}/validation.json`, JSON.stringify({ ...result, errors }, null, 2));
   assert.deepEqual(errors, []);
   assert.ok(result.frames.every(frame => frame.channelsOver2 === 0), JSON.stringify(result.frames));
   assert.ok(result.frames.some(frame => frame.culledTriangles < frame.referenceTriangles));
+  assert.ok(result.frames[0].verifiedComponents > 0, 'Read back the GPU-produced authored attributes');
+  assert.ok(result.deferredComponents > 0, 'Verify edits accumulated while crowns are offscreen');
   console.log(JSON.stringify(result));
 } finally { await browser?.close(); await server.close(); }

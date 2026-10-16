@@ -9,6 +9,7 @@ type Pair = {
   input: StorageInstancedBufferAttribute;
   output: StorageInstancedBufferAttribute;
   version: number;
+  fullUpdatePending: boolean;
 };
 // The installed declarations omit several operators available in the runtime TSL API.
 const nodes = TSL as any;
@@ -72,12 +73,12 @@ export class GroupedInstanceDraws {
       const matrix = name === 'instanceMatrix';
       if ((!matrix && attribute.itemSize > 4) || attribute.meshPerAttribute !== 1 || attribute.count < capacity) throw new Error('Incomplete crown attributes');
       // Inputs alias the canonical CPU arrays; no second packed forest copy.
-      const input = new StorageInstancedBufferAttribute(attribute.array, attribute.itemSize);
-      // Instance.js reads colors as storage vec3 (16-byte stride). Geometry
-      // attributes use native vertex formats and retain their original stride.
-      const output = new StorageInstancedBufferAttribute(capacity, name === 'instanceColor' ? 4 : attribute.itemSize);
+      // Declare scalar inputs as flat storage: Three pads storage itemSize=3
+      // attributes on upload, which would break the shared array and indexing.
+      const input = new StorageInstancedBufferAttribute(attribute.array, matrix ? 16 : 1);
+      const output = new StorageInstancedBufferAttribute(capacity, attribute.itemSize === 3 ? 4 : attribute.itemSize);
       output.setUsage(THREE.StaticDrawUsage);
-      this.pairs.push({name,source:attribute,input,output,version:-1});
+      this.pairs.push({name,source:attribute,input,output,version:-1,fullUpdatePending:true});
       if (matrix) this.draw.instanceMatrix = output;
       else if (name === 'instanceColor') this.draw.instanceColor = output;
       else geometry.setAttribute(name,output);
@@ -91,7 +92,7 @@ export class GroupedInstanceDraws {
     for (let start=0;start<this.pairs.length;start+=3) {
       const buffers=this.pairs.slice(start,start+3).map(pair=>({pair,
         input:nodes.storage(pair.input, pair.name === 'instanceMatrix' ? 'mat4' : 'float',
-          capacity * (pair.name === 'instanceMatrix' ? 1 : pair.input.itemSize)).toReadOnly(),
+          capacity * (pair.name === 'instanceMatrix' ? 1 : pair.source.itemSize)).toReadOnly(),
         output:nodes.storage(pair.output, pair.name === 'instanceMatrix' ? 'mat4' : 'float',
           capacity * (pair.name === 'instanceMatrix' ? 1 : pair.output.itemSize))}));
       const kernel=nodes.Fn(()=>{
@@ -129,8 +130,11 @@ export class GroupedInstanceDraws {
       changed=true;matricesChanged ||= pair.name === 'instanceMatrix';
       const ranges=pair.version >= 0 && pair.version+1 === pair.source.version ? pair.source.updateRanges : [];
       pair.input.array = pair.source.array;
-      pair.input.clearUpdateRanges();
-      if(ranges.length) for(const range of ranges) pair.input.addUpdateRange(range.start,range.count);
+      // A fully culled draw skips compute. Retain every pending edit until the
+      // next dispatch, including a pending full upload followed by sparse edits.
+      pair.fullUpdatePending ||= !ranges.length;
+      if(pair.fullUpdatePending) pair.input.clearUpdateRanges();
+      else for(const range of ranges) pair.input.addUpdateRange(range.start,range.count);
       pair.input.needsUpdate = true;
       if(pair.name === 'instanceMatrix' && !ranges.length)all=true;
       else if(pair.name === 'instanceMatrix') for(const range of ranges){
@@ -177,6 +181,7 @@ export class GroupedInstanceDraws {
       this.selected.clearUpdateRanges();this.selected.addUpdateRange(0,selected);this.selected.needsUpdate=true;
       for(const kernel of this.kernels)kernel.count=this.draw.count;
       this.renderer.compute(this.kernels as never);
+      for(const pair of this.pairs)pair.fullUpdatePending=false;
     }
   }
 
