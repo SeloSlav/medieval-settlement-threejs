@@ -35,7 +35,6 @@ import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import {
   findRoadLinkedSupplierForResidence,
 } from '../src/logistics/specialtyLogistics.ts';
-import { isResidenceInWellRange } from '../src/logistics/waterLogistics.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   computePopulationStats,
@@ -537,16 +536,6 @@ assert.equal(
   stockedMarketplace.id,
   'live deliveries must use stocked Marketplace inventory',
 );
-const nearHome = residence('near-home', 1, 3);
-nearHome.x = well.x + well.workRadius;
-assert.equal(isResidenceInWellRange(well, nearHome), true);
-nearHome.x = well.x + well.workRadius + 0.1;
-assert.equal(
-  isResidenceInWellRange(well, nearHome),
-  false,
-  'road connectivity alone must not bypass the physical well radius',
-);
-
 const activeUpgrade = residence('active-upgrade', 1, 3);
 Object.assign(activeUpgrade, {
   upgradeTargetTier: 2,
@@ -875,7 +864,7 @@ assert.ok(
 const residenceReducer = source('../server/src/reducers/residences.rs');
 assert.match(
   residenceReducer,
-  /ResidenceNeedKind::Water[\s\S]*?position_within_well_service_radius/,
+  /ResidenceNeedKind::Water[\s\S]*?water_claims\.get/,
 );
 assert.match(residenceReducer, /residence_promotion_needs\(residence\.tier\)/);
 assert.match(residenceReducer, /required_chapel_tier\(residence\.tier\)/);

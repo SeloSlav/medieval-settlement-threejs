@@ -540,13 +540,14 @@ select:focus-visible {
   pointer-events: none;
   z-index: 40;
   min-width: 235px;
-  white-space: nowrap;
+  max-width: calc(100vw - 32px);
 }
 
 [data-game-mode="multiplayer"] [data-game-speed] { display: none !important; }
 
 .settlement-hud__perf .settlement-hud__stat--perf {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: center;
@@ -561,6 +562,11 @@ select:focus-visible {
 .settlement-hud__perf .settlement-hud__value--fps { position: static; transform: none; font: 12px monospace; color: #e9dfc8; }
 .settlement-hud__perf .settlement-hud__label { display: inline; position: static; transform: none; font: 11px sans-serif; color: #c2b99f; }
 
+.settlement-hud__perf-shortcut { color: #c2b99f; font: 10px/1.5 sans-serif; }
+.settlement-hud__perf-shortcut kbd { color: #e9dfc8; font: 11px monospace; }
+.settlement-hud__perf-details { padding: 0 4px 4px; color: #c2b99f; font: 11px/1.6 monospace; white-space: pre-line; overflow-wrap: anywhere; }
+.settlement-hud__perf [hidden] { display: none; }
+
 .settlement-hud__stat--perf::before {
   display: none;
 }
@@ -571,11 +577,11 @@ select:focus-visible {
   justify-self: center;
 }
 
-.settlement-hud.is-low .settlement-hud__value--fps {
+.settlement-hud__perf.is-low .settlement-hud__value--fps {
   color: var(--ui-danger);
 }
 
-.settlement-hud.is-fast .settlement-hud__value--fps {
+.settlement-hud__perf.is-fast .settlement-hud__value--fps {
   color: #c8dd9f;
 }
 

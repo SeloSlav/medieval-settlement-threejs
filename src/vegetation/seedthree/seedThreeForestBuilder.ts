@@ -3,7 +3,10 @@ import { InstanceDrawCompaction } from '../../scene/InstanceDrawCompaction.ts';
 import { GroupedInstanceDraws } from '../../scene/GroupedInstanceDraws.ts';
 import { StaticRenderBundle } from '../../scene/StaticRenderBundle.ts';
 import { setExactInstancePrototype } from '../../scene/ExactInstancePrototype.ts';
-import { StorageInstancedBufferAttribute, type WebGPURenderer } from 'three/webgpu';
+import {
+  StorageInstancedBufferAttribute,
+  type WebGPURenderer,
+} from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
   forestCardMaterial,
@@ -70,7 +73,6 @@ import {
   createSeedThreeStableColorSlotSelection,
   createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
-  partitionSeedThreeSelectionByStaticLod,
   patchSeedThreeLodSlotVisibility,
   runSeedThreeBucketMatrixWriteSlices,
   seedThreeColorSelectionCoversView,
@@ -85,25 +87,16 @@ import {
   applySeedThreeBarkSnow,
   applySeedThreeForestBarkMotion,
   applySeedThreeForestCardMotion,
-  applySeedThreeHorizonCardCutout,
-  applySeedThreeOverviewBillboardFade,
   applySeedThreeWholeCardDormancy,
   cloneSeedThreeForestMaterial,
-  createSeedThreeOverviewBarkFadeMaterial,
-  createSeedThreeOverviewFadeMaterial,
   resolveSeedThreeForestCardMotion,
-  setSeedThreeOverviewBillboardFadeOpacity,
   stabilizeSeedThreeForestCardMaterial,
 } from './seedThreeForestMaterial.ts';
-import { BASELINE_ORBIT_DISTANCE } from '../../camera/CameraCurves.ts';
-import {
-  updateSeedThreeOverviewBillboardFade,
-  type SeedThreeOverviewBillboardFadeState,
-} from './seedThreeOverviewBillboardFade.ts';
 import {
   SEEDTHREE_FOREST_WIND_SPEED,
-  shouldShowSeedThreeCrownUnderlay,
-} from './seedThreeCanopyPresentation.ts';
+  SEEDTHREE_FOREST_LOD_DISTANCES,
+  selectSeedThreeTreeLod,
+} from './seedThreeForestLod.ts';
 import {
   runForestBucketUpdateChunk,
   type SeedThreeBucketSelection,
@@ -118,6 +111,10 @@ type SpeciesBucket = {
   nearSet: InstancedLodSet;
   nearShadowSet: InstancedLodSet;
   overviewSet: InstancedLodSet;
+  farSet: InstancedLodSet;
+  farSlotIndices: number[];
+  colorLods: Int8Array;
+  colorLodRevision: number;
   nearSlotIndices: number[];
   overviewSlotIndices: number[];
   nearViewSlotIndices: number[];
@@ -136,7 +133,6 @@ type PassPartitionedBucketSelection = SeedThreeBucketSelection & {
 export type SeedThreeForestInstances = {
   renderer: WebGPURenderer;
   group: THREE.Group;
-  overviewBillboardGroup: THREE.Group;
   placements: ForestTreePlacement[];
   buckets: SpeciesBucket[];
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
@@ -144,9 +140,6 @@ export type SeedThreeForestInstances = {
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
   seasonalCardMaterials: THREE.Material[];
   snowCardMaterials: THREE.Material[];
-  crownUnderlayMeshes: THREE.InstancedMesh[];
-  crownUnderlayVisible: boolean;
-  distantCanopyCardsEnabled: boolean;
   shadowsEnabled: boolean;
   deciduousFoliage: DeciduousFoliagePresentation;
   snowCoverage: number;
@@ -163,8 +156,7 @@ export type SeedThreeForestInstances = {
   visibilityDirty: boolean;
   dirtyVisibilitySlotsByBucket: Map<number, Set<number>>;
   cameraInteractionActive: boolean;
-  overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
-  ownedOverviewFadeMaterials: THREE.Material[];
+  ownedLodMaterials: THREE.Material[];
   updateTelemetry: SeedThreeForestUpdateTelemetry;
   compactedDraws?: Array<InstanceDrawCompaction | GroupedInstanceDraws>;
 };
@@ -237,8 +229,8 @@ let lastStartupTiming: SeedThreeForestStartupTiming | null = null;
 const FOREST_LOD_OPTS = {
   mobileTarget: true,
   meshQuality: 0.78,
-  lod1Dist: 48,
-  lod2Dist: 96,
+  lod1Dist: SEEDTHREE_FOREST_LOD_DISTANCES[1],
+  lod2Dist: SEEDTHREE_FOREST_LOD_DISTANCES[2],
   lod1Density: 0.88,
   lod2Density: 0.72,
   lod1Pct: 42,
@@ -246,27 +238,11 @@ const FOREST_LOD_OPTS = {
 };
 
 const FOREST_NEAR_DISTANCE = 108;
-// On steep maps, mountaintop trees can be physically close to the elevated orbit
-// camera even at strategic zoom. Keep their foliage-thickening overview cards
-// once their crown center rises into this camera-relative altitude band.
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;
 const FOREST_MATRIX_WRITES_PER_CHUNK = 128;
-
-const OVERVIEW_CANOPY_TONE: Record<
-  SeedThreePresetKey,
-  { tint: readonly [number, number, number]; variation: number }
-> = {
-  americanBeech: { tint: [0.78, 0.86, 0.72], variation: 0.07 },
-  whiteOak: { tint: [0.75, 0.84, 0.68], variation: 0.08 },
-  redMaple: { tint: [0.72, 0.83, 0.67], variation: 0.08 },
-  sweetgum: { tint: [0.76, 0.86, 0.66], variation: 0.07 },
-  douglasFir: { tint: [0.44, 0.59, 0.49], variation: 0.08 },
-  loblolly: { tint: [0.4, 0.55, 0.44], variation: 0.09 },
-  pine: { tint: [0.47, 0.61, 0.45], variation: 0.09 },
-};
 
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const COMPOSE_POS = new THREE.Vector3();
@@ -284,12 +260,23 @@ function composeTreeMatrix(
   COMPOSE_QUAT.setFromAxisAngle(Y_AXIS, rotY);
   COMPOSE_POS.set(x, y, z);
   COMPOSE_SCALE.setScalar(scale);
-  return COMPOSE_MATRIX.compose(COMPOSE_POS, COMPOSE_QUAT, COMPOSE_SCALE).clone();
+  return COMPOSE_MATRIX.compose(
+    COMPOSE_POS,
+    COMPOSE_QUAT,
+    COMPOSE_SCALE,
+  ).clone();
 }
 
-function findLodLevel(tree: THREE.LOD, lodName: string): THREE.Object3D | undefined {
-  const levels = tree.levels as Array<{ distance: number; object: THREE.Object3D }>;
-  return levels.find((level) => level.object.userData.lodName === lodName)?.object;
+function findLodLevel(
+  tree: THREE.LOD,
+  lodName: string,
+): THREE.Object3D | undefined {
+  const levels = tree.levels as Array<{
+    distance: number;
+    object: THREE.Object3D;
+  }>;
+  return levels.find((level) => level.object.userData.lodName === lodName)
+    ?.object;
 }
 
 function createInstancedLodSet(
@@ -298,180 +285,130 @@ function createInstancedLodSet(
   rng: Rng,
   debugName: string,
   options: {
-    includeBranches?: boolean;
-    castShadow?: boolean;
-    seasonalDeciduous?: boolean;
-    seasonalCardMaterials?: Set<THREE.Material>;
-    snowCardMaterials?: Set<THREE.Material>;
-    canopyTint?: readonly [number, number, number];
-    autumnColor?: readonly [number, number, number];
-    toneVariation?: number;
-    crownUnderlayMeshes?: THREE.InstancedMesh[];
-    overviewCards?: boolean;
-    overviewFade?: boolean;
-    ownedOverviewFadeMaterials?: Set<THREE.Material>;
-  } = {},
+    seasonalDeciduous: boolean;
+    autumnColor: readonly [number, number, number];
+    seasonalCardMaterials: Set<THREE.Material>;
+    snowCardMaterials: Set<THREE.Material>;
+    ownedLodMaterials: Set<THREE.Material>;
+    lod: number;
+  },
 ): InstancedLodSet {
   const groupCount = slots.length;
   const lodSet: InstancedLodSet = { branches: null, cards: [] };
   if (!sourceLevel) return lodSet;
-  const includeBranches = options.includeBranches ?? true;
-  const castShadow = options.castShadow ?? true;
-
   for (const child of sourceLevel.children) {
-    const instancedChild = child as THREE.InstancedMesh;
-    if (includeBranches && child.type === 'Mesh' && !instancedChild.isInstancedMesh) {
-      const mesh = child as THREE.Mesh;
-      const geo = mesh.geometry.clone();
-      setExactInstancePrototype(geo,mesh.geometry);
-      geo.userData.forestClone = true;
-      geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
-      geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
-      const sourceMaterial = applySeedThreeBarkSnow(
+    if (
+      child.type === 'Mesh' &&
+      !(child as THREE.InstancedMesh).isInstancedMesh
+    ) {
+      const source = child as THREE.Mesh;
+      const geometry = source.geometry.clone();
+      setExactInstancePrototype(geometry, source.geometry);
+      geometry.userData.forestClone = true;
+      for (const name of ['aWindVec', 'aAnchorPos'])
+        geometry.setAttribute(
+          name,
+          new THREE.InstancedBufferAttribute(
+            new Float32Array(groupCount * 3),
+            3,
+          ),
+        );
+      const material = applySeedThreeBarkSnow(
         applySeedThreeForestBarkMotion(
-          forestBarkMaterial(mesh.material as THREE.Material),
+          forestBarkMaterial(source.material as THREE.Material),
         ),
       );
-      const material = options.overviewCards === true && options.overviewFade !== false
-        ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
-        : sourceMaterial;
-      if (options.overviewCards === true && options.overviewFade !== false) {
-        options.ownedOverviewFadeMaterials?.add(material);
-      }
-      options.snowCardMaterials?.add(material);
-      const im = new THREE.InstancedMesh(geo, material, groupCount);
-      im.name = `${debugName} branches`;
-      configureSeedThreeForestPassMesh(
-        im,
-        'color',
-        castShadow,
-      );
-      // The color forest stays fully resident. The aggregate mesh bound is
-      // intentionally not consulted; the GPU clips off-screen instances.
-      im.frustumCulled = false;
-      lodSet.branches = im;
-    } else if ((child as THREE.Group).isGroup) {
-      for (const cardsMesh of (child as THREE.Group).children) {
-        const instanced = cardsMesh as THREE.InstancedMesh;
-        if (!instanced.isInstancedMesh) continue;
-        const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
-        const cardsPerTree = instanced.count;
-        const total = cardsPerTree * groupCount;
-        const geo = instanced.geometry.clone();
-        setExactInstancePrototype(geo,instanced.geometry);
-        geo.userData.forestClone = true;
+      options.snowCardMaterials.add(material);
+      const mesh = new THREE.InstancedMesh(geometry, material, groupCount);
+      mesh.name = debugName + ' branches';
+      mesh.frustumCulled = false;
+      configureSeedThreeForestPassMesh(mesh, 'color', false);
+      lodSet.branches = mesh;
+    } else if ((child as THREE.Group).isGroup)
+      for (const object of child.children) {
+        const source = object as THREE.InstancedMesh;
+        if (!source.isInstancedMesh) continue;
+        const k = source.count,
+          total = k * groupCount,
+          geometry = source.geometry.clone();
+        setExactInstancePrototype(geometry, source.geometry);
+        geometry.userData.forestClone = true;
         const thickness = new Float32Array(total);
-        for (let t = 0; t < total; t++) thickness[t] = 0.4 + 0.6 * rng.next();
-        geo.setAttribute('aThickness', new THREE.InstancedBufferAttribute(thickness, 1));
-        geo.setAttribute('aTreeOrigin', new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3));
-        geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3));
-        geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3));
-
+        for (let i = 0; i < total; i++) thickness[i] = 0.4 + 0.6 * rng.next();
+        geometry.setAttribute(
+          'aThickness',
+          new THREE.InstancedBufferAttribute(thickness, 1),
+        );
         const rebuilt = new Set([
           'aThickness',
           'aTreeOrigin',
           'aWindVec',
           'aAnchorPos',
         ]);
-        for (const [name, attr] of Object.entries(instanced.geometry.attributes)) {
-          const instancedAttr = attr as THREE.InstancedBufferAttribute;
-          if (!instancedAttr.isInstancedBufferAttribute || rebuilt.has(name)) continue;
-          const arr = new Float32Array(total * instancedAttr.itemSize);
-          for (let slot = 0; slot < groupCount; slot++) {
-            arr.set(
-              instancedAttr.array.subarray(0, cardsPerTree * instancedAttr.itemSize),
-              slot * cardsPerTree * instancedAttr.itemSize,
+        for (const name of ['aTreeOrigin', 'aWindVec', 'aAnchorPos'])
+          geometry.setAttribute(
+            name,
+            new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3),
+          );
+        for (const [name, raw] of Object.entries(source.geometry.attributes)) {
+          const attribute = raw as THREE.InstancedBufferAttribute;
+          if (!attribute.isInstancedBufferAttribute || rebuilt.has(name))
+            continue;
+          const values = new Float32Array(total * attribute.itemSize);
+          for (let i = 0; i < groupCount; i++)
+            values.set(
+              attribute.array.subarray(0, k * attribute.itemSize),
+              i * k * attribute.itemSize,
             );
-          }
-          geo.setAttribute(name, new THREE.InstancedBufferAttribute(arr, instancedAttr.itemSize));
+          geometry.setAttribute(
+            name,
+            new THREE.InstancedBufferAttribute(values, attribute.itemSize),
+          );
         }
-
-        const sourceMaterial = instanced.material as THREE.Material;
-        const cachedForestMaterial = stabilizeSeedThreeForestCardMaterial(
-          (instanced.userData.shareMaterial
-          ? instanced.material
-          : forestCardMaterial(instanced.material as THREE.Material, {
-              seasonalDeciduous: options.seasonalDeciduous,
-              canopyTint: options.canopyTint,
-              autumnColor: options.autumnColor,
-              toneVariation: options.toneVariation,
-            })) as THREE.Material,
+        const original = source.material as THREE.Material;
+        const cached = stabilizeSeedThreeForestCardMaterial(
+          (source.userData.shareMaterial
+            ? original
+            : forestCardMaterial(original, {
+                seasonalDeciduous: options.seasonalDeciduous,
+                autumnColor: options.autumnColor,
+              })) as THREE.Material,
         );
-        applySeedThreeAutumnColor(cachedForestMaterial, options.autumnColor ?? [0.94, 0.48, 0.08]);
-        const isolatedForestMaterial = options.overviewCards === true
-          ? cloneSeedThreeForestMaterial(cachedForestMaterial)
-          : cachedForestMaterial;
-        if (options.overviewCards === true) {
-          options.ownedOverviewFadeMaterials?.add(isolatedForestMaterial);
-        }
-        const baseForestMaterial = applySeedThreeForestCardMotion(
-          isolatedForestMaterial,
+        applySeedThreeAutumnColor(cached, options.autumnColor);
+        const material =
+          options.lod > 0 ? cloneSeedThreeForestMaterial(cached) : cached;
+        if (options.lod > 0) options.ownedLodMaterials.add(material);
+        applySeedThreeForestCardMotion(
+          material,
           resolveSeedThreeForestCardMotion(
-            options.overviewCards === true,
-            crownUnderlay,
+            original.userData.seedThreeNoFlutter === true,
           ),
-          sourceMaterial,
         );
-        const fmat = crownUnderlay && options.overviewCards !== true
-          ? createSeedThreeOverviewFadeMaterial(
-              baseForestMaterial,
-              options.seasonalDeciduous === true,
-            )
-          : baseForestMaterial;
-        if (crownUnderlay && options.overviewCards !== true) {
-          options.ownedOverviewFadeMaterials?.add(fmat);
-        }
-        if (options.overviewCards === true) {
-          if (options.seasonalDeciduous) {
-            applySeedThreeWholeCardDormancy(fmat);
-          }
-          if (options.overviewFade !== false) {
-            applySeedThreeOverviewBillboardFade(fmat);
-          } else {
-            applySeedThreeHorizonCardCutout(fmat);
-          }
-        }
-        if (options.seasonalDeciduous) {
-          options.seasonalCardMaterials?.add(fmat as THREE.Material);
-        }
-        options.snowCardMaterials?.add(fmat as THREE.Material);
-        const im = new THREE.InstancedMesh(geo, fmat as THREE.Material, total) as THREE.InstancedMesh & {
-          userData: Record<string, unknown>;
-        };
-        // Preserve the authored per-slot values before any gameplay visibility
-        // compaction. Camera selection never owns color attributes.
-        im.userData.seedThreeCanonicalThickness = geo
+        if (options.lod > 0 && options.seasonalDeciduous)
+          applySeedThreeWholeCardDormancy(material);
+        if (options.seasonalDeciduous)
+          options.seasonalCardMaterials.add(material);
+        options.snowCardMaterials.add(material);
+        const mesh = new THREE.InstancedMesh(geometry, material, total);
+        mesh.name = debugName + ' cards';
+        mesh.frustumCulled = false;
+        configureSeedThreeForestPassMesh(mesh, 'color', false);
+        mesh.userData.seedThreeCanonicalThickness = geometry
           .getAttribute('aThickness')
           .clone();
-        im.name = `${debugName} cards`;
-        // Crown underlays are large crossed canopy-fill quads. They improve the
-        // color silhouette, but their baked alpha is not preserved by the
-        // WebGPU shadow variant and turns into rectangular terrain shadows.
-        const castsTreeSilhouette = castShadow && !crownUnderlay;
-        configureSeedThreeForestPassMesh(
-          im,
-          'color',
-          castsTreeSilhouette,
+        mesh.userData.k = k;
+        mesh.userData.src = source;
+        mesh.userData.srcMatrices = new Float32Array(
+          source.instanceMatrix.array.slice(0, k * 16),
         );
-        im.frustumCulled = false;
-        im.userData.src = instanced;
-        im.userData.k = cardsPerTree;
-        im.userData.crownUnderlay = crownUnderlay;
-        if (im.userData.crownUnderlay) options.crownUnderlayMeshes?.push(im);
-
-        const snap = new Float32Array(cardsPerTree * 16);
-        const cardMatrix = new THREE.Matrix4();
-        for (let j = 0; j < cardsPerTree; j++) {
-          instanced.getMatrixAt(j, cardMatrix);
-          snap.set(cardMatrix.elements, j * 16);
-        }
-        im.userData.srcMatrices = snap;
-        im.userData.weights = (instanced.userData.windWeights as Float32Array | undefined)?.slice() ?? null;
-        lodSet.cards.push(im);
+        mesh.userData.weights =
+          (source.userData.windWeights as Float32Array | undefined)?.slice() ??
+          null;
+        lodSet.cards.push(mesh);
       }
-    }
   }
-
+  for (const mesh of lodSetMeshes(lodSet))
+    mesh.userData.seedThreeLod = options.lod;
   return lodSet;
 }
 
@@ -482,101 +419,93 @@ function createSpeciesBucket(
   rng: Rng,
   seasonalCardMaterials: Set<THREE.Material>,
   snowCardMaterials: Set<THREE.Material>,
-  crownUnderlayMeshes: THREE.InstancedMesh[],
-  ownedOverviewFadeMaterials: Set<THREE.Material>,
+  ownedLodMaterials: Set<THREE.Material>,
   horizonOnly = false,
 ): SpeciesBucket {
-  const nearLevel = findLodLevel(prototype, 'LOD2');
-  // LOD4's crossed whole-limb cards read as flat green triangles from the
-  // settlement camera. LOD3 retains real primary branches and overlapping
-  // terminal-twig cards, spending available headroom on a volumetric silhouette.
-  const overviewLevel = horizonOnly
-    ? findLodLevel(prototype, 'LOD4') ?? findLodLevel(prototype, 'LOD3') ?? nearLevel
-    : findLodLevel(prototype, 'LOD3') ?? findLodLevel(prototype, 'LOD4') ?? nearLevel;
-  const overviewTone = OVERVIEW_CANOPY_TONE[presetKey];
-  const seasonalDeciduous = slots.some((slot) => slot.seasonalDeciduous);
-  const autumnColor = autumnFoliageColorForPreset(presetKey);
+  const options = {
+    seasonalDeciduous: slots.some((slot) => slot.seasonalDeciduous),
+    autumnColor: autumnFoliageColorForPreset(presetKey),
+    seasonalCardMaterials,
+    snowCardMaterials,
+    ownedLodMaterials,
+  };
   const nearSet = horizonOnly
     ? { branches: null, cards: [] }
     : createInstancedLodSet(
-        nearLevel,
+        findLodLevel(prototype, 'LOD2'),
         slots,
         rng,
-        `${presetKey} near LOD2`,
-        {
-          castShadow: false,
-          seasonalDeciduous,
-          seasonalCardMaterials,
-          snowCardMaterials,
-          autumnColor,
-          crownUnderlayMeshes,
-          ownedOverviewFadeMaterials,
-        },
+        presetKey + ' near LOD2',
+        { ...options, lod: 0 },
       );
+  const overviewSet = horizonOnly
+    ? { branches: null, cards: [] }
+    : createInstancedLodSet(
+        findLodLevel(prototype, 'LOD3'),
+        slots,
+        new Rng('middle:' + presetKey),
+        presetKey + ' middle LOD3',
+        { ...options, lod: 1 },
+      );
+  const farSet = createInstancedLodSet(
+    findLodLevel(prototype, 'LOD4'),
+    slots,
+    new Rng('far:' + presetKey),
+    presetKey + ' far LOD4',
+    { ...options, lod: 2 },
+  );
   const nearShadowSet = horizonOnly
     ? { branches: null, cards: [] }
     : createSeedThreeExactShadowLodSet(
         nearSet,
-        `${presetKey} exact shadow LOD2`,
+        presetKey + ' exact shadow LOD2',
       );
-  const overviewSet = createInstancedLodSet(
-    overviewLevel,
-    slots,
-    new Rng(`overview:${presetKey}`),
-    `${presetKey} overview ${overviewLevel?.userData.lodName ?? 'LOD2'}`,
-    {
-      seasonalDeciduous,
-      seasonalCardMaterials,
-      snowCardMaterials,
-      canopyTint: overviewTone.tint,
-      autumnColor,
-      toneVariation: overviewTone.variation,
-      ...(horizonOnly ? {} : { crownUnderlayMeshes }),
-      overviewCards: true,
-      overviewFade: !horizonOnly,
-      ownedOverviewFadeMaterials,
-      castShadow: false,
-    },
-  );
-  // Gameplay trees keep their real LOD2 layer under the far-card crossfade.
-  // The outer-world forest is a separate permanent SeedThree LOD4 layer: it
-  // never allocates LOD2 or shadow geometry and does not disappear at close zoom.
-  const colorSelection = createSeedThreeStableColorSlotSelection(slots);
-  const shadowSelection = createSeedThreeStableRtsShadowSlotSelection(slots);
-  const nearSlotIndices = colorSelection.near;
-  const overviewSlotIndices = colorSelection.overview;
-  writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
-  writeSeedThreeLodMatrices(nearShadowSet, slots, shadowSelection.near);
-  writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
+  const color = createSeedThreeStableColorSlotSelection(slots),
+    shadow = createSeedThreeStableRtsShadowSlotSelection(slots);
+  const farSlotIndices = slots.map((_, index) => index);
+  writeSeedThreeLodMatrices(nearSet, slots, color.near);
+  writeSeedThreeLodMatrices(overviewSet, slots, color.overview);
+  writeSeedThreeLodMatrices(farSet, slots, farSlotIndices);
+  writeSeedThreeLodMatrices(nearShadowSet, slots, shadow.near);
   return {
     preset: presetKey,
     horizonOnly,
     slots,
     nearSet,
-    nearShadowSet,
     overviewSet,
-    nearSlotIndices,
-    overviewSlotIndices,
-    nearViewSlotIndices: [...nearSlotIndices],
-    overviewViewSlotIndices: [...overviewSlotIndices],
-    nearViewSlotCount: nearSlotIndices.length,
-    overviewViewSlotCount: overviewSlotIndices.length,
+    farSet,
+    nearShadowSet,
+    farSlotIndices,
+    colorLods: new Int8Array(slots.length).fill(-1),
+    colorLodRevision: 0,
+    nearSlotIndices: shadow.near,
+    overviewSlotIndices: shadow.overview,
+    nearViewSlotIndices: color.near,
+    overviewViewSlotIndices: color.overview,
+    nearViewSlotCount: color.near.length,
+    overviewViewSlotCount: color.overview.length,
   };
 }
 
 /** Begin immutable species texture fetch/decode before terrain generation ends. */
-export async function preloadSeedThreeForestAssets(maxAnisotropy: number): Promise<void> {
+export async function preloadSeedThreeForestAssets(
+  maxAnisotropy: number,
+): Promise<void> {
   if (preloadPromise) return preloadPromise;
   const requestGeneration = preloadGeneration;
   preloadStartedAtMs = performance.now();
-  const request = Promise.all(GORSKI_KOTAR_PRESETS.flatMap((presetKey) => {
-    const species = GORSKI_KOTAR_SPECIES[presetKey];
-    if (!species) return [];
-    return [
-      loadSeedThreeSpeciesAssets(species, maxAnisotropy).then(() => undefined),
-      preloadSeedThreeBranchCardCache(species, FOREST_LOD_OPTS.mobileTarget),
-    ];
-  })).then(() => {
+  const request = Promise.all(
+    GORSKI_KOTAR_PRESETS.flatMap((presetKey) => {
+      const species = GORSKI_KOTAR_SPECIES[presetKey];
+      if (!species) return [];
+      return [
+        loadSeedThreeSpeciesAssets(species, maxAnisotropy).then(
+          () => undefined,
+        ),
+        preloadSeedThreeBranchCardCache(species, FOREST_LOD_OPTS.mobileTarget),
+      ];
+    }),
+  ).then(() => {
     if (requestGeneration === preloadGeneration) {
       preloadCompletedAtMs = performance.now();
     }
@@ -612,9 +541,17 @@ export function getSeedThreeForestStartupTiming(): SeedThreeForestStartupTiming 
   };
 }
 
-const forestPrototypeCache = new WeakMap<WebGPURenderer, Map<SeedThreePresetKey, {
-  prototype: THREE.LOD; assets: SeedThreeSpeciesAssets; branchCards: Awaited<ReturnType<typeof ensureSeedThreeBranchCards>>;
-}>>();
+const forestPrototypeCache = new WeakMap<
+  WebGPURenderer,
+  Map<
+    SeedThreePresetKey,
+    {
+      prototype: THREE.LOD;
+      assets: SeedThreeSpeciesAssets;
+      branchCards: Awaited<ReturnType<typeof ensureSeedThreeBranchCards>>;
+    }
+  >
+>();
 
 export async function createSeedThreeForest(
   placements: ForestTreePlacement[],
@@ -631,15 +568,10 @@ export async function createSeedThreeForest(
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const group = new THREE.Group();
   group.name = 'SeedThree Gorski Kotar forest';
-  // Only opaque layers share commands. Canopy crossfades retain their ordinary
-  // transparent ordering relative to river banks, roads and other effects.
+  // All visible tree rungs are opaque authored cutouts.
   const opaqueDraws = new StaticRenderBundle();
   opaqueDraws.name = 'Cached opaque SeedThree forest draws';
   group.add(opaqueDraws);
-  const overviewBillboardGroup = new THREE.Group();
-  overviewBillboardGroup.name = 'SeedThree overview tree billboards';
-  overviewBillboardGroup.visible = false;
-  group.add(overviewBillboardGroup);
   const horizonForestGroup = new THREE.Group();
   horizonForestGroup.name = 'SeedThree permanent terrain-horizon forest';
   horizonForestGroup.userData.gameplay = false;
@@ -682,18 +614,32 @@ export async function createSeedThreeForest(
     const cached = prototypeCache.get(presetKey);
     // Resource identity invalidates resets/rebakes in either game mode.
     if (cached?.assets === assets && cached.branchCards === branchCards) {
-      prototypeByPreset.set(presetKey, cached.prototype); continue;
+      prototypeByPreset.set(presetKey, cached.prototype);
+      continue;
     }
     if (!branchCards) {
-      console.warn('[SeedThree] no branch cards for', presetKey, '— foliage may be missing');
+      console.warn(
+        '[SeedThree] no branch cards for',
+        presetKey,
+        '— foliage may be missing',
+      );
     }
     const prototypeBuildStartedAt = performance.now();
-    const { group: prototype } = buildTree(species, `prototype:${presetKey}`, assets, {
-      ...FOREST_LOD_OPTS,
-      branchCards: branchCards ?? undefined,
-    });
+    const { group: prototype } = buildTree(
+      species,
+      `prototype:${presetKey}`,
+      assets,
+      {
+        ...FOREST_LOD_OPTS,
+        branchCards: branchCards ?? undefined,
+      },
+    );
     prototypeByPreset.set(presetKey, prototype as THREE.LOD);
-    prototypeCache.set(presetKey, { prototype: prototype as THREE.LOD, assets, branchCards });
+    prototypeCache.set(presetKey, {
+      prototype: prototype as THREE.LOD,
+      assets,
+      branchCards,
+    });
     speciesStartupTimings.push({
       preset: presetKey,
       assetWaitMs,
@@ -703,24 +649,29 @@ export async function createSeedThreeForest(
   }
 
   const placementStartedAt = performance.now();
-  const placementsByPreset = new Map<SeedThreePresetKey, {
-    gameplay: TreeSlot[];
-    horizon: TreeSlot[];
-  }>();
+  const placementsByPreset = new Map<
+    SeedThreePresetKey,
+    {
+      gameplay: TreeSlot[];
+      horizon: TreeSlot[];
+    }
+  >();
   const visibilityItems: Array<{
     x: number;
     y: number;
     z: number;
     radius: number;
     forceOverview?: boolean;
-  }> = Array.from(
-    { length: placements.length },
-    () => ({ x: 0, y: 0, z: 0, radius: 1 }),
-  );
-  const slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null> = Array.from(
-    { length: placements.length },
-    () => null,
-  );
+  }> = Array.from({ length: placements.length }, () => ({
+    x: 0,
+    y: 0,
+    z: 0,
+    radius: 1,
+  }));
+  const slotByLayoutIndex: Array<{
+    bucketIndex: number;
+    slotIndex: number;
+  } | null> = Array.from({ length: placements.length }, () => null);
 
   for (let layoutIndex = 0; layoutIndex < placements.length; layoutIndex++) {
     const placement = placements[layoutIndex];
@@ -728,8 +679,15 @@ export async function createSeedThreeForest(
     const scale = seedThreeScaleForPreset(preset, placement.scale);
     const rootY = terrain.getHeightAt(placement.x, placement.z);
     const rotY = rng.range(0, Math.PI * 2);
-    const matrix = composeTreeMatrix(placement.x, rootY - 0.15 * scale, placement.z, rotY, scale);
-    const speciesHeight = Number(GORSKI_KOTAR_SPECIES[preset]?.params?.scale ?? 20) * scale;
+    const matrix = composeTreeMatrix(
+      placement.x,
+      rootY - 0.15 * scale,
+      placement.z,
+      rotY,
+      scale,
+    );
+    const speciesHeight =
+      Number(GORSKI_KOTAR_SPECIES[preset]?.params?.scale ?? 20) * scale;
     const visibilityRadius = Math.max(5, speciesHeight * 0.58);
     const visibilityCenter = new THREE.Vector3(
       placement.x,
@@ -744,9 +702,11 @@ export async function createSeedThreeForest(
       visibilityCenter,
       visibilityRadius,
       enabled: true,
-      forceOverview: placement.edgeBand?.maximumDetail === 'overview-card'
-        || placement.visualOnly === 'terrain-horizon'
-        || Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.generationSize * 0.44,
+      forceOverview:
+        placement.edgeBand?.maximumDetail === 'overview-card' ||
+        placement.visualOnly === 'terrain-horizon' ||
+        Math.max(Math.abs(placement.x), Math.abs(placement.z)) >=
+          terrain.generationSize * 0.44,
       overviewOnly: placement.visualOnly === 'terrain-horizon',
       seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
@@ -762,7 +722,10 @@ export async function createSeedThreeForest(
           radius: visibilityRadius,
           forceOverview: slot.forceOverview,
         };
-    const grouped = placementsByPreset.get(preset) ?? { gameplay: [], horizon: [] };
+    const grouped = placementsByPreset.get(preset) ?? {
+      gameplay: [],
+      horizon: [],
+    };
     (slot.overviewOnly ? grouped.horizon : grouped.gameplay).push(slot);
     placementsByPreset.set(preset, grouped);
   }
@@ -772,8 +735,7 @@ export async function createSeedThreeForest(
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
   const snowCardMaterials = new Set<THREE.Material>();
-  const crownUnderlayMeshes: THREE.InstancedMesh[] = [];
-  const ownedOverviewFadeMaterials = new Set<THREE.Material>();
+  const ownedLodMaterials = new Set<THREE.Material>();
 
   for (const presetKey of GORSKI_KOTAR_PRESETS) {
     const grouped = placementsByPreset.get(presetKey);
@@ -784,54 +746,62 @@ export async function createSeedThreeForest(
       { slots: grouped.gameplay, horizonOnly: false },
       { slots: grouped.horizon, horizonOnly: true },
     ] as const;
-    for (const slotGroup of slotGroups) {
-      const { slots, horizonOnly } = slotGroup;
-      if (!slots.length) continue;
-      const bucketIndex = buckets.length;
-      slots.forEach((slot, slotIndex) => {
-        slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
-      });
-
-      const bucket = createSpeciesBucket(
-        presetKey,
-        slots,
-        prototype,
-        new Rng(`bucket:${presetKey}:${treeSeed}:${horizonOnly ? 'horizon' : 'gameplay'}`),
-        seasonalCardMaterials,
-        snowCardMaterials,
-        crownUnderlayMeshes,
-        ownedOverviewFadeMaterials,
-        horizonOnly,
-      );
-      buckets.push(bucket);
-      if (bucket.nearSet.branches) opaqueDraws.add(bucket.nearSet.branches);
-      for (const cardMesh of bucket.nearSet.cards) {
-        if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
-        else opaqueDraws.add(cardMesh);
+    const storageLimit = (
+      renderer.backend as unknown as {
+        device: { limits: { maxStorageBufferBindingSize: number } };
       }
-      if (bucket.nearShadowSet.branches) opaqueDraws.add(bucket.nearShadowSet.branches);
-      for (const cardMesh of bucket.nearShadowSet.cards) opaqueDraws.add(cardMesh);
-      const overviewParent = horizonOnly ? horizonForestGroup : overviewBillboardGroup;
-      if (bucket.overviewSet.branches) overviewParent.add(bucket.overviewSet.branches);
-      for (const cardMesh of bucket.overviewSet.cards) overviewParent.add(cardMesh);
-    }
-  }
+    ).device.limits.maxStorageBufferBindingSize;
+    let cardsPerTree = 1;
+    for (const name of ['LOD2', 'LOD3', 'LOD4'])
+      findLodLevel(prototype, name)?.traverse((object) => {
+        const mesh = object as THREE.InstancedMesh;
+        if (mesh.isInstancedMesh)
+          cardsPerTree = Math.max(cardsPerTree, mesh.count);
+      });
+    const maxTreesPerBucket = Math.max(
+      1,
+      Math.floor(storageLimit / (cardsPerTree * 64)),
+    );
+    for (const slotGroup of slotGroups)
+      for (
+        let start = 0;
+        start < slotGroup.slots.length;
+        start += maxTreesPerBucket
+      ) {
+        const { horizonOnly } = slotGroup;
+        const slots = slotGroup.slots.slice(start, start + maxTreesPerBucket);
+        if (!slots.length) continue;
+        const bucketIndex = buckets.length;
+        slots.forEach((slot, slotIndex) => {
+          slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
+        });
 
-  // The fading canopy does not write depth. Composite it after transparent
-  // river banks and road shoulders (orders 9–12), or those ground layers paint
-  // straight strips through the crowns. Set each mesh's order: changing the
-  // group's order would also move it above unrelated effects and UI overlays.
-  // Opaque roads, terrain, and buildings still occlude it through depth testing.
-  for (const mesh of [...overviewBillboardGroup.children, ...horizonForestGroup.children]) {
-    mesh.renderOrder = 13;
+        const bucket = createSpeciesBucket(
+          presetKey,
+          slots,
+          prototype,
+          new Rng(
+            `bucket:${presetKey}:${treeSeed}:${horizonOnly ? 'horizon' : 'gameplay'}`,
+          ),
+          seasonalCardMaterials,
+          snowCardMaterials,
+          ownedLodMaterials,
+          horizonOnly,
+        );
+        buckets.push(bucket);
+        for (const mesh of [
+          ...lodSetMeshes(bucket.nearSet),
+          ...lodSetMeshes(bucket.overviewSet),
+        ])
+          opaqueDraws.add(mesh);
+        if (bucket.nearShadowSet.branches)
+          opaqueDraws.add(bucket.nearShadowSet.branches);
+        for (const cardMesh of bucket.nearShadowSet.cards)
+          opaqueDraws.add(cardMesh);
+        for (const mesh of lodSetMeshes(bucket.farSet))
+          (horizonOnly ? horizonForestGroup : opaqueDraws).add(mesh);
+      }
   }
-
-  // Start from a deterministic close-camera state so all three global modes
-  // behave correctly before the first camera update (and never flash one frame).
-  // Crown-fill cards share the overview crossfade group. Keep the meshes live;
-  // their ancestor visibility and shared opacity uniform own the transition.
-  const crownUnderlayVisible = true;
-  for (const mesh of crownUnderlayMeshes) mesh.visible = crownUnderlayVisible;
 
   const visibilitySelector = createForestLodSelector(visibilityItems, {
     cellSize: 48,
@@ -841,15 +811,19 @@ export async function createSeedThreeForest(
     minimumCameraMove: 2.25,
     minimumDirectionAngle: THREE.MathUtils.degToRad(1),
   });
-  const nearTrees = buckets.reduce((count, bucket) => count + bucket.nearSlotIndices.length, 0);
+  const nearTrees = buckets.reduce(
+    (count, bucket) => count + bucket.nearSlotIndices.length,
+    0,
+  );
   const overviewTrees = buckets.reduce(
     (count, bucket) => count + bucket.overviewSlotIndices.length,
     0,
   );
   const bucketBuildMs = performance.now() - bucketBuildStartedAt;
-  const preloadDurationMs = preloadStartedAtMs === null
-    ? 0
-    : (preloadCompletedAtMs ?? performance.now()) - preloadStartedAtMs;
+  const preloadDurationMs =
+    preloadStartedAtMs === null
+      ? 0
+      : (preloadCompletedAtMs ?? performance.now()) - preloadStartedAtMs;
   lastStartupTiming = {
     preloadStartedAtMs,
     preloadCompletedAtMs,
@@ -862,16 +836,16 @@ export async function createSeedThreeForest(
     branchCards: getSeedThreeBranchCardStartupTimings(),
   };
   if (typeof window !== 'undefined') {
-    const startup = (window as typeof window & {
-      __medievalRoadStartup?: { seedThree?: SeedThreeForestStartupTiming };
-    }).__medievalRoadStartup;
+    const startup = (
+      window as typeof window & {
+        __medievalRoadStartup?: { seedThree?: SeedThreeForestStartupTiming };
+      }
+    ).__medievalRoadStartup;
     if (startup) startup.seedThree = lastStartupTiming;
   }
   console.info('[Startup] SeedThree forest stages', lastStartupTiming);
-  setSeedThreeOverviewBillboardFadeOpacity(0);
   return {
     group,
-    overviewBillboardGroup,
     renderer,
     placements,
     buckets,
@@ -880,9 +854,6 @@ export async function createSeedThreeForest(
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
     snowCardMaterials: [...snowCardMaterials],
-    crownUnderlayMeshes,
-    crownUnderlayVisible,
-    distantCanopyCardsEnabled: true,
     shadowsEnabled: true,
     deciduousFoliage: {
       springFlush: 0,
@@ -902,8 +873,7 @@ export async function createSeedThreeForest(
     visibilityDirty: false,
     dirtyVisibilitySlotsByBucket: new Map(),
     cameraInteractionActive: false,
-    overviewBillboardFade: { enabled: false, opacity: 0 },
-    ownedOverviewFadeMaterials: [...ownedOverviewFadeMaterials],
+    ownedLodMaterials: [...ownedLodMaterials],
     updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
 }
@@ -928,16 +898,22 @@ export function setSeedThreeTreeVisible(
   }
   slot.enabled = visible;
   forest.visibilityDirty = true;
-  const dirtySlots = forest.dirtyVisibilitySlotsByBucket.get(mapping.bucketIndex)
-    ?? new Set<number>();
+  const dirtySlots =
+    forest.dirtyVisibilitySlotsByBucket.get(mapping.bucketIndex) ??
+    new Set<number>();
   dirtySlots.add(mapping.slotIndex);
   forest.dirtyVisibilitySlotsByBucket.set(mapping.bucketIndex, dirtySlots);
 }
 
-export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
+export function commitSeedThreeForestMatrices(
+  forest: SeedThreeForestInstances,
+): void {
   if (forest.visibilityDirty === false) return;
   let matrixWrites = 0;
-  for (const [bucketIndex, dirtySlotIndices] of forest.dirtyVisibilitySlotsByBucket) {
+  for (const [
+    bucketIndex,
+    dirtySlotIndices,
+  ] of forest.dirtyVisibilitySlotsByBucket) {
     const bucket = forest.buckets[bucketIndex];
     if (!bucket) continue;
     matrixWrites += patchSeedThreeLodSlotVisibility(
@@ -950,6 +926,12 @@ export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances):
       bucket.overviewSet,
       bucket.slots,
       bucket.overviewViewSlotIndices,
+      dirtySlotIndices,
+    );
+    matrixWrites += patchSeedThreeLodSlotVisibility(
+      bucket.farSet,
+      bucket.slots,
+      bucket.farSlotIndices,
       dirtySlotIndices,
     );
     matrixWrites += patchSeedThreeLodSlotVisibility(
@@ -975,14 +957,12 @@ function refreshSeedThreeRenderStats(forest: SeedThreeForestInstances): void {
       (count, slot) => count + (slot.enabled ? 1 : 0),
       0,
     );
-    nearTrees += bucket.nearViewSlotIndices.reduce(
-      (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
-      0,
-    );
-    overviewTrees += bucket.overviewViewSlotIndices.reduce(
-      (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
-      0,
-    );
+    bucket.slots.forEach((slot, index) => {
+      if (slot.enabled) {
+        if (bucket.colorLods[index] === 0) nearTrees++;
+        else overviewTrees++;
+      }
+    });
   }
   const visibleTrees = nearTrees + overviewTrees;
   forest.renderStats = {
@@ -1038,6 +1018,7 @@ export function updateSeedThreeForestCameraBudgeted(
   const cameraInteractionActive = options.cameraInteractionActive === true;
   const previousCameraInteractionActive = forest.cameraInteractionActive;
   forest.cameraInteractionActive = cameraInteractionActive;
+  updateSeedThreeColorLods(forest, camera);
   const selection = selectForestLods(forest.visibilitySelector, camera, {
     nearDistance: firstPersonActive
       ? FOREST_FIRST_PERSON_NEAR_DISTANCE
@@ -1091,44 +1072,46 @@ export function updateSeedThreeForestCameraBudgeted(
     // Keep the resident visible prefix immutable throughout camera navigation.
     // On release, discard a redundant repack inside its guard or stream escaped
     // coverage through the normal bounded update budget.
-    const stabilizeInteractionBuffers = options.stabilizeDuringInteraction === true;
+    const stabilizeInteractionBuffers =
+      options.stabilizeDuringInteraction === true;
     const residentColorGuardCoversCriticalView =
       seedThreeColorSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
         selection.criticalViewIndices,
       );
-    const residentShadowCoversDesiredUnion = !forest.shadowsEnabled || (
-      seedThreeResidentSelectionCoversView(
+    const residentShadowCoversDesiredUnion =
+      !forest.shadowsEnabled ||
+      (seedThreeResidentSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
         selection.nearIndices,
-      )
-      && seedThreeResidentSelectionCoversView(
-        forest.buckets,
-        forest.slotByLayoutIndex,
-        selection.overviewIndices,
-      )
-    );
+      ) &&
+        seedThreeResidentSelectionCoversView(
+          forest.buckets,
+          forest.slotByLayoutIndex,
+          selection.overviewIndices,
+        ));
     const residentPassesCoverRequiredWork =
-      residentColorGuardCoversCriticalView
+      residentColorGuardCoversCriticalView &&
       // Directional-shadow overscan may trail while the camera is moving; it
       // must never force a color-buffer repack into an interaction frame.
-      && (cameraInteractionActive || residentShadowCoversDesiredUnion);
+      (cameraInteractionActive || residentShadowCoversDesiredUnion);
     const interactionWork = planSeedThreeForestInteractionWork(
       previousCameraInteractionActive,
       cameraInteractionActive,
       residentPassesCoverRequiredWork,
     );
-    const deferInteractionWork = stabilizeInteractionBuffers
-      && interactionWork.deferWork;
-    const discardCoveredInteractionWork = stabilizeInteractionBuffers
-      && interactionWork.discardCoveredWork;
+    const deferInteractionWork =
+      stabilizeInteractionBuffers && interactionWork.deferWork;
+    const discardCoveredInteractionWork =
+      stabilizeInteractionBuffers && interactionWork.discardCoveredWork;
     // Publish the first resolved resident set atomically before the forest
     // reaches a render pass. First-person can begin with a spatial set, while
     // RTS intentionally retains its complete stable caster residency.
-    const completeInteractionWorkImmediately = initialSelection
-      || (stabilizeInteractionBuffers && interactionWork.completeImmediately);
+    const completeInteractionWorkImmediately =
+      initialSelection ||
+      (stabilizeInteractionBuffers && interactionWork.completeImmediately);
     coverageImmediate = initialSelection || interactionWork.completeImmediately;
     if (discardCoveredInteractionWork) {
       work.pendingBucketIndices.length = 0;
@@ -1139,12 +1122,14 @@ export function updateSeedThreeForestCameraBudgeted(
     const maxUpdateDurationMs = completeInteractionWorkImmediately
       ? Number.POSITIVE_INFINITY
       : deferInteractionWork || discardCoveredInteractionWork
-      ? 0
-      : Number.isFinite(options.maxUpdateDurationMs)
-      ? Math.max(0, options.maxUpdateDurationMs!)
-      : Number.POSITIVE_INFINITY;
-    const selectorAndBookkeepingMs = performance.now() - startedAt
-      + (Number.isFinite(maxUpdateDurationMs)
+        ? 0
+        : Number.isFinite(options.maxUpdateDurationMs)
+          ? Math.max(0, options.maxUpdateDurationMs!)
+          : Number.POSITIVE_INFINITY;
+    const selectorAndBookkeepingMs =
+      performance.now() -
+      startedAt +
+      (Number.isFinite(maxUpdateDurationMs)
         ? FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS
         : 0);
     const availableWorkMs = Number.isFinite(maxUpdateDurationMs)
@@ -1174,11 +1159,12 @@ export function updateSeedThreeForestCameraBudgeted(
           {
             maxDurationMs: availableWorkMs,
             minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
-            maxChunks: deferInteractionWork || discardCoveredInteractionWork
-              ? 0
-              : Number.isFinite(maxUpdateDurationMs)
-              ? 1
-              : Number.POSITIVE_INFINITY,
+            maxChunks:
+              deferInteractionWork || discardCoveredInteractionWork
+                ? 0
+                : Number.isFinite(maxUpdateDurationMs)
+                  ? 1
+                  : Number.POSITIVE_INFINITY,
             maxBucketCompletions: completeInteractionWorkImmediately
               ? Number.POSITIVE_INFINITY
               : options.maxBucketCompactions,
@@ -1188,21 +1174,19 @@ export function updateSeedThreeForestCameraBudgeted(
               const desired = work.desired[bucketIndex];
               if (!bucket || !desired) return true;
               if (
-                !work.activeBucketJob
-                || work.activeBucketJob.bucketIndex !== bucketIndex
-                || !sameBucketSelection(work.activeBucketJob.desired, desired)
+                !work.activeBucketJob ||
+                work.activeBucketJob.bucketIndex !== bucketIndex ||
+                !sameBucketSelection(work.activeBucketJob.desired, desired)
               ) {
-                const writeColor = !sameIndices(
-                  bucket.nearViewSlotIndices,
-                  desired.viewNear,
-                ) || !sameIndices(
-                  bucket.overviewViewSlotIndices,
-                  desired.viewOverview,
-                );
-                const writeShadow = forest.shadowsEnabled && !sameIndices(
-                  bucket.nearSlotIndices,
-                  desired.near,
-                );
+                const writeColor =
+                  !sameIndices(bucket.nearViewSlotIndices, desired.viewNear) ||
+                  !sameIndices(
+                    bucket.overviewViewSlotIndices,
+                    desired.viewOverview,
+                  );
+                const writeShadow =
+                  forest.shadowsEnabled &&
+                  !sameIndices(bucket.nearSlotIndices, desired.near);
                 // First-person camera updates may repack only the dedicated
                 // shadow set. RTS uses stable caster identities.
                 // Stable color attributes are realigned only if gameplay
@@ -1245,16 +1229,17 @@ export function updateSeedThreeForestCameraBudgeted(
                   minimumChunkHeadroomMs: Number.isFinite(context.remainingMs)
                     ? 0.12
                     : 0,
-                  maxMatrixWritesPerChunk: options.maxMatrixWritesPerChunk
-                    ?? Number.POSITIVE_INFINITY,
+                  maxMatrixWritesPerChunk:
+                    options.maxMatrixWritesPerChunk ?? Number.POSITIVE_INFINITY,
                 },
               );
               workChunks += result.chunks;
               matrixWrites += result.matrixWrites;
-              matrixSliceBudgetStop = result.stopReason === 'time-limit'
-                || result.stopReason === 'headroom-limit'
-                ? result.stopReason
-                : null;
+              matrixSliceBudgetStop =
+                result.stopReason === 'time-limit' ||
+                result.stopReason === 'headroom-limit'
+                  ? result.stopReason
+                  : null;
               if (!result.completed) return false;
               shadowCastersChanged ||= activeBucketJob.job.writeShadow;
               bucket.nearSlotIndices = [...desired.near];
@@ -1272,15 +1257,15 @@ export function updateSeedThreeForestCameraBudgeted(
     stopReason = discardCoveredInteractionWork
       ? 'resident-retained'
       : deferInteractionWork
-      ? 'interaction-deferred'
-      : chunk.stopReason;
+        ? 'interaction-deferred'
+        : chunk.stopReason;
     if (chunk.stopReason === 'chunk-limit' && matrixSliceBudgetStop) {
       stopReason = matrixSliceBudgetStop;
     }
     work.pendingBucketIndices = chunk.pendingBucketIndices;
     if (
-      work.activeBucketJob
-      && chunk.cancelledBucketIndices.includes(work.activeBucketJob.bucketIndex)
+      work.activeBucketJob &&
+      chunk.cancelledBucketIndices.includes(work.activeBucketJob.bucketIndex)
     ) {
       work.activeBucketJob = null;
     }
@@ -1297,10 +1282,8 @@ export function updateSeedThreeForestCameraBudgeted(
   );
   forest.updateTelemetry.workChunks += workChunks;
   forest.updateTelemetry.matrixWrites += matrixWrites;
-  forest.updateTelemetry.timeBudgetStops += stopReason === 'time-limit'
-    || stopReason === 'headroom-limit'
-    ? 1
-    : 0;
+  forest.updateTelemetry.timeBudgetStops +=
+    stopReason === 'time-limit' || stopReason === 'headroom-limit' ? 1 : 0;
   forest.updateTelemetry.coverageImmediateUpdates += coverageImmediate ? 1 : 0;
   if (coverageImmediate) {
     forest.updateTelemetry.maxCoverageImmediateDurationMs = Math.max(
@@ -1333,15 +1316,20 @@ function sameBucketSelection(
   left: PassPartitionedBucketSelection,
   right: PassPartitionedBucketSelection,
 ): boolean {
-  return sameIndices(left.near, right.near)
-    && sameIndices(left.overview, right.overview)
-    && sameIndices(left.viewNear, right.viewNear)
-    && sameIndices(left.viewOverview, right.viewOverview)
-    && left.nearViewSlotCount === right.nearViewSlotCount
-    && left.overviewViewSlotCount === right.overviewViewSlotCount;
+  return (
+    sameIndices(left.near, right.near) &&
+    sameIndices(left.overview, right.overview) &&
+    sameIndices(left.viewNear, right.viewNear) &&
+    sameIndices(left.viewOverview, right.viewOverview) &&
+    left.nearViewSlotCount === right.nearViewSlotCount &&
+    left.overviewViewSlotCount === right.overviewViewSlotCount
+  );
 }
 
-function sameIndices(left: readonly number[], right: readonly number[]): boolean {
+function sameIndices(
+  left: readonly number[],
+  right: readonly number[],
+): boolean {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
     if (left[index] !== right[index]) return false;
@@ -1359,49 +1347,65 @@ function selectionsByBucket(
   firstPersonActive: boolean,
 ): PassPartitionedBucketSelection[] {
   const desired = forest.buckets.map((bucket) => {
-    // Color trees are a stable world layer. Keeping every LOD2 instance
-    // resident prevents camera pans, turns, zooms, and first-person movement
-    // from changing the live color-buffer identities.
-    const color = createSeedThreeStableColorSlotSelection(bucket.slots);
-    const rtsShadow = createSeedThreeStableRtsShadowSlotSelection(bucket.slots);
+    const color = createSeedThreeStableColorSlotSelection(bucket.slots),
+      shadow = createSeedThreeStableRtsShadowSlotSelection(bucket.slots);
     return {
-      // Strategic views keep the same committed tree caster identities across
-      // every pan and zoom. Replacing this packed list after navigation made
-      // the cached atlas visibly rebuild the entire forest shadow field.
-      // First-person retains the smaller spatial set where its continuous
-      // refresh policy already provides stable close shadow motion.
-      near: firstPersonActive ? [] : rtsShadow.near,
-      overview: firstPersonActive ? [] : rtsShadow.overview,
+      near: firstPersonActive ? [] : shadow.near,
+      overview: firstPersonActive ? [] : shadow.overview,
       viewNear: color.near,
       viewOverview: color.overview,
       nearViewSlotCount: color.near.length,
       overviewViewSlotCount: color.overview.length,
     };
   });
-  if (!firstPersonActive) return desired;
-  const staticLodPartition = partitionSeedThreeSelectionByStaticLod(
-    selection,
-    (layoutIndex) => {
+  if (firstPersonActive)
+    for (const layoutIndex of [
+      ...selection.nearIndices,
+      ...selection.overviewIndices,
+    ]) {
       const mapping = forest.slotByLayoutIndex[layoutIndex];
-      return mapping
-        ? forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.forceOverview === true
-        : false;
-    },
-    true,
-  );
-  for (const layoutIndex of staticLodPartition.nearIndices) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (!mapping) continue;
-    if (forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.overviewOnly) continue;
-    desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
-  }
-  for (const layoutIndex of staticLodPartition.overviewIndices) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (!mapping) continue;
-    if (forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.overviewOnly) continue;
-    desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
-  }
+      if (!mapping) continue;
+      if (
+        !forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]
+          ?.overviewOnly
+      )
+        desired[mapping.bucketIndex]!.near.push(mapping.slotIndex);
+    }
+  // Sparse harvest/falling patches use a binary search of caster identities.
+  if (firstPersonActive)
+    for (const bucket of desired) bucket.near.sort((left, right) => left - right);
   return desired;
+}
+
+function updateSeedThreeColorLods(
+  forest: SeedThreeForestInstances,
+  camera: THREE.Camera,
+): void {
+  camera.getWorldPosition(COMPOSE_POS);
+  const zoom = (camera as THREE.PerspectiveCamera).zoom || 1;
+  for (const bucket of forest.buckets) {
+    let changed = false;
+    bucket.slots.forEach((slot, index) => {
+      const e = slot.matrix.elements;
+      const distance =
+        Math.hypot(
+          e[12]! - COMPOSE_POS.x,
+          e[13]! - COMPOSE_POS.y,
+          e[14]! - COMPOSE_POS.z,
+        ) / zoom;
+      const next = selectSeedThreeTreeLod(
+        distance,
+        bucket.colorLods[index]!,
+        slot.overviewOnly,
+      );
+      if (bucket.colorLods[index] !== next) {
+        bucket.colorLods[index] = next;
+        changed = true;
+      }
+    });
+    if (changed) bucket.colorLodRevision++;
+  }
+  refreshSeedThreeRenderStats(forest);
 }
 
 function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
@@ -1433,12 +1437,13 @@ export function getSeedThreeForestStructuralStats(
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
     if (
-      !mesh.isInstancedMesh
-      || mesh.userData.instanceCompactionSource === true
-      || mesh.count <= 0
-      || mesh.userData.seedThreeShadowOnly === true
-      || !seedThreeMeshIsSubmitted(mesh, forest.group)
-    ) return;
+      !mesh.isInstancedMesh ||
+      mesh.userData.instanceCompactionSource === true ||
+      mesh.count <= 0 ||
+      mesh.userData.seedThreeShadowOnly === true ||
+      !seedThreeMeshIsSubmitted(mesh, forest.group)
+    )
+      return;
     draws++;
     instances += mesh.count;
     const geometryTriangles = mesh.geometry.index
@@ -1469,67 +1474,59 @@ export function getSeedThreeForestStructuralStats(
 export function getSeedThreeForestProfileBreakdown(
   forest: SeedThreeForestInstances,
 ): SeedThreeForestProfileBreakdown {
-  const residentColor = emptySubmissionStats();
-  const submittedColor = emptySubmissionStats();
-  const criticalProjectedColor = emptySubmissionStats();
+  const residentColor = emptySubmissionStats(),
+    submittedColor = emptySubmissionStats(),
+    criticalProjectedColor = emptySubmissionStats();
   const submittedPasses = {
     near: emptySubmissionStats(),
-    crownUnderlay: emptySubmissionStats(),
-    overview: emptySubmissionStats(),
+    middle: emptySubmissionStats(),
+    far: emptySubmissionStats(),
   };
-  const criticalNearByBucket = new Uint32Array(forest.buckets.length);
-  const criticalOverviewByBucket = new Uint32Array(forest.buckets.length);
-  let criticalColorTrees = 0;
-  for (const layoutIndex of forest.visibilitySelector.criticalViewIndices) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
+  const critical = forest.buckets.map(() => [0, 0, 0]);
+  let criticalColorTrees = 0,
+    paddedColorTrees = 0;
+  for (const index of forest.visibilitySelector.criticalViewIndices) {
+    const mapping = forest.slotByLayoutIndex[index];
     if (!mapping) continue;
-    const slot = forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex];
-    if (!slot?.enabled || slot.visibilityParent?.enabled === false) continue;
-    criticalColorTrees += 1;
-    criticalNearByBucket[mapping.bucketIndex] += 1;
-    if (slot.forceOverview) criticalOverviewByBucket[mapping.bucketIndex] += 1;
+    const bucket = forest.buckets[mapping.bucketIndex]!,
+      slot = bucket.slots[mapping.slotIndex]!;
+    if (!slot.enabled || slot.visibilityParent?.enabled === false) continue;
+    criticalColorTrees++;
+    const lod = bucket.colorLods[mapping.slotIndex]!;
+    if (lod >= 0) critical[mapping.bucketIndex]![lod]!++;
   }
-  let paddedColorTrees = 0;
-  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
-    const bucket = forest.buckets[bucketIndex]!;
-    paddedColorTrees += enabledSeedThreeTreeCount(
-      bucket.slots,
-      bucket.nearViewSlotIndices,
-    );
-    for (const mesh of lodSetMeshes(bucket.nearSet)) {
-      accumulateSubmission(residentColor, mesh, mesh.count);
-      const pass = mesh.userData.crownUnderlay === true
-        ? submittedPasses.crownUnderlay
-        : submittedPasses.near;
-      if (seedThreeMeshIsSubmitted(mesh, forest.group)) {
-        accumulateSubmission(submittedColor, mesh, submittedInstanceCount(mesh));
+  forest.buckets.forEach((bucket, index) => {
+    paddedColorTrees += bucket.slots.filter((slot) => slot.enabled).length;
+    [bucket.nearSet, bucket.overviewSet, bucket.farSet].forEach((set, lod) => {
+      const pass = [
+        submittedPasses.near,
+        submittedPasses.middle,
+        submittedPasses.far,
+      ][lod]!;
+      for (const mesh of lodSetMeshes(set)) {
+        accumulateSubmission(residentColor, mesh, mesh.count);
+        if (!seedThreeMeshIsSubmitted(mesh, forest.group)) continue;
+        accumulateSubmission(
+          submittedColor,
+          mesh,
+          submittedInstanceCount(mesh),
+        );
         accumulateSubmission(pass, mesh, submittedInstanceCount(mesh));
         accumulateSubmission(
           criticalProjectedColor,
           mesh,
-          criticalNearByBucket[bucketIndex]! * seedThreeInstancesPerTree(mesh),
+          critical[index]![lod]! * seedThreeInstancesPerTree(mesh),
         );
       }
-    }
-    for (const mesh of lodSetMeshes(bucket.overviewSet)) {
-      accumulateSubmission(residentColor, mesh, mesh.count);
-      if (!seedThreeMeshIsSubmitted(mesh, forest.group)) continue;
-      accumulateSubmission(submittedColor, mesh, mesh.count);
-      accumulateSubmission(submittedPasses.overview, mesh, mesh.count);
-      accumulateSubmission(
-        criticalProjectedColor,
-        mesh,
-        criticalOverviewByBucket[bucketIndex]! * seedThreeInstancesPerTree(mesh),
-      );
-    }
-  }
+    });
+  });
   return {
-    paddedColorTrees,
-    criticalColorTrees,
     residentColor,
     submittedColor,
     criticalProjectedColor,
     submittedPasses,
+    paddedColorTrees,
+    criticalColorTrees,
   };
 }
 
@@ -1538,10 +1535,7 @@ function emptySubmissionStats(): SeedThreeForestSubmissionStats {
 }
 
 function lodSetMeshes(lodSet: InstancedLodSet): THREE.InstancedMesh[] {
-  return [
-    ...(lodSet.branches ? [lodSet.branches] : []),
-    ...lodSet.cards,
-  ];
+  return [...(lodSet.branches ? [lodSet.branches] : []), ...lodSet.cards];
 }
 
 function seedThreeInstancesPerTree(mesh: THREE.InstancedMesh): number {
@@ -1557,7 +1551,11 @@ function seedThreeMeshIsSubmitted(
   forestGroup: THREE.Group,
 ): boolean {
   if (submittedInstanceCount(mesh) <= 0) return false;
-  for (let object: THREE.Object3D | null = mesh; object; object = object.parent) {
+  for (
+    let object: THREE.Object3D | null = mesh;
+    object;
+    object = object.parent
+  ) {
     if (!object.visible) return false;
     if (object === forestGroup) return true;
   }
@@ -1578,53 +1576,16 @@ function accumulateSubmission(
   target.triangles += Math.round(geometryTriangles * instanceCount);
 }
 
-function enabledSeedThreeTreeCount(
-  slots: readonly TreeSlot[],
-  selectedSlotIndices: readonly number[],
-): number {
-  let count = 0;
-  for (const slotIndex of selectedSlotIndices) {
-    const slot = slots[slotIndex];
-    if (slot?.enabled && slot.visibilityParent?.enabled !== false) count += 1;
-  }
-  return count;
-}
-
-export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enabled: boolean): void {
+export function setSeedThreeForestShadows(
+  forest: SeedThreeForestInstances,
+  enabled: boolean,
+): void {
   forest.shadowsEnabled = enabled;
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = enabled && mesh.userData.neverCastShadow !== true;
   });
-}
-
-export function updateSeedThreeCrownUnderlayVisibility(
-  forest: SeedThreeForestInstances,
-  cameraDistance: number,
-  firstPersonActive: boolean,
-): boolean {
-  const presentationVisible = shouldShowSeedThreeCrownUnderlay(
-    forest.crownUnderlayVisible,
-    cameraDistance,
-    firstPersonActive,
-  );
-  const visible = forest.distantCanopyCardsEnabled && presentationVisible;
-  const visibilityChanged = presentationVisible !== forest.crownUnderlayVisible
-    || forest.crownUnderlayMeshes.some((mesh) => mesh.visible !== visible);
-  if (!visibilityChanged) return false;
-  forest.crownUnderlayVisible = presentationVisible;
-  for (const mesh of forest.crownUnderlayMeshes) mesh.visible = visible;
-  return true;
-}
-
-export function setSeedThreeDistantCanopyCardsEnabled(
-  forest: SeedThreeForestInstances,
-  enabled: boolean,
-): void {
-  forest.distantCanopyCardsEnabled = enabled;
-  const visible = enabled && forest.crownUnderlayVisible;
-  for (const mesh of forest.crownUnderlayMeshes) mesh.visible = visible;
 }
 
 export function setSeedThreeForestDeciduousFoliage(
@@ -1649,10 +1610,11 @@ export function setSeedThreeForestDeciduousFoliage(
     ),
   };
   if (
-    forest.deciduousFoliage.springFlush === next.springFlush
-    && forest.deciduousFoliage.autumnColor === next.autumnColor
-    && forest.deciduousFoliage.dormancy === next.dormancy
-  ) return;
+    forest.deciduousFoliage.springFlush === next.springFlush &&
+    forest.deciduousFoliage.autumnColor === next.autumnColor &&
+    forest.deciduousFoliage.dormancy === next.dormancy
+  )
+    return;
   forest.deciduousFoliage = next;
   for (const material of forest.seasonalCardMaterials) {
     setForestCardSeason(material, next);
@@ -1675,37 +1637,6 @@ export function setSeedThreeForestSnowCoverage(
   }
 }
 
-export function updateSeedThreeForestOverviewBillboardFade(
-  forest: SeedThreeForestInstances,
-  cameraDistance: number,
-  firstPersonActive: boolean,
-  deltaSeconds: number,
-): boolean {
-  const previous = forest.overviewBillboardFade;
-  const zoomPercent = Number.isFinite(cameraDistance) && cameraDistance > 0
-    ? (BASELINE_ORBIT_DISTANCE / cameraDistance) * 100
-    : 100;
-  const next = updateSeedThreeOverviewBillboardFade(
-    previous,
-    zoomPercent,
-    deltaSeconds,
-    firstPersonActive,
-  );
-  forest.overviewBillboardFade = {
-    enabled: next.enabled,
-    opacity: next.opacity,
-  };
-  setSeedThreeOverviewBillboardFadeOpacity(next.opacity);
-  const visibilityChanged = forest.overviewBillboardGroup.visible !== next.visible;
-  forest.overviewBillboardGroup.visible = next.visible;
-  forest.overviewBillboardGroup.userData.fadeEnabled = next.enabled;
-  forest.overviewBillboardGroup.userData.fadeOpacity = next.opacity;
-  forest.overviewBillboardGroup.userData.fadeTargetOpacity = next.targetOpacity;
-  return visibilityChanged
-    || previous.enabled !== next.enabled
-    || Math.abs(previous.opacity - next.opacity) > 1e-4;
-}
-
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
   for (const compaction of forest.compactedDraws ?? []) compaction.dispose();
   forest.group.traverse((object: THREE.Object3D) => {
@@ -1714,57 +1645,127 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
     if (mesh.geometry.userData.forestClone) mesh.geometry.dispose();
     mesh.dispose();
   });
-  for (const material of forest.ownedOverviewFadeMaterials) material.dispose();
+  for (const material of forest.ownedLodMaterials) material.dispose();
 }
 
-export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
-  const storageLimit = (forest.renderer.backend as unknown as {
-    device?: { limits: { maxStorageBufferBindingSize: number } };
-  }).device?.limits.maxStorageBufferBindingSize ?? 0;
+export function createSeedThreeForestController(
+  forest: SeedThreeForestInstances,
+): SeedThreeForestController {
+  const storageLimit =
+    (
+      forest.renderer.backend as unknown as {
+        device?: { limits: { maxStorageBufferBindingSize: number } };
+      }
+    ).device?.limits.maxStorageBufferBindingSize ?? 0;
   // The selector already packs exact shadow prefixes. Upload their matrices
   // directly so harvest/falling edits reach shadows in the same frame as color,
   // without another compaction allocation or Three's deferred matrix mirror.
   // Oversized allocations retain vertex buffers, respecting the device limit.
-  for (const bucket of forest.buckets) for (const mesh of [bucket.nearShadowSet.branches, ...bucket.nearShadowSet.cards]) {
-    if (mesh && mesh.instanceMatrix.array.byteLength <= storageLimit
-      && !(mesh.instanceMatrix instanceof StorageInstancedBufferAttribute)) {
-      mesh.instanceMatrix = new StorageInstancedBufferAttribute(mesh.instanceMatrix.array, 16);
+  for (const bucket of forest.buckets)
+    for (const mesh of [
+      bucket.nearShadowSet.branches,
+      ...bucket.nearShadowSet.cards,
+    ]) {
+      if (
+        mesh &&
+        mesh.instanceMatrix.array.byteLength <= storageLimit &&
+        !(mesh.instanceMatrix instanceof StorageInstancedBufferAttribute)
+      ) {
+        mesh.instanceMatrix = new StorageInstancedBufferAttribute(
+          mesh.instanceMatrix.array,
+          16,
+        );
+      }
     }
-  }
-  forest.compactedDraws ??= forest.buckets.flatMap(bucket => [
-    bucket.nearSet.branches, bucket.nearShadowSet.branches,
-    // Shadow cards already use the selector's exact compact caster prefix.
-    ...bucket.nearSet.cards, ...bucket.overviewSet.cards,
-  ])
-    .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null && mesh.instanceMatrix.count >= 24
-      && !Array.isArray(mesh.material) && !mesh.material.transparent)
-    .filter(mesh => !mesh.userData.k || GroupedInstanceDraws.supports(mesh, forest.renderer))
-    .map(mesh => {
+  forest.compactedDraws ??= forest.buckets
+    .flatMap((bucket) => {
+      const color = [bucket.nearSet, bucket.overviewSet, bucket.farSet].flatMap(
+        (set, lod) =>
+          lodSetMeshes(set).map((mesh) => ({
+            mesh,
+            groupVisible: (group: number) => {
+              const indices =
+                lod === 0
+                  ? bucket.nearViewSlotIndices
+                  : lod === 1
+                    ? bucket.overviewViewSlotIndices
+                    : bucket.farSlotIndices;
+              return bucket.colorLods[indices[group]!] === lod;
+            },
+            selectionVersion: () => bucket.colorLodRevision,
+          })),
+      );
+      return [
+        ...color,
+        ...(bucket.nearShadowSet.branches
+          ? [
+              {
+                mesh: bucket.nearShadowSet.branches,
+                groupVisible: undefined,
+                selectionVersion: undefined,
+              },
+            ]
+          : []),
+      ];
+    })
+    .filter(({ mesh }) => mesh.instanceMatrix.count > 0)
+    .map(({ mesh, groupVisible, selectionVersion }) => {
       const wind = mesh.geometry.getAttribute('aWind');
       let maximumWeight = wind ? 0 : 1;
-      if (wind) for (let i = 0; i < wind.count; i++) maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
+      if (wind)
+        for (let i = 0; i < wind.count; i++)
+          maximumWeight = Math.max(maximumWeight, Math.abs(wind.getX(i)));
       const vectors = mesh.geometry.getAttribute('aWindVec');
-      let version = -1, maximumVector = 0;
+      let version = -1,
+        maximumVector = 0;
       const thickness = mesh.geometry.getAttribute('aThickness');
       let maximumThickness = 0;
-      if (thickness) for (let i = 0; i < thickness.count; i++) maximumThickness = Math.max(maximumThickness, Math.abs(thickness.getX(i)));
+      if (thickness)
+        for (let i = 0; i < thickness.count; i++)
+          maximumThickness = Math.max(
+            maximumThickness,
+            Math.abs(thickness.getX(i)),
+          );
       mesh.geometry.computeBoundingBox();
-      const flutterBound = thickness ? Math.sqrt(2.36) * .05 * maximumThickness * Math.max(0, mesh.geometry.boundingBox!.max.y) : 0;
+      const flutterBound = thickness
+        ? Math.sqrt(2.36) *
+          0.05 *
+          maximumThickness *
+          Math.max(0, mesh.geometry.boundingBox!.max.y)
+        : 0;
       const padding = () => {
         if (vectors && version !== (vectors as THREE.BufferAttribute).version) {
-          version = (vectors as THREE.BufferAttribute).version; maximumVector = 0;
-          for (let i = 0; i < vectors.count; i++) maximumVector = Math.max(maximumVector, Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)));
+          version = (vectors as THREE.BufferAttribute).version;
+          maximumVector = 0;
+          for (let i = 0; i < vectors.count; i++)
+            maximumVector = Math.max(
+              maximumVector,
+              Math.hypot(vectors.getX(i), vectors.getY(i), vectors.getZ(i)),
+            );
         }
         // Exact bound for the bark shader: its two sine weights sum to one.
-        return .01 + Math.abs(windStrength.value) * (.35 * maximumWeight * maximumVector + flutterBound);
+        return (
+          0.01 +
+          Math.abs(windStrength.value) *
+            (0.35 * maximumWeight * maximumVector + flutterBound)
+        );
       };
-      return mesh.userData.k && !mesh.userData.seedThreeShadowOnly
-        ? new GroupedInstanceDraws(mesh, forest.renderer, padding)
-        : new InstanceDrawCompaction(mesh, padding, { skipCollapsed: true, instanceGroupSize: Math.max(1, Number(mesh.userData.k) || 1) });
+      return mesh.userData.k &&
+        !mesh.userData.seedThreeShadowOnly &&
+        GroupedInstanceDraws.supports(mesh, forest.renderer)
+        ? new GroupedInstanceDraws(mesh, forest.renderer, padding, groupVisible)
+        : new InstanceDrawCompaction(mesh, padding, {
+            skipCollapsed: true,
+            instanceGroupSize: Math.max(1, Number(mesh.userData.k) || 1),
+            groupVisible,
+            selectionVersion,
+          });
     });
   return {
-    hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
-    showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
+    hideTree: (layoutIndex) =>
+      setSeedThreeTreeVisible(forest, layoutIndex, false),
+    showTree: (layoutIndex) =>
+      setSeedThreeTreeVisible(forest, layoutIndex, true),
     setTreeTransform: (layoutIndex, worldDelta) => {
       const mapping = forest.slotByLayoutIndex[layoutIndex];
       if (!mapping) return;
@@ -1773,26 +1774,43 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       slot.matrix.multiplyMatrices(worldDelta, slot.authoredMatrix!);
       slot.enabled = true;
       const indices = [mapping.slotIndex];
-      patchSeedThreeLodSlotVisibility(bucket.nearSet, bucket.slots, bucket.nearViewSlotIndices, indices);
-      patchSeedThreeLodSlotVisibility(bucket.overviewSet, bucket.slots, bucket.overviewViewSlotIndices, indices);
-      patchSeedThreeLodSlotVisibility(bucket.nearShadowSet, bucket.slots, bucket.nearSlotIndices, indices);
+      patchSeedThreeLodSlotVisibility(
+        bucket.nearSet,
+        bucket.slots,
+        bucket.nearViewSlotIndices,
+        indices,
+      );
+      patchSeedThreeLodSlotVisibility(
+        bucket.overviewSet,
+        bucket.slots,
+        bucket.overviewViewSlotIndices,
+        indices,
+      );
+      patchSeedThreeLodSlotVisibility(
+        bucket.nearShadowSet,
+        bucket.slots,
+        bucket.nearSlotIndices,
+        indices,
+      );
+      patchSeedThreeLodSlotVisibility(
+        bucket.farSet,
+        bucket.slots,
+        bucket.farSlotIndices,
+        indices,
+      );
     },
     commit: () => commitSeedThreeForestMatrices(forest),
     updateCamera: (
       camera,
-      cameraDistance,
+      _cameraDistance,
       firstPersonActive,
       casterBounds,
       cameraInteractionActive,
-      deltaSeconds = 1 / 60,
+      _deltaSeconds = 1 / 60,
     ) => {
-      // Color LOD2 trees remain resident across the whole world. The selector
-      // now scopes only exact shadow casters; zoom changes only card opacity.
-      const fadeChanged = updateSeedThreeForestOverviewBillboardFade(
-        forest,
-        cameraDistance,
-        firstPersonActive,
-        deltaSeconds,
+      const before = forest.buckets.reduce(
+        (sum, bucket) => sum + bucket.colorLodRevision,
+        0,
       );
       const cameraUpdate = updateSeedThreeForestCamera(
         forest,
@@ -1805,12 +1823,19 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         compaction.syncRenderState();
         // The exact shadow set already includes off-screen casters selected
         // against the light's receiver bounds. Only color uses the view frustum.
-        compaction.prepare(compaction.draw.userData.seedThreeShadowOnly ? null : camera);
+        compaction.prepare(
+          compaction.draw.userData.seedThreeShadowOnly ? null : camera,
+        );
       }
       return {
-        presentationChanged: fadeChanged
-          || cameraUpdate.selectionChanged
-          || cameraUpdate.bucketCompactions > 0,
+        presentationChanged:
+          before !==
+            forest.buckets.reduce(
+              (sum, bucket) => sum + bucket.colorLodRevision,
+              0,
+            ) ||
+          cameraUpdate.selectionChanged ||
+          cameraUpdate.bucketCompactions > 0,
         shadowCastersChanged: cameraUpdate.shadowCastersChanged,
       };
     },
@@ -1820,8 +1845,6 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       setSeedThreeForestDeciduousFoliage(forest, presentation),
     setSnowCoverage: (coverage) =>
       setSeedThreeForestSnowCoverage(forest, coverage),
-    setDistantCanopyCardsEnabled: (enabled) =>
-      setSeedThreeDistantCanopyCardsEnabled(forest, enabled),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };

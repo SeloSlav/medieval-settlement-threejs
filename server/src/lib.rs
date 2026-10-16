@@ -93,6 +93,7 @@ mod types;
 mod vineyard;
 mod weaver_input_policy;
 mod well_policy;
+mod service_capacity_policy;
 mod wind_policy;
 mod woodcutter_policy;
 mod worksite_stall_policy;

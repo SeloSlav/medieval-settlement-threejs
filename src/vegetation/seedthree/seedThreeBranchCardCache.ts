@@ -87,7 +87,6 @@ export async function restoreSeedThreeBranchCardRecord(record: CacheRecord): Pro
         }
         geometry.setIndex(new THREE.BufferAttribute(restoreIndex(cached.indices), 1));
         geometry.userData.shared = true;
-        geometry.userData.crownUnderlay = cachedSet.key === '0:underlay';
         return {
           geometry,
           material: createCardMaterial(textures, centerUniform, cachedSet.noFlutter),
@@ -241,6 +240,7 @@ function createCardMaterial(
   const normalWorld = base.add(detail.mul(0.45)).normalize();
   material.normalNode = cameraViewNode.mul(vec4(normalWorld, 0)).xyz.normalize();
   material.positionNode = foliageWindPosition(!noFlutter) as never;
+  material.userData.seedThreeNoFlutter = noFlutter;
   const transmit = uniform(new THREE.Color().setRGB(...TRANSMIT));
   material.thicknessColorNode = (texture(textures.trans) as any).r
     .mul(attribute('aThickness', 'float'))

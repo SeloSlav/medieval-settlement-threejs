@@ -119,7 +119,7 @@ if(productionAssets) {
   const placements=treePositions.map((p,i)=>({x:p.x,z:p.z,species:i%4===0?'silverFir' as const:'beech' as const,form:i%4===0?'narrow' as const:'broad' as const,scale:0.62+random()*0.35}));
   const forest=await createSeedThreeForest(placements,{getHeightAt:bed,generationSize:span},renderer.getMaxAnisotropy(),seed,renderer);
   const forestController=createSeedThreeForestController(forest);
-  forestController.setShadows(false);forestController.setDistantCanopyCardsEnabled(false);
+  forestController.setShadows(false);
   scene.add(forest.group);wind.windStrength.value=0;
   const stone=await loadRiverRockTextures(renderer.getMaxAnisotropy());
   rockMat.map=stone.map;rockMat.normalMap=stone.normalMap;rockMat.roughnessMap=stone.roughnessMap;rockMat.color.set(0xffffff);rockMat.needsUpdate=true;

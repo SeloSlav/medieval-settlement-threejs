@@ -64,5 +64,5 @@ assert(root.getObjectByName('MasonDressedStoneStock7')?.visible);
 syncBulkStockpileVisuals(root,yard);
 assert.equal(root.getObjectByName('MasonDressedStoneStock0')?.visible,false);
 assert.notEqual(bulkStockpileVisualSignature(yard),bulkStockpileVisualSignature({...yard,dressedStone:64}));
-for(const p of ['public/assets/ui/build-menu/cards/stone-mason.webp','public/assets/ui/icons/materials/dressed-stone.svg'])assert(readFileSync(p).length>300);
+for(const p of ['public/assets/ui/build-menu/cards/stone-mason.webp','public/assets/ui/icons/materials/dressed-stone.png'])assert(readFileSync(p).length>300);
 console.log('Dressed stone: production routing, finite storage, construction readiness, cost separation, repairs, HUD, compiled mesh, footprint, and live stock slots passed.');

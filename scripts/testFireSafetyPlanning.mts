@@ -143,9 +143,11 @@ assert.deepEqual(
 );
 const beforeCloserWell = assessBuildingFireSafety(lumberMill, {
   buildings: [distantWell, lumberMill],
+  roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
 });
 const afterCloserWell = assessBuildingFireSafety(lumberMill, {
   buildings: [distantWell, lumberMill, closeWell],
+  roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
 });
 assert.equal(beforeCloserWell.nearestWellId, distantWell.id);
 assert.equal(afterCloserWell.nearestWellId, closeWell.id);
@@ -186,18 +188,18 @@ const dryWell = building('11', 'well', 35, 0, {
 });
 const unready = assessBuildingFireSafety(
   { kind: 'smithy', x: 0, z: 0 },
-  { buildings: [dryWell] },
+  { buildings: [dryWell], roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az) },
 );
 assert.equal(unready.coverage, 'unready');
 assert.equal(unready.nearestWellReadiness, 'dry');
 assert.equal(unready.firstBucketSeconds, null);
 assert.match(
   describePlacementFireSafety(unready) ?? '',
-  /well extent reaches here but it holds less than/,
+  /road-linked well available but it holds less than/,
 );
 const concurrentlyAvailable = assessBuildingFireSafety(
   { kind: 'smokehouse', x: 0, z: 0 },
-  { buildings: [readyWell] },
+  { buildings: [readyWell], roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az) },
 );
 assert.equal(concurrentlyAvailable.coverage, 'covered');
 assert.equal(concurrentlyAvailable.nearestWellReadiness, 'ready');
@@ -207,9 +209,14 @@ const uncovered = assessBuildingFireSafety(
   { buildings: [building('far-well', 'well', 200, 0, { workRadius: 80 })] },
 );
 assert.equal(uncovered.coverage, 'uncovered');
+assert.equal(assessBuildingFireSafety(
+  { kind: 'potter_kiln', x: 0, z: 0 },
+  { buildings: [building('road-well', 'well', 500, 0, { workRadius: 0, water: 20 })],
+    roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az) },
+).coverage, 'covered', 'distant wells must provide road-linked response without a radius');
 assert.match(
   describePlacementFireSafety(uncovered) ?? '',
-  /no ready well extent reaches here/,
+  /no ready road-linked well/,
 );
 
 const fireSafe = assessBuildingFireSafety(
@@ -296,7 +303,7 @@ const standardInspectorView = withBuildingFireSafety(
 );
 assert.match(
   standardInspectorView.detailsHtml,
-  /data-fire-safety data-inspector-state="warning"[\s\S]*Standard[\s\S]*No ready well in range/,
+  /data-fire-safety data-inspector-state="warning"[\s\S]*Standard[\s\S]*No ready road-linked well/,
 );
 
 const perfBuildings = Array.from({ length: 100_000 }, (_, index) =>
@@ -312,7 +319,7 @@ const perfBuildings = Array.from({ length: 100_000 }, (_, index) =>
 const startedAt = performance.now();
 const perfAssessment = assessBuildingFireSafety(
   { kind: 'charcoal_burner', x: 500, z: 200 },
-  { buildings: perfBuildings },
+  { buildings: perfBuildings, roadPathDistance: (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az) },
 );
 const elapsedMs = performance.now() - startedAt;
 assert.equal(perfAssessment.coverage, 'covered');

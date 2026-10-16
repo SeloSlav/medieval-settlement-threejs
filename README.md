@@ -510,9 +510,13 @@ measurements. Run `npm run test:development-profiler` for attribution checks.
 
 Vegetation camera culling preserves the authored models, placement density,
 wind, seasons and independent shadow selection in both solo and multiplayer.
+Trees use normal SeedThree foliage without extra crown underlays or additive
+overview layers. One color LOD owns each tree: LOD2 nearby, LOD3 beyond 48 m,
+and LOD4 beyond 96 m, with 10% hysteresis around the boundaries. Both modes
+use the same selection and rendering path. Horizon trees use LOD4 only.
 `npm run test:vegetation-culling-browser` compares tree images and reads back
 GPU foliage data, including edits accumulated while crowns are offscreen.
-`npm run test:solo-vegetation-visuals` compares fixed close, medium and distant
+`npm run test:solo-vegetation-visuals` compares fixed close, medium, distant and map-edge
 views with and without post-processing, saves reference/difference images in
 `artifacts/solo-vegetation/foliage-visuals/`, and checks that unchanged views stay
 stable. This command skips FPS profiling. Run

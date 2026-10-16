@@ -75,7 +75,7 @@ export function withBuildingFireSafety(
     ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s`
     : assessment.coverage === 'unready'
       ? `Well unready · ${wellReadinessLabel(assessment.nearestWellReadiness)}`
-      : `No ready well in range`;
+      : `No ready road-linked well`;
   const exposed = assessment.exposedBuildingCount + assessment.exposedHouseholdCount;
   const exposureDetail = exposed === 0
     ? 'Isolated'

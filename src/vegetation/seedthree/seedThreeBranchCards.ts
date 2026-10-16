@@ -1,13 +1,14 @@
 import type * as THREE from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
 import {
-  BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS,
   bakeBranchCards,
   disposeBranchCards,
-  planBranchCardCrownUnderlay,
   type BranchCardsSet,
 } from '@seedthree/core/branch-cards.js';
-import type { SeedThreeSpeciesAssets, SeedThreeSpeciesPreset } from './seedThreeAssets.ts';
+import type {
+  SeedThreeSpeciesAssets,
+  SeedThreeSpeciesPreset,
+} from './seedThreeAssets.ts';
 import {
   readSeedThreeBranchCards,
   restoreSeedThreeBranchCardRecord,
@@ -40,8 +41,14 @@ export type SeedThreeBranchCardStartupTiming = {
 const CARD_RES = 512;
 const CARD_VARIANTS = 3;
 const cardCache = new Map<string, SeedThreeBranchCards>();
-const cardBuildPromiseCache = new Map<string, Promise<SeedThreeBranchCards | null>>();
-const cardRestorePromiseCache = new Map<string, Promise<SeedThreeBranchCards | null>>();
+const cardBuildPromiseCache = new Map<
+  string,
+  Promise<SeedThreeBranchCards | null>
+>();
+const cardRestorePromiseCache = new Map<
+  string,
+  Promise<SeedThreeBranchCards | null>
+>();
 const persistentCacheCheckedKeys = new Set<string>();
 const startupTimings = new Map<string, SeedThreeBranchCardStartupTiming>();
 let persistenceQueue: Promise<void> = Promise.resolve();
@@ -54,14 +61,12 @@ export function seedThreeBranchCardCacheKey(
   mobileTarget: boolean,
 ): string {
   const foliage = species.foliage ?? {};
-  const crownUnderlay = planBranchCardCrownUnderlay(foliage, 1);
   return [
     species.name,
     foliage.size ?? '',
     foliage.leavesPerBranch ?? '',
     foliage.cardCoverage ?? '',
     `r${foliage.cardRadialPlanes ?? 1}`,
-    `u${crownUnderlay.enabled ? 1 : 0}x${crownUnderlay.lateralScale}`,
     species.params?.levels ?? '',
     CARD_RES,
     CARD_VARIANTS,
@@ -97,7 +102,10 @@ export async function ensureSeedThreeBranchCards(
     startupTimings.set(key, {
       key,
       species: species.name,
-      source: prior?.source === 'persistent' || prior?.source === 'asset' ? prior.source : 'memory',
+      source:
+        prior?.source === 'persistent' || prior?.source === 'asset'
+          ? prior.source
+          : 'memory',
       restoreMs: prior?.restoreMs ?? 0,
       bakeMs: prior?.bakeMs ?? 0,
       totalMs: prior?.totalMs ?? 0,
@@ -122,7 +130,8 @@ export async function ensureSeedThreeBranchCards(
   try {
     return await request;
   } finally {
-    if (cardBuildPromiseCache.get(key) === request) cardBuildPromiseCache.delete(key);
+    if (cardBuildPromiseCache.get(key) === request)
+      cardBuildPromiseCache.delete(key);
   }
 }
 
@@ -151,41 +160,19 @@ async function ensureSeedThreeBranchCardsUncached(
   const activeBake = new Promise<void>((resolve) => {
     releaseBake = resolve;
   });
-  rendererBakeBarrier = precedingBake.then(() => activeBake, () => activeBake);
+  rendererBakeBarrier = precedingBake.then(
+    () => activeBake,
+    () => activeBake,
+  );
   await precedingBake.catch(() => undefined);
   try {
     if (requestGeneration !== cardCacheGeneration) return null;
 
     const maxLevel = skeletonLevels(species) - 1;
-    const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, 1);
     const jobs: Array<{
-    key?: string;
-    level: number;
-    foliageOnly: boolean;
-    preserveFoliageLayout?: boolean;
-    maxRoots?: number;
-    radialPlanes?: number;
-    instanceCapacity?: number;
-    variants?: number;
-    size?: number;
-    noFlutter?: boolean;
-    }> = [
-      { level: maxLevel, foliageOnly: true },
-    ];
-    if (crownUnderlay.enabled) {
-      jobs.push({
-      key: '0:underlay',
-      level: 0,
-      foliageOnly: true,
-      preserveFoliageLayout: true,
-      maxRoots: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.maxRootCards,
-      radialPlanes: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.radialPlanes,
-      instanceCapacity: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.maxRootCards,
-      variants: 1,
-      size: Math.max(256, Math.round(CARD_RES / 2)),
-      noFlutter: true,
-      });
-    }
+      level: number;
+      foliageOnly: boolean;
+    }> = [{ level: maxLevel, foliageOnly: true }];
     if (mobileTarget) {
       jobs.push({ level: maxLevel, foliageOnly: false });
       jobs.push({ level: Math.max(1, maxLevel - 1), foliageOnly: false });
@@ -195,45 +182,44 @@ async function ensureSeedThreeBranchCardsUncached(
     const bakeStartedAt = performance.now();
     try {
       for (const job of jobs) {
-      const jobKey = job.key ?? `${job.level}:${job.foliageOnly ? 'fol' : 'full'}`;
-      if (byLevel.has(jobKey)) continue;
-      const noFlutter = job.noFlutter ?? job.level < maxLevel;
-      noFlutterByLevel.set(jobKey, noFlutter);
-      const set = await bakeBranchCards(renderer, species, assets, {
-        size: job.size ?? CARD_RES,
-        variants: job.variants ?? CARD_VARIANTS,
-        cardLevel: job.level,
-        foliageOnly: job.foliageOnly,
-        preserveFoliageLayout: job.preserveFoliageLayout,
-        maxRoots: job.maxRoots,
-        radialPlanes: job.radialPlanes,
-        instanceCapacity: job.instanceCapacity,
-        noFlutter,
-        yield: options.yieldBetweenCaptures,
-        onRendererBusyChange: options.onRendererBusyChange,
-      });
-      if (!set) throw new Error(`required branch-card bake "${jobKey}" returned no card set`);
-      if (jobKey === '0:underlay') {
-        for (const variant of set.variants) variant.geometry.userData.crownUnderlay = true;
-      }
-      byLevel.set(jobKey, set);
+        const jobKey = `${job.level}:${job.foliageOnly ? 'fol' : 'full'}`;
+        if (byLevel.has(jobKey)) continue;
+        const noFlutter = job.level < maxLevel;
+        noFlutterByLevel.set(jobKey, noFlutter);
+        const set = await bakeBranchCards(renderer, species, assets, {
+          size: CARD_RES,
+          variants: CARD_VARIANTS,
+          cardLevel: job.level,
+          foliageOnly: job.foliageOnly,
+          noFlutter,
+          yield: options.yieldBetweenCaptures,
+          onRendererBusyChange: options.onRendererBusyChange,
+        });
+        if (!set)
+          throw new Error(
+            `required branch-card bake "${jobKey}" returned no card set`,
+          );
+        for (const variant of set.variants)
+          variant.material.userData.seedThreeNoFlutter = noFlutter;
+        byLevel.set(jobKey, set);
       }
     } catch (error) {
       disposeBranchCards({ byLevel });
       console.warn('[SeedThree] branch card bake failed:', species.name, error);
       startupTimings.set(key, {
-      key,
-      species: species.name,
-      source: 'unavailable',
-      restoreMs,
-      bakeMs: performance.now() - bakeStartedAt,
-      totalMs: performance.now() - startedAt,
-      persistenceQueued: false,
+        key,
+        species: species.name,
+        source: 'unavailable',
+        restoreMs,
+        bakeMs: performance.now() - bakeStartedAt,
+        totalMs: performance.now() - startedAt,
+        persistenceQueued: false,
       });
       return null;
     }
 
-    const near = byLevel.get(`${maxLevel}:fol`) ?? byLevel.get(`${maxLevel}:full`);
+    const near =
+      byLevel.get(`${maxLevel}:fol`) ?? byLevel.get(`${maxLevel}:full`);
     if (!near) return null;
 
     const cards: SeedThreeBranchCards = {
@@ -250,13 +236,13 @@ async function ensureSeedThreeBranchCardsUncached(
     cardCache.set(key, cards);
     queueSeedThreeBranchCardPersistence(key, cards, noFlutterByLevel);
     startupTimings.set(key, {
-    key,
-    species: species.name,
-    source: 'baked',
-    restoreMs,
-    bakeMs: performance.now() - bakeStartedAt,
-    totalMs: performance.now() - startedAt,
-    persistenceQueued: true,
+      key,
+      species: species.name,
+      source: 'baked',
+      restoreMs,
+      bakeMs: performance.now() - bakeStartedAt,
+      totalMs: performance.now() - startedAt,
+      persistenceQueued: true,
     });
     if (cardCache.size > 8) {
       const [oldKey, old] = cardCache.entries().next().value!;
@@ -314,16 +300,21 @@ async function restoreSeedThreeBranchCards(
     if (baked) {
       try {
         const cards = await restoreSeedThreeBranchCardRecord(baked);
-        if (cards) return { cards,source: 'asset' as const };
+        if (cards) return { cards, source: 'asset' as const };
       } catch (error) {
-        console.warn('[SeedThree] baked branch-card textures could not be decoded:',error);
+        console.warn(
+          '[SeedThree] baked branch-card textures could not be decoded:',
+          error,
+        );
       }
     }
     // Wait for an exact-key snapshot queued by a disposing authoring world
     // before declaring a miss and starting another renderer-exclusive bake.
     await persistenceJobsByKey.get(key);
     const persisted = await readSeedThreeBranchCards(key);
-    return persisted ? { cards: persisted,source: 'persistent' as const } : null;
+    return persisted
+      ? { cards: persisted, source: 'persistent' as const }
+      : null;
   })().then((restored) => {
     const persisted = restored?.cards ?? null;
     if (requestGeneration !== cardCacheGeneration) {
@@ -350,7 +341,8 @@ async function restoreSeedThreeBranchCards(
   try {
     return await request;
   } finally {
-    if (cardRestorePromiseCache.get(key) === request) cardRestorePromiseCache.delete(key);
+    if (cardRestorePromiseCache.get(key) === request)
+      cardRestorePromiseCache.delete(key);
   }
 }
 
@@ -366,7 +358,10 @@ function queueSeedThreeBranchCardPersistence(
     .catch((error: unknown) => {
       // A failed older cache job must never poison persistence for every later
       // species or create an unhandled rejection.
-      console.warn('[SeedThree] previous branch-card persistence job failed:', error);
+      console.warn(
+        '[SeedThree] previous branch-card persistence job failed:',
+        error,
+      );
     })
     .then(() => writeSeedThreeBranchCards(key, cards, noFlutterByLevel))
     .catch((error: unknown) => {
@@ -374,9 +369,12 @@ function queueSeedThreeBranchCardPersistence(
     });
   persistenceQueue = job;
   persistenceJobsByKey.set(key, job);
-  void job.finally(() => {
-    if (persistenceJobsByKey.get(key) === job) persistenceJobsByKey.delete(key);
-  }).catch(() => undefined);
+  void job
+    .finally(() => {
+      if (persistenceJobsByKey.get(key) === job)
+        persistenceJobsByKey.delete(key);
+    })
+    .catch(() => undefined);
 }
 
 function disposeCardsAfterPersistence(

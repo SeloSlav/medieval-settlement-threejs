@@ -3375,6 +3375,7 @@ export class ResidenceMarkers {
     string,
     THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
   >();
+  private readonly serviceCoverageSourceLayers = new Map<string, Map<THREE.Object3D, number>>();
   private readonly meshes = new Map<string, THREE.Group>();
   private readonly residenceStates = new Map<string, ResidenceState>();
   private serviceCoverageIds = new Set<string>();
@@ -3480,7 +3481,7 @@ export class ResidenceMarkers {
     for (const [id, marker] of this.meshes) {
       const destroyed = ids.has(id);
       marker.visible = !destroyed;
-      this.staticBatches.setResidenceVisible(id, !destroyed);
+      this.staticBatches.setResidenceVisible(id, !destroyed && !this.serviceCoverageSourceLayers.has(id));
       const tier = Number(marker.userData.residenceTier ?? 0);
       if (destroyed || tier <= 0) {
         this.shadowProxyBatch.remove(id);
@@ -3555,6 +3556,7 @@ export class ResidenceMarkers {
           this.serviceCoverageDirty = true;
         }
         this.root.remove(marker);
+        this.restoreServiceCoverageSourceLayers(residence.id);
         this.staticBatches.removeResidence(residence.id);
         this.removeServiceCoverageMesh(residence.id);
         disposeGroup(marker);
@@ -3624,7 +3626,11 @@ export class ResidenceMarkers {
         1 - condition * 0.065,
         1 - condition * 0.012,
       );
-      this.staticBatches.updateResidence(residence.id, marker, !destroyed);
+      this.staticBatches.updateResidence(
+        residence.id,
+        marker,
+        !destroyed && !this.serviceCoverageSourceLayers.has(residence.id),
+      );
       const completedTier = residence.tier === 0 ? null : residence.tier;
       if (completedTier == null || destroyed) {
         this.shadowProxyBatch.remove(residence.id);
@@ -3667,6 +3673,7 @@ export class ResidenceMarkers {
       syncInitialResidenceConstruction(marker, residence);
       syncResidenceUpgradeWorks(marker, residence);
       invalidateStaticTransformBoundary(marker);
+      if (this.serviceCoverageIds.has(residence.id)) this.serviceCoverageDirty = true;
     }
 
     for (const [id, marker] of this.meshes) {
@@ -3675,6 +3682,7 @@ export class ResidenceMarkers {
         this.serviceCoverageDirty = true;
       }
       this.root.remove(marker);
+      this.restoreServiceCoverageSourceLayers(id);
       this.staticBatches.removeResidence(id);
       this.shadowProxyBatch.remove(id);
       this.removeServiceCoverageMesh(id);
@@ -3700,18 +3708,28 @@ export class ResidenceMarkers {
 
   private syncServiceCoverageHighlights(): void {
     for (const [id, overlay] of this.serviceCoverageMeshes) {
-      if (!this.serviceCoverageIds.has(id)) overlay.visible = false;
+      if (this.serviceCoverageKind != null && this.serviceCoverageIds.has(id)) continue;
+      overlay.visible = false;
+      const source = this.meshes.get(id);
+      if (source) {
+        this.restoreServiceCoverageSourceLayers(id);
+        this.staticBatches.setResidenceVisible(id, source.visible);
+      }
     }
     let index = 0;
     for (const id of this.serviceCoverageIds) {
       const source = this.meshes.get(id);
-      if (!source || !source.visible) {
+      if (!source || this.destroyedResidenceIds.has(id) || this.serviceCoverageKind == null) {
         const overlay = this.serviceCoverageMeshes.get(id);
         if (overlay) overlay.visible = false;
         continue;
       }
       const overlay = this.ensureServiceCoverageMesh(id);
-      if (!overlay) continue;
+      if (!overlay) {
+        this.restoreServiceCoverageSourceLayers(id);
+        this.staticBatches.setResidenceVisible(id, source.visible);
+        continue;
+      }
       overlay.position.copy(source.position);
       overlay.quaternion.copy(source.quaternion);
       overlay.scale.copy(source.scale);
@@ -3726,8 +3744,19 @@ export class ResidenceMarkers {
       overlay.userData.serviceCoverageResidenceId = id;
       overlay.userData.marketplaceFulfillment =
         this.serviceCoverageMarketplaceFulfillment.get(id) ?? null;
+      // Replace every opaque draw for this home, including cross-house batches
+      // and windows. Drawing a transparent skin over an opaque model cannot
+      // make the model transparent and can leave only coplanar edge fragments.
+      const layers = this.serviceCoverageSourceLayers.get(id) ?? new Map<THREE.Object3D, number>();
+      source.traverse((object) => {
+        if (!layers.has(object)) layers.set(object, object.layers.mask);
+        object.layers.mask = 0;
+      });
+      this.serviceCoverageSourceLayers.set(id, layers);
+      this.staticBatches.setResidenceVisible(id, false);
       index += 1;
     }
+    this.staticBatches.finalizeGeometryBuffers();
     this.serviceCoverageRoot.userData.serviceCoverageKind = this.serviceCoverageKind;
     this.serviceCoverageRoot.userData.visibleResidenceCount = index;
     this.serviceCoverageDirty = false;
@@ -3736,12 +3765,16 @@ export class ResidenceMarkers {
   private ensureServiceCoverageMesh(
     residenceId: string,
   ): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null {
-    const existing = this.serviceCoverageMeshes.get(residenceId);
-    if (existing) return existing;
     const residence = this.residenceStates.get(residenceId);
-    if (!residence) return null;
-    const geometry = createResidenceCoverageGeometry(residence);
+    const source = this.meshes.get(residenceId);
+    if (!residence || !source) return null;
+    const signature = residenceCoverageGeometrySignature(source);
+    const existing = this.serviceCoverageMeshes.get(residenceId);
+    if (existing?.geometry.userData.serviceCoverageSignature === signature) return existing;
+    this.removeServiceCoverageMesh(residenceId);
+    const geometry = createResidenceCoverageGeometry(residence, source);
     if (!geometry) return null;
+    geometry.userData.serviceCoverageSignature = signature;
     const overlay = new THREE.Mesh(
       geometry,
       this.serviceCoverageMaterialFor(
@@ -3770,10 +3803,7 @@ export class ResidenceMarkers {
       transparent: true,
       depthTest: true,
       depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       toneMapped: false,
     });
     material.name = `Served residence translucent material:${color.toString(16)}`;
@@ -3787,6 +3817,13 @@ export class ResidenceMarkers {
     overlay.removeFromParent();
     overlay.geometry.dispose();
     this.serviceCoverageMeshes.delete(residenceId);
+  }
+
+  private restoreServiceCoverageSourceLayers(residenceId: string): void {
+    for (const [object, mask] of this.serviceCoverageSourceLayers.get(residenceId) ?? []) {
+      object.layers.mask = mask;
+    }
+    this.serviceCoverageSourceLayers.delete(residenceId);
   }
 
   private applyWindowGlowForResidence(marker: THREE.Group, residenceId: string): void {
@@ -3891,6 +3928,7 @@ export class ResidenceMarkers {
       overlay.removeFromParent();
     }
     this.serviceCoverageMeshes.clear();
+    this.serviceCoverageSourceLayers.clear();
     for (const material of this.serviceCoverageMaterials.values()) {
       material.dispose();
     }
@@ -3909,6 +3947,7 @@ export class ResidenceMarkers {
 
 function createResidenceCoverageGeometry(
   residence: ResidenceState,
+  marker: THREE.Group,
 ): THREE.BufferGeometry | null {
   const appearanceSeed = hashStringSeed(residence.id);
   const source = residence.tier === 0
@@ -3917,6 +3956,9 @@ function createResidenceCoverageGeometry(
   syncFirewoodPile(source, getNeedStock(residence.needs, 'firewood'));
   syncInitialResidenceConstruction(source, residence);
   syncResidenceUpgradeWorks(source, residence);
+  const pile = source.getObjectByName('FirewoodPile');
+  const markerPile = marker.getObjectByName('FirewoodPile');
+  if (pile && markerPile) pile.position.copy(markerPile.position);
   source.updateWorldMatrix(true, true);
 
   const rootInverse = source.matrixWorld.clone().invert();
@@ -3956,6 +3998,19 @@ function createResidenceCoverageGeometry(
   merged.computeBoundingBox();
   merged.computeBoundingSphere();
   return merged;
+}
+
+/** Rebuild only when visible construction/stock geometry changes, not each inventory tick. */
+function residenceCoverageGeometrySignature(marker: THREE.Group): string {
+  const parts = [String(marker.userData.residenceTier)];
+  for (const name of ['FirewoodPile', 'InitialCottageConstructionFrame', 'ResidenceUpgradeWorks']) {
+    const root = marker.getObjectByName(name);
+    parts.push(`${name}:${root?.visible ?? false}`);
+    root?.traverseVisible((object) => {
+      parts.push(`${object.id}:${object.position.toArray()}:${object.quaternion.toArray()}:${object.scale.toArray()}`);
+    });
+  }
+  return parts.join('|');
 }
 
 function coverageGeometryPart(

@@ -652,6 +652,8 @@ export type GameBalance = {
     reforesterSparseTreeMaturationWorkdays: number;
     treeRegrowthUpdateIntervalSec: number;
     wellBaseRefillPerSec: number;
+    wellHouseholdCapacity: number;
+    tavernHouseholdCapacity: number;
     wellMinimumRefillHydrology: number;
     wellSurgeChancePerTick: number;
     wellSurgeAmountMin: number;
@@ -1377,6 +1379,8 @@ function generateRust(): string {
     `pub const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS: f64 = ${rustF64(b.production.reforesterSparseTreeMaturationWorkdays)};`,
     `pub const TREE_REGROWTH_UPDATE_INTERVAL_SEC: f64 = ${rustF64(b.production.treeRegrowthUpdateIntervalSec)};`,
     `pub const WELL_BASE_REFILL_PER_SEC: f64 = ${rustF64(b.production.wellBaseRefillPerSec)};`,
+    `pub const WELL_HOUSEHOLD_CAPACITY: usize = ${b.production.wellHouseholdCapacity};`,
+    `pub const TAVERN_HOUSEHOLD_CAPACITY: usize = ${b.production.tavernHouseholdCapacity};`,
     `pub const WELL_MINIMUM_REFILL_HYDROLOGY: f64 = ${rustF64(b.production.wellMinimumRefillHydrology)};`,
     `pub const WELL_SURGE_CHANCE_PER_TICK: f64 = ${rustF64(b.production.wellSurgeChancePerTick)};`,
     `pub const WELL_SURGE_AMOUNT_MIN: f64 = ${rustF64(b.production.wellSurgeAmountMin)};`,
@@ -2527,6 +2531,8 @@ function generateTypeScript(): string {
     `export const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS = ${b.production.reforesterSparseTreeMaturationWorkdays};`,
     `export const TREE_REGROWTH_UPDATE_INTERVAL_SEC = ${b.production.treeRegrowthUpdateIntervalSec};`,
     `export const WELL_BASE_REFILL_PER_SEC = ${b.production.wellBaseRefillPerSec};`,
+    `export const WELL_HOUSEHOLD_CAPACITY = ${b.production.wellHouseholdCapacity};`,
+    `export const TAVERN_HOUSEHOLD_CAPACITY = ${b.production.tavernHouseholdCapacity};`,
     `export const WELL_MINIMUM_REFILL_HYDROLOGY = ${b.production.wellMinimumRefillHydrology};`,
     `export const WELL_SURGE_CHANCE_PER_TICK = ${b.production.wellSurgeChancePerTick};`,
     `export const WELL_SURGE_AMOUNT_MIN = ${b.production.wellSurgeAmountMin};`,

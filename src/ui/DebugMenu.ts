@@ -23,6 +23,7 @@ type DebugMenuOptions = {
     companyKind: number,
   ) => Promise<void>;
   onOpenChange?: (open: boolean) => void;
+  onPerformanceDetails?: (details: string | null) => void;
   onPlacementArmed?: () => void;
   canOpenFromKeyboard?: () => boolean;
 };
@@ -72,7 +73,6 @@ export class DebugMenu {
   private open = false;
   private armedAction: DebugMapAction | null = null;
   private actionPending = false;
-  private readonly performanceMeter = document.createElement('div');
   private lastPerformanceUpdate = 0;
   private meterVisible = false;
   private readonly recordingBar = document.createElement('div');
@@ -118,7 +118,7 @@ export class DebugMenu {
             <button type="button" data-render-actors>Hide all actors</button>
             <button type="button" data-render-baseline>Save baseline</button>
             <button type="button" data-render-reset>Restore all models</button>
-            <label><input type="checkbox" data-render-meter checked /> Keep frame meter visible</label>
+            <label><input type="checkbox" data-render-meter checked /> Show rendering stats in bottom-left HUD</label>
           </div>
           <p data-render-summary>Collecting frame samples…</p>
           <p data-render-comparison>Save a baseline before changing switches. Frame times are measured between animation frames, not GPU execution time.</p>
@@ -189,9 +189,6 @@ export class DebugMenu {
     this.placementHint.className = 'debug-placement-hint';
     this.placementHint.hidden = true;
     parent.append(this.backdrop, this.placementHint);
-    this.performanceMeter.className = 'debug-performance-meter';
-    this.performanceMeter.hidden = true;
-    parent.append(this.performanceMeter);
     this.recordingBar.className = 'debug-profile-recording';
     this.recordingBar.hidden = true;
     this.recordingBar.innerHTML = '<span data-profile-live></span><button type="button" data-profile-stop-floating>Stop &amp; copy</button>';
@@ -233,6 +230,7 @@ export class DebugMenu {
     });
     this.backdrop.querySelector<HTMLInputElement>('[data-render-meter]')?.addEventListener('change', (event) => {
       this.meterVisible = (event.target as HTMLInputElement).checked;
+      if (!this.meterVisible) this.options.onPerformanceDetails?.(null);
       this.options.renderDiagnostics?.profiler.event('frame-meter', { visible: this.meterVisible });
       this.lastPerformanceUpdate = 0;
     });
@@ -267,18 +265,22 @@ export class DebugMenu {
     if (!diagnostics || time - this.lastPerformanceUpdate < 400) return;
     this.lastPerformanceUpdate = time;
     this.syncProfileControls();
-    this.performanceMeter.hidden = !this.meterVisible || this.open;
     if (!this.open && !this.meterVisible) return;
     const sample = diagnostics.getSample();
-    const summary = sample
-      ? `${sample.fps.toFixed(1)} FPS · ${sample.meanMs.toFixed(2)} ms avg · ${sample.p95Ms.toFixed(2)} ms P95 · ${Math.round(sample.calls).toLocaleString()} draws · ${(sample.triangles / 1e6).toFixed(2)}M triangles`
+    const renderStats = sample
+      ? `${sample.p95Ms.toFixed(2)} ms P95 · ${Math.round(sample.calls).toLocaleString()} draws · ${(sample.triangles / 1e6).toFixed(2)}M triangles`
       : 'Settling after switch / collecting frames…';
+    const summary = sample
+      ? `${sample.fps.toFixed(1)} FPS · ${sample.meanMs.toFixed(2)} ms avg · ${renderStats}`
+      : renderStats;
     const modes = [diagnostics.buildingMode === 'full' ? '' : `buildings: ${diagnostics.buildingMode}`,
       ...[...RENDER_SWITCHES, ...VEGETATION_SWITCHES]
         .filter(([category]) => diagnostics.isHidden(category)).map(([, label]) => `${label}: OFF`)].filter(Boolean);
     const baseline = diagnostics.baseline;
     const delta = baseline && sample ? ` · ${(sample.meanMs - baseline.meanMs).toFixed(2)} ms vs baseline` : '';
-    this.performanceMeter.textContent = `${summary}\n${modes.join(' · ') || 'Full scene'}${delta} · M development menu`;
+    this.options.onPerformanceDetails?.(this.meterVisible
+      ? `${renderStats}\n${modes.join(' · ') || 'Full scene'}${delta}`
+      : null);
     if (!this.open) return;
     this.backdrop.querySelector('[data-render-summary]')!.textContent = summary;
     this.backdrop.querySelector<HTMLButtonElement>('[data-render-baseline]')!.disabled = !sample;
@@ -396,7 +398,7 @@ export class DebugMenu {
     this.options.domElement.removeEventListener('pointerdown', this.onMapPointerDown, true);
     this.backdrop.remove();
     this.placementHint.remove();
-    this.performanceMeter.remove();
+    this.options.onPerformanceDetails?.(null);
     this.recordingBar.remove();
     this.options.renderDiagnostics?.profiler.dispose();
   }

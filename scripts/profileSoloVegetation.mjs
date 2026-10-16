@@ -4,14 +4,15 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
 const label = process.argv[2] ?? 'current';
-const reference = process.argv.includes('--reference');
-const treesOnly = process.argv.includes('--trees-only');
-const compare = process.argv.includes('--compare');
+if (['--reference','--trees-only','--compare'].some(flag => process.argv.includes(flag))) {
+  throw Error('Old stacked-canopy reference modes have been retired. Use --validate-only for current authored LOD parity.');
+}
 const validateOnly = process.argv.includes('--validate-only');
 const output = `artifacts/solo-vegetation/${label}`;
 mkdirSync(output, { recursive: true });
 const referencePaths = [
   'src/vegetation/seedthree/seedThreeForestBuilder.ts',
+  'src/vegetation/seedthree/seedThreeForestLod.ts',
   'src/grass/GrassBladeField.ts',
   'src/props/ForestFloorIvy.ts',
   'src/props/ForestFloorNettles.ts',
@@ -21,16 +22,9 @@ const referencePaths = [
   'src/props/ForestManager.ts',
   'src/props/ForestUndergrowth.ts',
 ];
-const sourceDirectory = reference || label === 'baseline'
-  ? 'artifacts/solo-vegetation/reference' : `${output}/sources`;
-if (!reference) {
-  mkdirSync(sourceDirectory, { recursive: true });
-  for (const path of referencePaths) {
-    const original = treesOnly && !['seedThreeForestBuilder.ts', 'InstanceDrawCompaction.ts', 'GroupedInstanceDraws.ts'].includes(path.split('/').at(-1))
-      ? `artifacts/solo-vegetation/reference/${path.split('/').at(-1)}` : path;
-    writeFileSync(`${sourceDirectory}/${path.split('/').at(-1)}`, readFileSync(original));
-  }
-}
+const sourceDirectory = `${output}/sources`;
+mkdirSync(sourceDirectory, { recursive: true });
+for (const path of referencePaths) writeFileSync(`${sourceDirectory}/${path.split('/').at(-1)}`, readFileSync(path));
 const server = await createServer({
   cacheDir: 'artifacts/solo-vegetation/vite-cache',
   server: { host: '127.0.0.1', port: 5192, strictPort: true, hmr: false },
@@ -38,7 +32,13 @@ const server = await createServer({
     const path = id.replaceAll('\\', '/').split('?')[0];
     if (path.endsWith('/src/main.ts')) return code.replace('const app = new App(root);', 'const app = new App(root); window.__vegetationApp = app;');
     const original = referencePaths.find(candidate => path.endsWith(`/${candidate}`));
-    if (original) return readFileSync(`${sourceDirectory}/${original.split('/').at(-1)}`, 'utf8');
+    if (original) {
+      let frozen = readFileSync(`${sourceDirectory}/${original.split('/').at(-1)}`, 'utf8');
+      if (/src\/scene\/(GroupedInstanceDraws|InstanceDrawCompaction)\.ts$/.test(original)) {
+        frozen = frozen.replace('source.add(this.draw);', 'source.add(this.draw); (window.__vegetationCompactions ??= []).push(this);');
+      }
+      return frozen;
+    }
   } }],
 });
 await server.listen();
@@ -56,7 +56,7 @@ try {
   await page.addInitScript(() => {
     localStorage.setItem('medieval-road-system:world-generation', JSON.stringify({ seed: 1297755661, mapSize: 'medium' }));
   });
-  console.log(`Starting ${label}${reference ? ' (saved reference sources)' : ''}`);
+  console.log(`Starting ${label}`);
   await page.goto(`${server.resolvedUrls.local[0]}?mode=singleplayer&visualQa=daylight`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   let ready = false;
   for (let i = 0; i < 150; i++) {
@@ -91,29 +91,10 @@ try {
       window.__vegetationMotion?.(performance.now());
     };
   });
-  if (compare) await page.evaluate(async () => {
-    const { GroupedInstanceDraws } = await import('/src/scene/GroupedInstanceDraws.ts');
-    const { InstanceDrawCompaction } = await import('/src/scene/InstanceDrawCompaction.ts');
-    window.__vegetationVariant = 'final';
-    // Test-only A/B switch: retain original source data and skip optimization work.
-    // Branch and exact shadow selection stay identical in every arm.
-    for (const [constructor, tree] of [[GroupedInstanceDraws,true],[InstanceDrawCompaction,false]]) {
-      const original = constructor.prototype.prepare;
-      constructor.prototype.prepare = function(camera) {
-        const ground = /^SeedThree (streamed |rooted instanced forest-floor ivy|stinging nettle prototype|real (dogwood|bush|fern|juniper) prototype)/.test(this.source.name);
-        if (!tree && !ground) return original.call(this,camera);
-        const enabled = tree ? window.__vegetationVariant !== 'reference' : window.__vegetationVariant === 'final';
-        this.source.layers.mask = enabled ? 0 : this.draw.layers.mask;
-        this.draw.visible = enabled;
-        if (enabled) return original.call(this,camera);
-        this.source.userData.compactedInstanceCount = this.source.count;
-      };
-    }
-  });
   const results = [];
   // Repeat fixed-duration paths, so a faster run does not travel further.
-  for (let repeat = 0; repeat < (validateOnly ? 0 : 2); repeat++) for (const scenario of ['close-still', 'close-moving', 'rts-moving']) for (const variant of compare
-    ? repeat === 0 ? ['reference','trees','final'] : ['final','trees','reference'] : ['current']) {
+  for (let repeat = 0; repeat < (validateOnly ? 0 : 2); repeat++) for (const scenario of ['close-still', 'close-moving', 'rts-moving']) {
+    const variant = 'current';
     await page.evaluate(variant => { window.__vegetationVariant=variant; },variant);
     await page.evaluate(({ scenario }) => {
       const app = window.__vegetationApp;
@@ -132,9 +113,9 @@ try {
       app.cameraController.isNavigationActive = () => scenario !== 'close-still';
     }, { scenario });
     // Complete one full path cycle before measuring; this also converges streams.
-    await page.waitForTimeout(compare ? 5000 : 9000);
+    await page.waitForTimeout(9000);
     await page.evaluate(async () => { await window.__vegetationApp.startDevelopmentProfile(); });
-    await page.waitForTimeout(compare ? 7000 : 8000);
+    await page.waitForTimeout(8000);
     const data = await page.evaluate(() => {
       const app = window.__vegetationApp;
       const scene = app.sceneManager;
@@ -158,18 +139,19 @@ try {
     assert.deepEqual(data.profile.states[0].toggles.hidden, []);
     data.profile.metadata.benchmarkVariant=variant;
     results.push({ scenario, repeat, variant, ...data });
-    const name=`${scenario}-${repeat}${compare ? `-${variant}` : ''}`;
+    const name=`${scenario}-${repeat}`;
     writeFileSync(`${output}/${name}.json`, JSON.stringify(data, null, 2));
     await page.screenshot({ path: `${output}/${name}.png` });
     console.log(JSON.stringify({ scenario, repeat, variant, ...data.profile.gameplay }));
   }
-  writeFileSync(`${output}/results.json`, JSON.stringify({ label, reference, seed: 1297755661, viewport: [1707,825], results, errors }, null, 2));
+  writeFileSync(`${output}/results.json`, JSON.stringify({ label, seed: 1297755661, viewport: [1707,825], results, errors }, null, 2));
   if (validateOnly || process.argv.includes('--validate')) {
     const parity = await page.evaluate(async () => {
       const app = window.__vegetationApp, scene = app.sceneManager;
       window.__vegetationVariant='final';
       const { setRendererAnimationLoop,resetWebGPUCanvasTarget } = await import('/src/scene/RendererBackend.ts');
       const THREE = await import('/node_modules/three/build/three.module.js');
+      const { unculledInstanceReference } = await import('/scripts/fixtures/unculledInstanceReference.ts');
       setRendererAnimationLoop(scene.renderer, null);
       scene.resize({width:512,height:288});
       scene.worldAnimationElapsedSeconds = 12.5;
@@ -179,18 +161,14 @@ try {
       const target = new THREE.RenderTarget(512, 288);
       const finalTarget = new THREE.RenderTarget(512,288,{depthBuffer:false});
       scene.camera.aspect = 512 / 288; scene.camera.updateProjectionMatrix();
-      const pairs = [];
-      scene.scene.traverse(source => {
-        if (!source.userData.instanceCompactionSource) return;
-        for (const draw of source.children) if (draw.userData.instanceCompactionDraw) pairs.push({ source, draw });
-      });
+      let pairs = [];
       const poses = [], images = [];
       const png = pixels => {
         const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 288;
         canvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pixels),512,288),0,0);
         return canvas.toDataURL('image/png').split(',')[1];
       };
-      for (const [x, z, yaw, pitch, distance] of [[235,390,.45,.14,8.8], [245,390,2,.3,22], [235,390,1,1.1,240]]) {
+      for (const [x, z, yaw, pitch, distance] of [[235,390,.45,.14,8.8], [245,390,2,.3,22], [235,390,1,1.1,240], [570,0,.45,.14,8.8]]) {
         app.cameraController.applyShowcaseView(x,z,yaw,pitch,distance);
         scene.grassField.primeAndFreezeStream(scene.camera.position, scene.cameraTarget, distance, false);
         scene.render(0,distance,false,false,false,false,true);
@@ -201,10 +179,28 @@ try {
         }
         const stream=scene.grassField.getStreamTelemetry();
         scene.render(0, distance);
+        const helpers = window.__vegetationCompactions.filter(helper => !helper.disposed);
+        pairs = helpers.map(unculledInstanceReference);
+        const owners = new Map(), lodTrees = [new Set(),new Set(),new Set()];
+        let edgeNearTrees = 0;
+        for (const helper of helpers) {
+          const source = helper.source, lod = source.userData.seedThreeLod;
+          const origin = source.geometry.getAttribute('aTreeOrigin');
+          if (lod === undefined || source.userData.seedThreeShadowOnly || !origin) continue;
+          const groups = helper.selected ? Array.from(helper.selected.array.slice(0,helper.draw.count/helper.groupSize))
+            : helper.copyRanges.flatMap((_,i,a)=>i%3 ? [] : Array.from({length:a[i+2]},(_,j)=>Math.floor((a[i]+j)/helper.groupSize)));
+          for (const group of new Set(groups)) {
+            const row = group * helper.groupSize;
+            const key = `${origin.getX(row)},${origin.getY(row)},${origin.getZ(row)}`;
+            if (owners.has(key) && owners.get(key)!==lod) throw Error('Solo stacked two tree color LODs');
+            owners.set(key,lod); lodTrees[lod].add(key);
+            if (lod===0 && Math.max(Math.abs(origin.getX(row)),Math.abs(origin.getZ(row))) >= scene.terrain.generationSize*.44) edgeNearTrees++;
+          }
+        }
         const select = full => {
-          for (const {source,draw} of pairs) {
+          for (const {source,draw,reference} of pairs) {
             const raw = typeof full === 'function' ? full(source) : full;
-            source.layers.mask = raw ? draw.layers.mask : 0; draw.visible = !raw;
+            reference.visible = raw; draw.visible = !raw;
           }
         };
         const capture = async full => {
@@ -230,8 +226,9 @@ try {
           const delta = Math.max(...[0,1,2].map(c=>Math.abs(actual[i+c]-full[i+c])));
           differences[i] = delta > 2 ? 255 : 0; differences[i+3]=255;
         }
-        images.push({ name:`${distance}-optimized`,png:png(actual) }, { name:`${distance}-reference`,png:png(full) },
-          { name:`${distance}-difference`,png:png(differences) });
+        const imageLabel = `${x}-${z}-${distance}`;
+        images.push({ name:`${imageLabel}-optimized`,png:png(actual) }, { name:`${imageLabel}-reference`,png:png(full) },
+          { name:`${imageLabel}-difference`,png:png(differences) });
         const isolated = [];
         if(changed) for(const [name,pattern] of [ ['trees',/cards|branches/], ['flowers',/^SeedThree streamed /],
           ['ivy',/rooted instanced forest-floor ivy/],['nettles',/stinging nettle prototype/],['shrubs',/real (dogwood|bush|fern|juniper) prototype/] ]) {
@@ -239,6 +236,10 @@ try {
           let changed=0,max=0;
           for(let i=0;i<actual.length;i++){const delta=Math.abs(actual[i]-pixels[i]);max=Math.max(max,delta);if(delta>2)changed++;}
           isolated.push({name,channelsOver2:changed,maxDelta:max});
+          if(changed) isolated.at(-1).attributes = helpers.filter(h=>pattern.test(h.source.name)).map(h=>({
+            name:h.source.name, attributes:Object.fromEntries(Object.entries(h.source.geometry.attributes)
+              .map(([key,attribute])=>[key,{type:attribute.array.constructor.name,normalized:attribute.normalized,itemSize:attribute.itemSize}]))
+          }));
           if(changed)images.push({name:`${distance}-${name}-reference`,png:png(pixels)});
         }
         // Exercise the production HDR, AO, bloom and grading path too. Inputs
@@ -266,12 +267,12 @@ try {
         }
         for(let i=0;i<finalActual.length;i+=4)if(Math.max(finalActual[i],finalActual[i+1],finalActual[i+2])>8)finalColoredPixels++;
         if(finalColoredPixels<1024)throw Error('Final pipeline capture is empty');
-        images.push({name:`${distance}-final-optimized`,png:png(finalActual)},{name:`${distance}-final-reference`,png:png(finalReference)});
+        images.push({name:`${imageLabel}-final-optimized`,png:png(finalActual)},{name:`${imageLabel}-final-reference`,png:png(finalReference)});
         scene.sky.visible=false;scene.precipitation.group.visible=false;scene.riverSystem.group.visible=false;
-        poses.push({distance,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
+        poses.push({x,z,distance,lodTrees:lodTrees.map(set=>set.size),edgeNearTrees,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
           stream:{mode:stream.mode,pendingSlots:stream.pendingSlots,liveInstances:stream.liveInstances,wildflowerLiveInstances:stream.wildflowerLiveInstances},
           finalPipeline:{channelsOver2:finalChannelsOver2,maxDelta:finalMaxDelta,stabilityChannelsOver2:finalStabilityChannelsOver2,coloredPixels:finalColoredPixels}});
-        for (const {source,draw} of pairs) { source.layers.mask=0;draw.visible=true; }
+        for (const pair of pairs) { pair.draw.visible=true; pair.dispose(); }
       }
       target.dispose();finalTarget.dispose();
       return { seed:1297755661,viewport:[512,288],worldTimeSeconds:12.5,sourceDraws:pairs.length,poses,images };
@@ -282,6 +283,7 @@ try {
     console.log('Live solo image parity', JSON.stringify(parity));
     assert.ok(parity.poses.every(pose => pose.channelsOver2 === 0 && pose.stabilityChannelsOver2 === 0
       && pose.finalPipeline.channelsOver2 === 0 && pose.finalPipeline.stabilityChannelsOver2 === 0), JSON.stringify(parity));
+    assert.ok(parity.poses.some(pose => pose.edgeNearTrees > 0), 'Playable edge trees must upgrade to normal nearby detail');
   }
   assert.deepEqual(errors, []);
 } finally {

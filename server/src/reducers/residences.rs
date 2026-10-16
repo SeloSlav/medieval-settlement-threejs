@@ -6,7 +6,7 @@ use crate::balance_generated::{
     RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER4_CAPACITY,
     RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST, RESIDENCE_TIER4_TIMBER_COST,
     RESIDENCE_TILE_ROOF_SALVAGE_FRACTION, RESIDENCE_TILE_ROOF_TILE_COST,
-    RESIDENCE_TILE_ROOF_TIMBER_COST,
+    RESIDENCE_TILE_ROOF_TIMBER_COST, TAVERN_HOUSEHOLD_CAPACITY,
 };
 use crate::burgage::{
     compute_burgage_layout, convex_zones_overlap, measure_zone_depth, min_zone_depth,
@@ -43,9 +43,8 @@ use crate::simulation::{
     clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
     local_delivery_distance, residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
-use crate::supply_policy::is_well_supplier_operational;
+use crate::simulation::road_logistics::{claim_residences_for_wells, claim_residences_with_capacity};
 use crate::tables::{farm_field, BurgageZone, Residence};
-use crate::well_policy::position_within_well_service_radius;
 
 fn whole_residence_project_contribution(household_wealth: f64, gold_cost: f64) -> f64 {
     let cost = whole_cost(gold_cost);
@@ -776,6 +775,29 @@ fn first_unmet_current_tier_promotion_need(
         .filter(&residence.owner)
         .filter(|building| building_fire_state(ctx, building.id).is_none())
         .collect();
+    let service_residences: Vec<_> = ctx.db.residence().owner().filter(&residence.owner)
+        .filter(|home| residence_fire_state(ctx, home.id).is_none())
+        .collect();
+    let water_claims = network.as_ref()
+        .map(|network| claim_residences_for_wells(network, &buildings, &service_residences))
+        .unwrap_or_default();
+    let taverns: Vec<_> = buildings.iter().filter(|building| {
+        building.kind == "tavern"
+            && building.construction_complete
+            && building.assigned_labor > 0
+            && building_commodity_stock(building, CommodityKind::Ale)
+                + building_commodity_stock(building, CommodityKind::Cider)
+                + building_commodity_stock(building, CommodityKind::Mead) > 1e-6
+    }).collect();
+    let beverage_claims = network.as_ref().map(|network| {
+        claim_residences_with_capacity(
+            network,
+            &taverns,
+            &service_residences,
+            |_, home| !home.abandoned && home.population > 0 && home.tier >= 2,
+            TAVERN_HOUSEHOLD_CAPACITY,
+        )
+    }).unwrap_or_default();
     residence_promotion_needs(residence.tier)
         .into_iter()
         .find(|need| {
@@ -811,17 +833,7 @@ fn first_unmet_current_tier_promotion_need(
                                 > 1e-6
                     }
                     ResidenceNeedKind::Water => {
-                        is_well_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        ) && position_within_well_service_radius(
-                            building.x,
-                            building.z,
-                            building.work_radius,
-                            residence.x,
-                            residence.z,
-                        )
+                        water_claims.get(&residence.id) == Some(&building.id)
                     }
                     ResidenceNeedKind::Food => {
                         building.kind == "marketplace"
@@ -829,13 +841,7 @@ fn first_unmet_current_tier_promotion_need(
                             && building_edible_food_stock(building) > 1e-6
                     }
                     ResidenceNeedKind::Ale => {
-                        building.kind == "tavern"
-                            && building.construction_complete
-                            && building.assigned_labor > 0
-                            && building_commodity_stock(building, CommodityKind::Ale)
-                                + building_commodity_stock(building, CommodityKind::Cider)
-                                + building_commodity_stock(building, CommodityKind::Mead)
-                                > 1e-6
+                        beverage_claims.get(&residence.id) == Some(&building.id)
                     }
                     ResidenceNeedKind::SavoryPreserves => {
                         building.kind == "marketplace"
@@ -892,7 +898,7 @@ fn current_tier_promotion_remedy(kind: ResidenceNeedKind, current_tier: u8) -> S
                 .to_string()
         }
         ResidenceNeedKind::Water => {
-            "connect the home to a completed well within its service radius".to_string()
+            "connect the home by road to a completed well with a free household service slot".to_string()
         }
         ResidenceNeedKind::Food => {
             "stock qualifying food in the household pantry or a reachable Marketplace".to_string()

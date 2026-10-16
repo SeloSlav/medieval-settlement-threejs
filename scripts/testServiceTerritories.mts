@@ -8,10 +8,11 @@ import {
 } from '../src/logistics/roadLogistics.ts';
 import {
   findRoadLinkedSupplierForResidence,
+  claimResidencesForTaverns,
 } from '../src/logistics/specialtyLogistics.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
-import { STOREHOUSE_FIREWOOD_PER_DELIVERY } from '../src/generated/gameBalance.ts';
+import { STOREHOUSE_FIREWOOD_PER_DELIVERY, WELL_HOUSEHOLD_CAPACITY, TAVERN_HOUSEHOLD_CAPACITY } from '../src/generated/gameBalance.ts';
 
 function building(
   id: string,
@@ -32,10 +33,12 @@ function building(
     stone: 0,
     water: 80,
     food: 80,
+    meat: 80,
     grain: 0,
     flour: 0,
     ale: 80,
     preservedFood: 80,
+    curedMeat: 80,
     honey: 0,
     wine: 0,
     polearms: 0,
@@ -150,6 +153,35 @@ assert.equal(
   'well ties must use server-compatible numeric entity ordering',
 );
 
+assert.equal(WELL_HOUSEHOLD_CAPACITY, 50);
+assert.equal(TAVERN_HOUSEHOLD_CAPACITY, 50);
+const capacityHomes = Array.from({ length: 105 }, (_, index) => residence(String(index + 1), index + 1000));
+for (const [kind, claim] of [
+  ['well', claimResidencesForWells],
+  ['tavern', claimResidencesForTaverns],
+] as const) {
+  const suppliers = [
+    building('2', kind, 0, 3, { workRadius: 0 }),
+    building('10', kind, -10000, 3, { workRadius: 0 }),
+  ];
+  const claims = claim(network, suppliers, capacityHomes);
+  assert.equal(claims.size, 100, `${kind}: only fifty homes per supplier`);
+  assert.equal([...claims.values()].filter((id) => id === '2').length, 50);
+  assert.equal([...claims.values()].filter((id) => id === '10').length, 50);
+  assert.equal(claims.get('50'), '2');
+  assert.equal(claims.get('51'), '10', 'overflow must use the next road-linked supplier');
+  assert.equal(claims.get('101'), undefined);
+  assert.deepEqual(claim(network, [...suppliers].reverse(), [...capacityHomes].reverse()), claims,
+    'service slots must not depend on database iteration order');
+  const ineligible = [
+    { ...residence('empty', 0), population: 0 },
+    { ...residence('abandoned', 0), abandoned: true },
+    { ...residence('construction', 0), tier: 0 as const },
+  ];
+  assert.deepEqual(claim(network, suppliers, [...ineligible, ...capacityHomes]), claims,
+    'empty, abandoned, and unfinished homes must not consume service slots');
+}
+
 const idleCamp = building('idle-camp', 'fishing_camp', 4, 0);
 const staffedCamp = building('staffed-camp', 'fishing_camp', 30, 1);
 assert.equal(
@@ -234,7 +266,7 @@ const householdDistribution = fs.readFileSync(
   'server/src/simulation/household_distribution.rs',
   'utf8',
 );
-assert.match(householdDistribution, /tick\.well_supplier_for/);
+assert.match(householdDistribution, /tick\s*\.well_residence_ids/);
 const marketplaceCaravan = fs.readFileSync(
   'server/src/simulation/marketplace_caravan.rs',
   'utf8',
@@ -248,8 +280,8 @@ assert.match(tickContext, /MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/)
 assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 assert.match(
   lodgeServer,
-  /effective_tree_work_area\([\s\S]*find_nearest_mature_tree\(/,
-  'each lodge should harvest a mature tree inside its effective work area',
+  /forestry::step_forestry\(ctx, tick, clock, building\)/,
+  'woodcutters must use the shared forestry simulation',
 );
 assert.doesNotMatch(
   lodgeServer,
@@ -286,7 +318,7 @@ const firewoodClaims = claimResidencesForFirewoodSuppliers(
 const waterClaims = claimResidencesForWells(countedNetwork, wells, manyHomes);
 const territoryElapsedMs = performance.now() - territoryStart;
 assert.equal(firewoodClaims.size, manyHomes.length);
-assert.equal(waterClaims.size, manyHomes.length);
+assert.equal(waterClaims.size, wells.length * WELL_HOUSEHOLD_CAPACITY);
 assert.equal(
   roadPathCalls,
   manyHomes.length * (firewoodSuppliers.length + wells.length),
@@ -445,6 +477,15 @@ assert.equal(branchPathfinder.roadComponentAt(35, 2), westComponent);
 assert.equal(branchPathfinder.roadComponentAt(200, 200), null);
 assert.equal(branchPathfinder.roadConnected(5, 2, 35, 2), true);
 assert.equal(branchPathfinder.roadConnected(5, 2, 105, 2), false);
+for (const [kind, claim] of [
+  ['well', claimResidencesForWells],
+  ['tavern', claimResidencesForTaverns],
+] as const) {
+  assert.equal(claim(branchNetwork, [building('supplier', kind, 5, 3, { workRadius: 0 })],
+    [residence('disconnected', 105)]).size, 0, `${kind}: disconnected road branches cannot share service`);
+  assert.equal(claim(lineNetwork, [building('supplier', kind, 8, 3, { workRadius: 0 })],
+    [residence('distant', 1000)]).get('distant'), 'supplier', `${kind}: road service has no circular distance cutoff`);
+}
 
 console.log(
   `operational service territory tests passed (${territoryElapsedMs.toFixed(1)}ms for two `

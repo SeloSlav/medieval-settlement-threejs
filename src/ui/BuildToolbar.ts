@@ -301,7 +301,6 @@ export class BuildToolbar {
       onBurgageRotateFrontage?: () => void;
       onMenuOpenChange?: (open: boolean) => void;
       onShadowPreferenceChange?: () => void;
-      onDistantCanopyCardsChange?: (enabled: boolean) => void;
       canOpenMenuFromKeyboard?: () => boolean;
       onNewWorld?: () => void;
       onReplayTutorials?: () => void;
@@ -514,7 +513,6 @@ export class BuildToolbar {
     window.addEventListener('keydown', this.onKeyDown, true);
     this.gameMenu = new GameMenu(root, {
       onShadowPreferenceChange: () => handlers.onShadowPreferenceChange?.(),
-      onDistantCanopyCardsChange: handlers.onDistantCanopyCardsChange,
       onOpenChange: handlers.onMenuOpenChange,
       canOpenFromKeyboard: () => !this.developmentMenu.isOpen() && handlers.canOpenMenuFromKeyboard?.() !== false,
       onNewWorld: handlers.onNewWorld,
@@ -977,6 +975,10 @@ export class BuildToolbar {
 
   setFps(fps: number): void {
     this.settlementHud.setFps(fps);
+  }
+
+  setPerformanceDetails(details: string | null): void {
+    this.settlementHud.setPerformanceDetails(details);
   }
 
   setZoomPercent(zoomPercent: number): void {

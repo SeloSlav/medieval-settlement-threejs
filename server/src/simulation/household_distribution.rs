@@ -253,6 +253,11 @@ pub fn step_market_household_distribution(
                             source_target,
                         );
                     }
+                    // Tavern slots are exclusive household assignments. Another
+                    // Tavern cannot exceed its cap by finishing this ration.
+                    if need_kind == ResidenceNeedKind::Ale {
+                        continue;
+                    }
                     if !residence_has_distribution_room(
                         ctx,
                         target.residence_id,

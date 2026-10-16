@@ -418,12 +418,12 @@ pub fn loadtest_complete_production_town(ctx: &ReducerContext) -> Result<(), Str
                 sites.push(b);
             }
         }
-        // Give every occupied home a nearby well instead of adding stock to its
-        // cupboard repeatedly. Water refills and distribution remain ordinary work.
+        // Give every occupied home a road-linked well slot. Water refills and
+        // distribution remain ordinary work after this one-time fixture setup.
         for home in &homes {
-            if !sites
-                .iter()
-                .any(|b| b.kind == "well" && (b.x - home.x).hypot(b.z - home.z) <= b.work_radius)
+            if !crate::simulation::road_logistics::claim_residences_for_wells(
+                &space.roads, &sites, &homes,
+            ).contains_key(&home.id)
             {
                 let b = insert_workshop(
                     ctx,
@@ -433,10 +433,12 @@ pub fn loadtest_complete_production_town(ctx: &ReducerContext) -> Result<(), Str
                     home.x + 12.5,
                     home.z + 12.0,
                 )?;
-                if (b.x - home.x).hypot(b.z - home.z) > b.work_radius {
-                    return Err("Fixture well does not cover its home".into());
-                }
                 sites.push(b);
+                if !crate::simulation::road_logistics::claim_residences_for_wells(
+                    &space.roads, &sites, &homes,
+                ).contains_key(&home.id) {
+                    return Err("Fixture home has no road-linked well service slot".into());
+                }
             }
         }
         // Reserve short-range pastures and graveyards before broad-range fields.

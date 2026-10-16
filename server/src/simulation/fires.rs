@@ -253,7 +253,6 @@ pub fn select_fire_for_well(
     if well.kind != "well"
         || !well.construction_complete
         || fire_response_load(well.water) <= 0.0
-        || well.work_radius <= 0.0
     {
         return None;
     }
@@ -266,7 +265,7 @@ pub fn select_fire_for_well(
             incident.state == FIRE_STATE_BURNING
                 && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
                 && response_water_needed(ctx, incident) > 1e-6
-                && within_extent(well, incident.x, incident.z)
+                && network.road_connected(well.x, well.z, incident.x, incident.z)
                 && nearest_eligible_well_id(ctx, tick, network, incident) == Some(well.id)
         })
         .map(|incident| {
@@ -284,8 +283,8 @@ pub fn select_fire_for_well(
         .map(|(incident, _)| incident)
 }
 
-pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_tick: u64) -> bool {
-    if well.kind != "well" || !well.construction_complete || well.work_radius <= 0.0 {
+pub fn fire_response_needed_for_well(ctx: &ReducerContext, network: &RoadNetwork, well: &Building, sim_tick: u64) -> bool {
+    if well.kind != "well" || !well.construction_complete {
         return false;
     }
 
@@ -296,7 +295,7 @@ pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_
         .any(|incident| {
             incident.state == FIRE_STATE_BURNING
                 && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
-                && within_extent(well, incident.x, incident.z)
+                && network.road_connected(well.x, well.z, incident.x, incident.z)
         })
 }
 
@@ -643,7 +642,7 @@ fn nearest_eligible_well_id(
             building.kind == "well"
                 && building.construction_complete
                 && fire_response_load(building.water) > 0.0
-                && within_extent(building, incident.x, incident.z)
+                && network.road_connected(building.x, building.z, incident.x, incident.z)
         })
     {
         let road_distance =
@@ -828,10 +827,6 @@ fn fire_recoverable_stock(building: &Building) -> ReclamationStock {
         dressed_stone: building.dressed_stone.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
         ..ReclamationStock::default()
     }
-}
-
-fn within_extent(well: &Building, x: f64, z: f64) -> bool {
-    distance(well.x, well.z, x, z) <= well.work_radius + 1e-6
 }
 
 fn distance(ax: f64, az: f64, bx: f64, bz: f64) -> f64 {

@@ -115,21 +115,6 @@ pub fn well_refill_per_day(hydrology: f64, weather_multiplier: f64) -> f64 {
     well_refill_amount(hydrology, weather_multiplier, CALENDAR_SECONDS_PER_DAY)
 }
 
-pub fn position_within_well_service_radius(
-    well_x: f64,
-    well_z: f64,
-    work_radius: f64,
-    target_x: f64,
-    target_z: f64,
-) -> bool {
-    if work_radius <= 0.0 {
-        return false;
-    }
-    let dx = well_x - target_x;
-    let dz = well_z - target_z;
-    dx * dx + dz * dz <= work_radius * work_radius
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,19 +145,6 @@ mod tests {
         assert!((best_case_homes - 288.0).abs() < 1e-9);
         assert!(dry_site_homes < best_case_homes);
         assert!(drought_homes < best_case_homes);
-    }
-
-    #[test]
-    fn service_radius_rejects_connected_but_unreachable_homes() {
-        assert!(position_within_well_service_radius(
-            0.0, 0.0, 80.0, 48.0, 64.0,
-        ));
-        assert!(!position_within_well_service_radius(
-            0.0, 0.0, 80.0, 48.1, 64.0,
-        ));
-        assert!(!position_within_well_service_radius(
-            0.0, 0.0, 0.0, 0.0, 0.0,
-        ));
     }
 
     #[test]

@@ -318,8 +318,8 @@ assert.match(
 );
 assert.match(
   fireSource,
-  /within_extent\(well,\s*incident\.x,\s*incident\.z\)/,
-  'fire response must respect the well work extent',
+  /network\.road_connected\(well\.x, well\.z, incident\.x, incident\.z\)/,
+  'fire response must follow a connected road route',
 );
 assert.match(
   wellSource,

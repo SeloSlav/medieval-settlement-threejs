@@ -27,6 +27,7 @@ import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import {
   findRoadLinkedSupplierForResidence,
   findRoadLinkedUpgradeSupplierForResidence,
+  claimResidencesForTaverns,
   peekNextSpecialtyDeliveryTarget,
   type SpecialtyNeedKind,
 } from '../logistics/specialtyLogistics.ts';
@@ -72,8 +73,6 @@ import { monasteryScriptoriumRecoveryMultiplier } from '../buildings/monasteryEs
 import {
   industrialWaterRequirement,
   industrialWaterTarget,
-  isResidenceInWellRange,
-  isWithinWellServiceRadius,
   selectIndustrialWaterCandidate,
   wellDeliveryTripSeconds,
 } from '../logistics/waterLogistics.ts';
@@ -646,8 +645,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.kind === 'well'
         && candidate.constructionComplete !== false
-        && isWithinWellServiceRadius(candidate, building)
-        && localDeliveryDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
+        && roadPathDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
     );
     return sortByRoadPathDistance(network, building, wells);
   }
@@ -661,8 +659,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.constructionComplete !== false
         && industrialWaterRequirement(candidate.kind) > 0
-        && isWithinWellServiceRadius(well, candidate)
-        && localDeliveryDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
+        && roadPathDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
     );
   }
 
@@ -700,13 +697,12 @@ export class WorldQueries {
         )
         || !processorRequestsInput(candidate, 'water')
         || !processorAcceptsInput(candidate, 'water')
-        || !isWithinWellServiceRadius(well, candidate)
         || candidate.water + 1e-6 >= desiredStock
         || inboundTargets.has(candidate.id)
       ) {
         return [];
       }
-      const distance = localDeliveryDistance(
+      const distance = roadPathDistance(
         network,
         well.x,
         well.z,
@@ -742,19 +738,6 @@ export class WorldQueries {
     const wellId = this.wellClaims().getServingSupplierForResidence(residence.id);
     if (!wellId) return null;
     return this.getGameState().buildings.get(wellId) ?? null;
-  }
-
-  countRoadConnectedResidencesInWellRange(well: BuildingState): number {
-    return this.getClaimedResidencesForWell(well).length;
-  }
-
-  countResidencesInWellRange(well: BuildingState): number {
-    const state = this.getGameState();
-    let count = 0;
-    for (const residence of state.residences.values()) {
-      if (isResidenceInWellRange(well, residence)) count += 1;
-    }
-    return count;
   }
 
   getRoadPathDistance(ax: number, az: number, bx: number, bz: number): number | null {
@@ -1100,16 +1083,10 @@ export class WorldQueries {
       return null;
     }
     const network = this.getRoadNetwork();
-    const findSupplier = requireStock
-      ? findRoadLinkedSupplierForResidence
-      : findRoadLinkedUpgradeSupplierForResidence;
-    return findSupplier(
-      residence,
-      this.fireEnabledBuildings(state),
-      network,
-      'ale',
-      (building) => building.kind !== 'monastery',
-    );
+    const { buildings, residences } = this.deliverySnapshot();
+    const claims = claimResidencesForTaverns(network, buildings, residences, requireStock);
+    const supplierId = claims.get(residence.id);
+    return supplierId == null ? null : state.buildings.get(supplierId) ?? null;
   }
 
   getNextSpecialtyDeliveryTargetForSupplier(
@@ -1335,10 +1312,13 @@ export class WorldQueries {
     supplier: BuildingState,
     needKind: SpecialtyNeedKind,
   ): ResidenceState[] {
+    if (needKind === 'ale') {
+      const { network, buildings, residences } = this.deliverySnapshot();
+      const claims = claimResidencesForTaverns(network, buildings, residences);
+      return residences.filter((residence) => claims.get(residence.id) === supplier.id);
+    }
     return [...this.getGameState().residences.values()].filter((residence) => {
-      const serving = needKind === 'ale'
-        ? this.getServingAleSupplierForResidence(residence)
-        : needKind === 'cloth'
+      const serving = needKind === 'cloth'
           ? this.getServingClothSupplierForResidence(residence)
           : needKind === 'shoes'
             ? this.getServingShoesSupplierForResidence(residence)

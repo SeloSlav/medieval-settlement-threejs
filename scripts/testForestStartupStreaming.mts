@@ -48,17 +48,17 @@ assert.ok(
 );
 assert.deepEqual(
   createSeedThreeStableColorSlotSelection([{}, {forceOverview:true}, {forceOverview:true,overviewOnly:true}]),
-  {near:[0,1],overview:[1,2]},
-  'gameplay trees retain near geometry beneath the crossfade; permanent horizon trees retain their authored overview layer',
+  {near:[0,1],overview:[0,1]},
+  'gameplay trees retain canonical pools for exclusive LODs; horizon trees use only the separate far set',
 );
 assert.ok(
-  forestBuilder.includes("const initialSelection = selection.triggerReasons.includes('initial')")
+  /const initialSelection = selection\.triggerReasons\.includes\(\s*'initial',?\s*\)/.test(forestBuilder)
     && /completeInteractionWorkImmediately\s*=\s*initialSelection/.test(forestBuilder),
   'the first camera-sized forest selection must publish atomically before rendering',
 );
 assert.ok(
-  forestBuilder.includes("Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.generationSize * 0.44"),
-  'remote edge trees should use a static overview mesh without becoming invisible',
+  /Math.max\(Math.abs\(placement.x\), Math.abs\(placement.z\)\) >=\s*terrain.generationSize \* 0.44/.test(forestBuilder),
+  'remote edge trees retain conservative shadow-selector classification',
 );
 assert.ok(
   forestBuilder.includes('if (forest.visibilityDirty === false) return;'),
@@ -111,5 +111,5 @@ console.log(JSON.stringify({
   trees: trees.length,
   medianNearestMeters: Number(medianNearest.toFixed(2)),
   clusteredPercent: Number((clusteredShare * 100).toFixed(1)),
-  runtimeResidency: 'camera-compacted-overlapping-overview-lod',
+  runtimeResidency: 'exclusive-authored-color-lods-independent-shadows',
 }));

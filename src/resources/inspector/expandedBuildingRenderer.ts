@@ -42,6 +42,7 @@ import {
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
+  TAVERN_HOUSEHOLD_CAPACITY,
   WEAVER_CLOTH_PER_CYCLE,
   WEAVER_LINEN_PER_CYCLE,
   WEAVER_YARN_PER_CYCLE,
@@ -1283,6 +1284,8 @@ export function renderExpandedBuildingInspector(
     : undefined;
   const role = building.kind === 'carpenter' && !context.conflictEnabled
     ? 'Timber framing and cartwright support for road-linked building sites'
+    : building.kind === 'tavern'
+      ? `Road-linked Beverage service · ${tavernServiceResidenceIds?.length ?? 0} / ${TAVERN_HOUSEHOLD_CAPACITY} homes`
     : PROCESS[building.kind] ?? 'Settlement service';
   const carpenterSupportRows = building.kind === 'carpenter'
     ? `<li><span>Construction timber</span><span>${Math.round((1 - CARPENTER_TIMBER_COST_MULTIPLIER) * 100)}% less at road-linked sites</span></li>

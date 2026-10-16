@@ -27,7 +27,7 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
   const hidden = new Set<number>(); const transforms = new Map<number, THREE.Matrix4>();
   const loaded = new Map<number, Tile>(); const attached = new Map<number, Tile>();
   let season: Parameters<SeedThreeForestController['setDeciduousFoliage']>[0] | undefined;
-  let snow = 0, shadows = true, distantCards = true, previousInterest = '';
+  let snow = 0, shadows = true, previousInterest = '';
   const stream = new ChunkStream<Tile>({ capacity: 49, cacheCapacity: 6, concurrency: 1,
     load: async id => {
       const indices = buckets.get(id)!;
@@ -37,7 +37,7 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
         if (hidden.has(global)) controller.hideTree(local);
         const transform = transforms.get(global); if (transform) controller.setTreeTransform?.(local, transform);
       }
-      controller.commit(); controller.setSnowCoverage(snow); controller.setShadows(shadows); controller.setDistantCanopyCardsEnabled(distantCards);
+      controller.commit(); controller.setSnowCoverage(snow); controller.setShadows(shadows);
       if (season) controller.setDeciduousFoliage(season);
       const tile: Tile = { group: forest.group, controller, dispose: () => { controller.dispose(); forest.group.removeFromParent(); loaded.delete(id); } };
       loaded.set(id, tile); return tile;
@@ -100,7 +100,6 @@ export async function createRealmForestStream(placements: ForestTreePlacement[],
     },
     setDeciduousFoliage: value => {season=value;eachLoaded(c=>c.setDeciduousFoliage(value));},
     setSnowCoverage: value => {snow=value;eachLoaded(c=>c.setSnowCoverage(value));},
-    setDistantCanopyCardsEnabled: value => {distantCards=value;eachLoaded(c=>c.setDistantCanopyCardsEnabled(value));},
     setShadows: value => {shadows=value;eachLoaded(c=>c.setShadows(value));},
     dispose: () => {stream.dispose();batches.dispose();empty.dispose();group.removeFromParent();},
   };

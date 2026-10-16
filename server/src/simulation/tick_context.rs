@@ -6,7 +6,9 @@ use std::sync::Arc;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS};
+use crate::balance_generated::{
+    CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS, TAVERN_HOUSEHOLD_CAPACITY,
+};
 use crate::db::*;
 use crate::economy::{
     building_edible_food_stock, building_savory_preserves_stock, CommodityKind,
@@ -26,7 +28,9 @@ use crate::resident_welfare_policy::CorpseSpatialIndex;
 use crate::roads::{RoadNetwork, RoadSnapshotCache};
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
-use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
+use crate::simulation::road_logistics::{
+    claim_residences_by_nearest_supplier, claim_residences_with_capacity,
+};
 use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
 use crate::subregion_affinity::{compute_land_use_profile, LandUseProfile};
 use crate::tables::{corpse, farm_field, pasture_herd, Building, Pasture, PastureHerd, Residence};
@@ -1133,6 +1137,15 @@ impl SimTickContext {
                     && !self.residence_disabled_by_fire(ctx, residence.id)
             })
             .collect();
+        if stall_need == ResidenceNeedKind::Ale {
+            return claim_residences_with_capacity(
+                network,
+                &marketplace_refs,
+                &residences,
+                |_, residence| residence.tier >= 2,
+                TAVERN_HOUSEHOLD_CAPACITY,
+            );
+        }
         claim_residences_by_nearest_supplier(
             network,
             &marketplace_refs,

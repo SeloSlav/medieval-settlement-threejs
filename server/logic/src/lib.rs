@@ -16,6 +16,9 @@ pub mod household_timer_policy;
 #[path = "../../src/balance_generated.rs"]
 pub mod balance_generated;
 
+#[path = "../../src/service_capacity_policy.rs"]
+pub mod service_capacity_policy;
+
 #[path = "../../src/backyard_garden_policy.rs"]
 pub mod backyard_garden_policy;
 

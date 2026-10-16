@@ -19,26 +19,14 @@ import {
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
-export const SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF = 0.5;
 
-export type SeedThreeForestCardMotion = 'full' | 'sway' | 'static';
+export type SeedThreeForestCardMotion = 'full' | 'sway';
 
-/**
- * Overview cards are a screen-space representation, not readable branch motion.
- * Keeping them fixed removes temporal alpha shimmer while the detailed near
- * cards continue to move normally.
- */
-export const SEEDTHREE_OVERVIEW_CARD_MOTION: SeedThreeForestCardMotion = 'static';
-
+/** Preserve SeedThree's rigid crossed cards and fluttering twig cards. */
 export function resolveSeedThreeForestCardMotion(
-  overview: boolean,
-  crownUnderlay: boolean,
+  noFlutter: boolean,
 ): SeedThreeForestCardMotion {
-  if (overview) return SEEDTHREE_OVERVIEW_CARD_MOTION;
-  // A crown underlay is a crossed pair. Per-plane flutter separates the pair
-  // at its shared seam, so it may sway only as one rigid crown.
-  if (crownUnderlay) return 'sway';
-  return 'full';
+  return noFlutter ? 'sway' : 'full';
 }
 
 type SeedThreePositionNodeMaterial = THREE.Material & {
@@ -68,9 +56,11 @@ type TslVectorNode = TslNode & {
 
 // @types/three 0.185 omits step from the three/tsl barrel even though the
 // runtime build exports it. Keep the compatibility cast local to this module.
-const tslStep = (TSL as unknown as {
-  step(edge: unknown, value: unknown): TslNode;
-}).step;
+const tslStep = (
+  TSL as unknown as {
+    step(edge: unknown, value: unknown): TslNode;
+  }
+).step;
 
 type SeedThreeOpacityNodeMaterial = THREE.Material & {
   opacityNode?: TslNode | null;
@@ -92,13 +82,15 @@ const barkSnowTsl = {
   normalWorldGeometry: normalWorldGeometry as unknown as TslVectorNode,
   positionWorld: positionWorld as unknown as TslVectorNode,
   sin: sin as (value: unknown) => TslNode,
-  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
+  smoothstep: smoothstep as (
+    low: unknown,
+    high: unknown,
+    value: unknown,
+  ) => TslNode,
   texture: texture as (map: THREE.Texture) => TslVectorNode,
   uniform: uniform as <T>(value: T) => { value: T } & TslNode,
   vec3: vec3 as (x: unknown, y?: unknown, z?: unknown) => TslNode,
 };
-
-const overviewBillboardFadeOpacity = uniform(0) as { value: number } & TslNode;
 
 /** Recolor shaded baked leaves as well as bright leaves, without touching bark. */
 export function applySeedThreeAutumnColor(
@@ -107,20 +99,34 @@ export function applySeedThreeAutumnColor(
 ): THREE.Material {
   if (material.userData.seedThreeAutumnColor === true) return material;
   const autumn = material.userData.forestSeasonalAutumnColor;
-  const target = material as THREE.Material & { map?: THREE.Texture; colorNode?: unknown };
+  const target = material as THREE.Material & {
+    map?: THREE.Texture;
+    colorNode?: unknown;
+  };
   if (!autumn || !target.map) return material;
   // Use the runtime TSL types here: the installed declarations omit several
   // scalar operators already used by SeedThree's node materials.
   const nodes = TSL as any;
   const texel = nodes.texture(target.map);
-  const relativeGreen = texel.g.sub(texel.r.max(texel.b)).div(texel.g.max(0.005));
+  const relativeGreen = texel.g
+    .sub(texel.r.max(texel.b))
+    .div(texel.g.max(0.005));
   const leafMask = relativeGreen.smoothstep(0, 0.08);
   const deciduous = nodes.step(1024, nodes.attribute('aTreeOrigin', 'vec3').y);
   const snow = material.userData.forestSnowCoverage ?? nodes.float(0);
-  const amount = leafMask.mul(deciduous).mul(autumn).mul(nodes.float(1).sub(snow));
-  const autumnLeaf = nodes.vec3(...palette)
-    .mul(nodes.luminance(texel.rgb).pow(0.65).mul(1.65).max(0.1)).clamp(0, 1);
-  target.colorNode = nodes.mix(target.colorNode ?? texel.rgb, autumnLeaf, amount);
+  const amount = leafMask
+    .mul(deciduous)
+    .mul(autumn)
+    .mul(nodes.float(1).sub(snow));
+  const autumnLeaf = nodes
+    .vec3(...palette)
+    .mul(nodes.luminance(texel.rgb).pow(0.65).mul(1.65).max(0.1))
+    .clamp(0, 1);
+  target.colorNode = nodes.mix(
+    target.colorNode ?? texel.rgb,
+    autumnLeaf,
+    amount,
+  );
   material.userData.seedThreeAutumnColor = true;
   material.needsUpdate = true;
   return material;
@@ -138,17 +144,23 @@ export function applySeedThreeBarkSnow(
   const target = material as SeedThreeBarkNodeMaterial;
   if (!target.map) return material;
   const snowCoverage = barkSnowTsl.uniform(0);
-  const tint = barkSnowTsl.uniform(target.color?.clone() ?? new THREE.Color(0xffffff));
+  const tint = barkSnowTsl.uniform(
+    target.color?.clone() ?? new THREE.Color(0xffffff),
+  );
   const baseSurface = barkSnowTsl.texture(target.map).rgb.mul(tint);
   const upwardExposure = barkSnowTsl.smoothstep(
     float(0.3),
     float(0.88),
     barkSnowTsl.normalWorldGeometry.y,
   );
-  const snowVariation = barkSnowTsl.sin(
-    barkSnowTsl.positionWorld.x.mul(0.73)
-      .add(barkSnowTsl.positionWorld.z.mul(1.07)),
-  ).mul(0.11).add(0.89);
+  const snowVariation = barkSnowTsl
+    .sin(
+      barkSnowTsl.positionWorld.x
+        .mul(0.73)
+        .add(barkSnowTsl.positionWorld.z.mul(1.07)),
+    )
+    .mul(0.11)
+    .add(0.89);
   const snowAmount = snowCoverage
     .mul(upwardExposure)
     .mul(snowVariation)
@@ -164,94 +176,51 @@ export function applySeedThreeBarkSnow(
   return material;
 }
 
-/** Smoothly blend the far-card overlay over an always-resident real tree. */
-export function applySeedThreeOverviewBillboardFade(
-  material: THREE.Material,
-): THREE.Material {
-  if (material.userData.seedThreeOverviewBillboardFade === true) return material;
-  const target = material as SeedThreeOpacityNodeMaterial;
-  const baseOpacity = target.opacityNode ?? (float(1) as TslNode);
-  // Fade only the binary foliage silhouette. Blending the atlas alpha itself
-  // reveals low-alpha mip bleed across the entire card as a rectangular veil,
-  // especially when looking through edge trees into the pale outer world.
-  target.opacityNode = tslStep(
-    float(SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF),
-    baseOpacity,
-  ).mul(overviewBillboardFadeOpacity);
-  // Alpha hashing and an animated alpha-test threshold change foliage coverage
-  // discontinuously while zooming. Conventional blending still owns the global
-  // dissolve, but transparent atlas margins have already been hard-clipped.
-  material.alphaTest = 0;
-  material.alphaHash = false;
-  material.alphaToCoverage = false;
-  material.transparent = true;
-  material.depthWrite = false;
-  material.userData.seedThreeOverviewBillboardFade = true;
-  material.userData.seedThreeOverviewHardCutout = true;
-  material.needsUpdate = true;
-  return material;
-}
-
-/**
- * Keep permanent terrain-horizon cards as strict cutouts. Their baked atlas is
- * sampled from very small mip levels, where soft alpha coverage can otherwise
- * turn the transparent card margin into a faint rectangular veil.
- */
-export function applySeedThreeHorizonCardCutout(
-  material: THREE.Material,
-): THREE.Material {
-  if (material.userData.seedThreeHorizonCardCutout === true) return material;
-  const target = material as SeedThreeFoliageNodeMaterial;
-  const sourceOpacity = target.opacityNode
-    ?? (target.map
-      ? (texture(target.map) as unknown as TslVectorNode).a
-      : float(1) as TslNode);
-  target.opacityNode = tslStep(
-    float(SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF),
-    sourceOpacity,
-  );
-  material.alphaTest = SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF;
-  material.alphaHash = false;
-  material.alphaToCoverage = false;
-  material.transparent = false;
-  material.depthWrite = true;
-  material.userData.seedThreeHorizonCardCutout = true;
-  material.needsUpdate = true;
-  return material;
-}
-
 /** Drop strategic foliage cards in stable clusters on dormant deciduous instances. */
 export function applySeedThreeWholeCardDormancy(
   material: THREE.Material,
 ): THREE.Material {
   if (material.userData.seedThreeWholeCardDormancy === true) return material;
-  const dormancy = material.userData.forestSeasonalDormancy as TslNode | undefined;
+  const dormancy = material.userData.forestSeasonalDormancy as
+    TslNode | undefined;
   if (!dormancy) return material;
   // aTreeOrigin.y packs the deciduous bit at +2048. The 1024 threshold matches
   // the forest compaction and SeedThree card shader without adding an attribute.
-  const packedTreeOrigin = attribute('aTreeOrigin', 'vec3') as unknown as TslVectorNode;
+  const packedTreeOrigin = attribute(
+    'aTreeOrigin',
+    'vec3',
+  ) as unknown as TslVectorNode;
   const deciduousInstance = tslStep(float(1024), packedTreeOrigin.y);
-  const treeOriginY = packedTreeOrigin.y.sub(deciduousInstance.mul(float(2048)));
+  const treeOriginY = packedTreeOrigin.y.sub(
+    deciduousInstance.mul(float(2048)),
+  );
   const anchor = attribute('aAnchorPos', 'vec3') as unknown as TslVectorNode;
-  const cardVariation = attribute('aThickness', 'float') as unknown as TslVectorNode;
-  const phenologyOffset = barkSnowTsl.sin(
-    packedTreeOrigin.x.mul(0.37).add(packedTreeOrigin.z.mul(0.53)),
-  ).mul(0.13)
+  const cardVariation = attribute(
+    'aThickness',
+    'float',
+  ) as unknown as TslVectorNode;
+  const phenologyOffset = barkSnowTsl
+    .sin(packedTreeOrigin.x.mul(0.37).add(packedTreeOrigin.z.mul(0.53)))
+    .mul(0.13)
     .mul(dormancy)
     .mul((float(1) as TslNode).sub(dormancy));
   const effectiveDormancy = dormancy.add(phenologyOffset).clamp(0, 1);
-  const clusterNoise = barkSnowTsl.sin(
-    packedTreeOrigin.x.mul(0.19)
-      .add(treeOriginY.mul(0.11))
-      .add(packedTreeOrigin.z.mul(0.27))
-      .add(anchor.x.mul(1.31))
-      .add(anchor.y.mul(0.83))
-      .add(anchor.z.mul(1.57))
-      // Forest compaction shares one tree-root anchor across its cards.
-      // Reuse the existing per-card thickness randomizer so crown cards shed
-      // progressively instead of disappearing as one synchronized slab.
-      .add(cardVariation.mul(7.31)),
-  ).mul(0.49).add(0.5);
+  const clusterNoise = barkSnowTsl
+    .sin(
+      packedTreeOrigin.x
+        .mul(0.19)
+        .add(treeOriginY.mul(0.11))
+        .add(packedTreeOrigin.z.mul(0.27))
+        .add(anchor.x.mul(1.31))
+        .add(anchor.y.mul(0.83))
+        .add(anchor.z.mul(1.57))
+        // Forest compaction shares one tree-root anchor across its cards.
+        // Reuse the existing per-card thickness randomizer so crown cards shed
+        // progressively instead of disappearing as one synchronized slab.
+        .add(cardVariation.mul(7.31)),
+    )
+    .mul(0.49)
+    .add(0.5);
   const clusterRetain = tslStep(effectiveDormancy, clusterNoise);
   const retain = (float(1) as TslNode).sub(
     deciduousInstance.mul((float(1) as TslNode).sub(clusterRetain)),
@@ -259,7 +228,7 @@ export function applySeedThreeWholeCardDormancy(
   const target = material as SeedThreeFoliageNodeMaterial;
   const cardAlpha = target.map
     ? (texture(target.map) as unknown as TslVectorNode).a
-    : float(1) as TslNode;
+    : (float(1) as TslNode);
   target.opacityNode = cardAlpha.mul(retain);
   if (target.thicknessColorNode) {
     target.thicknessColorNode = target.thicknessColorNode.mul(retain);
@@ -299,7 +268,7 @@ export function cloneSeedThreeForestMaterial(
   // Material.clone() copies userData by value, but the restored node graph above
   // still reads the source material's live seasonal uniforms. Restore those
   // handles by reference so calendar updates reach the graph actually rendered
-  // by crown-underlay clones.
+  // by independently owned LOD materials.
   for (const property of [
     'forestSeasonalSpringFlush',
     'forestSeasonalAutumnColor',
@@ -312,40 +281,17 @@ export function cloneSeedThreeForestMaterial(
   return material;
 }
 
-/** Clone a cached forest material so fading overview geometry cannot fade near trees. */
-export function createSeedThreeOverviewFadeMaterial(
-  source: THREE.Material,
-  wholeCardDormancy = false,
-): THREE.Material {
-  const material = cloneSeedThreeForestMaterial(source);
-  material.userData.seedThreeOwnedOverviewFadeMaterial = true;
-  if (wholeCardDormancy) applySeedThreeWholeCardDormancy(material);
-  return applySeedThreeOverviewBillboardFade(material);
-}
-
-export const createSeedThreeOverviewBarkFadeMaterial = createSeedThreeOverviewFadeMaterial;
-
-export function setSeedThreeOverviewBillboardFadeOpacity(opacity: number): void {
-  overviewBillboardFadeOpacity.value = Math.max(
-    0,
-    Math.min(1, Number.isFinite(opacity) ? opacity : 0),
-  );
-}
-
 /**
  * Override only the card-position node after SeedThree has built its forest
- * material. Near detail keeps the normal forest node, crown underlays reuse
- * their bake-authored rigid-sway node, and overview cards stay fixed.
+ * material. Every LOD keeps its authored rigid sway or detailed tip flutter,
+ * driven by the shared pause-aware world clock.
  */
 export function applySeedThreeForestCardMotion(
   material: THREE.Material,
   motion: SeedThreeForestCardMotion,
-  _sourceMaterial?: THREE.Material,
 ): THREE.Material {
   const target = material as SeedThreePositionNodeMaterial;
-  const nextPositionNode = motion === 'static'
-    ? null
-    : seedThreeForestCardPositionNodes[motion];
+  const nextPositionNode = seedThreeForestCardPositionNodes[motion];
   if (target.positionNode !== nextPositionNode) {
     target.positionNode = nextPositionNode;
     material.needsUpdate = true;
@@ -379,7 +325,10 @@ export function applySeedThreeForestBarkMotion(
 export function stabilizeSeedThreeForestCardMaterial(
   material: THREE.Material,
 ): THREE.Material {
-  const physicalMaterial = material as THREE.Material & { specularIntensity?: number; mrtNode?: unknown };
+  const physicalMaterial = material as THREE.Material & {
+    specularIntensity?: number;
+    mrtNode?: unknown;
+  };
   let changed = false;
   // SeedThree's viewer writes its own N8AO normal/mask attachments. The game
   // owns render-target outputs, including single-color and shadow targets.
@@ -392,11 +341,13 @@ export function stabilizeSeedThreeForestCardMaterial(
     changed = true;
   }
   if (
-    typeof physicalMaterial.specularIntensity === 'number'
-    && physicalMaterial.specularIntensity !== SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY
+    typeof physicalMaterial.specularIntensity === 'number' &&
+    physicalMaterial.specularIntensity !==
+      SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY
   ) {
     // Preserve diffuse light, shadows, and SSS while removing moving sun glints.
-    physicalMaterial.specularIntensity = SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY;
+    physicalMaterial.specularIntensity =
+      SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY;
     changed = true;
   }
   // Shared prototype materials may already have a compiled pipeline.

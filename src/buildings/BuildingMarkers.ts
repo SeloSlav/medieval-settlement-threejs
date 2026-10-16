@@ -120,7 +120,6 @@ import {
   windWeatherThroughputMultiplier,
 } from '../wind/windField.ts';
 import { MarketplaceSupplyLinks } from './MarketplaceSupplyLinks.ts';
-import { WellServiceCoverage } from './WellServiceCoverage.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { setTierOneChurchClockTime } from './chapelRuntimeClock.ts';
 
@@ -155,8 +154,6 @@ export class BuildingMarkers {
   private windmillWeatherThroughputMultiplier = 1;
   private charcoalBurnerThroughputMultiplier = 1;
   private readonly marketplaceSupplyLinks: MarketplaceSupplyLinks;
-  private readonly wellServiceCoverage: WellServiceCoverage;
-  private wellServiceCoverageBuildingId: string | null = null;
   private previewBuilding: THREE.Group | null = null;
   private forestryPlacementArea: TreeWorkArea | null = null;
   private previewKind: BuildingKind | null = null;
@@ -193,7 +190,6 @@ export class BuildingMarkers {
       parent: this.group,
       terrain: this.terrain,
     });
-    this.wellServiceCoverage = new WellServiceCoverage(this.group, this.terrain);
     options.parent.add(this.group);
   }
 
@@ -223,18 +219,6 @@ export class BuildingMarkers {
       marketplace?.kind === 'marketplace' ? marketplace : null,
       gameState?.residences.values() ?? [],
       residenceIds,
-    );
-  }
-
-  setWellServiceCoverage(building: BuildingState | null): void {
-    this.wellServiceCoverageBuildingId = building?.id ?? null;
-    this.wellServiceCoverage.sync(building);
-  }
-
-  private syncWellServiceCoverage(force = false): void {
-    this.wellServiceCoverage.sync(
-      this.buildingStates.get(this.wellServiceCoverageBuildingId ?? '') ?? null,
-      force,
     );
   }
 
@@ -286,7 +270,6 @@ export class BuildingMarkers {
       this.removeBuilding(id);
     }
     this.syncMarketplaceStallVisuals();
-    this.syncWellServiceCoverage();
     this.staticBatches.finalizeGeometryBuffers();
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
@@ -405,7 +388,6 @@ export class BuildingMarkers {
    * building row that created the marker.
    */
   refreshTerrainHeights(): void {
-    this.syncWellServiceCoverage(true);
     let moved = false;
     for (const [id, building] of this.buildingStates) {
       const marker = this.buildingMeshes.get(id);
@@ -774,7 +756,6 @@ export class BuildingMarkers {
       this.previewKind = null;
     }
     this.marketplaceSupplyLinks.dispose();
-    this.wellServiceCoverage.dispose();
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
     }

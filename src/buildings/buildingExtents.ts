@@ -22,7 +22,7 @@ const WORK_EXTENT_KINDS = new Set<BuildingKind>([
 
 /**
  * Returns gameplay extent metadata for inspector readouts, not placement exclusions.
- * Wells can display their service radius through the inspector coverage toggle.
+ * Household services use road connections rather than circular extents.
  */
 export function getBuildingExtent(kind: BuildingKind, workRadius: number): BuildingExtent | null {
   if (kind === 'monastery') {
@@ -30,14 +30,6 @@ export function getBuildingExtent(kind: BuildingKind, workRadius: number): Build
       type: 'coverage',
       label: 'Faith coverage',
       radius: MONASTERY_COVERAGE_RADIUS,
-    };
-  }
-
-  if (kind === 'well' && workRadius > 0) {
-    return {
-      type: 'service',
-      label: 'Water service extent',
-      radius: workRadius,
     };
   }
 

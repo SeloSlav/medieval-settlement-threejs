@@ -1,0 +1,13 @@
+Tool: built-in image_gen, transparent_background=true.
+Style references: public/assets/ui/icons/materials/roof-tiles.png and iron.png.
+Output: public/assets/ui/icons/materials/dressed-stone.png, resized to 256x256 with alpha preserved.
+
+Use case: stylized-concept
+Asset type: medieval settlement game resource icon, a single isolated inventory item on genuine transparent alpha.
+Primary request: create the DRESSED STONE resource icon matching the two reference icons' painterly ink-outlined medieval resource artwork.
+Input images: Image 1 roof tiles and Image 2 bundled iron are style, outline weight, perspective, texture and lighting references only; neither object should appear.
+Subject: a compact stack of five or six neatly dressed limestone ashlar blocks, squared rectangular masonry with subtly chipped bevels and visible fine chisel strokes. Clearly finished cut stone, recognizable instantly at 20-32 pixels. A few larger blocks staggered into two low tiers, irregular enough to show each rectangular block.
+Style/medium: hand-painted detailed game inventory illustration with dark brown ink edge outlines, warm ivory limestone highlights, pale warm grey faces and darker grey-brown side shading, restrained earthy colors. Match reference artwork, no shiny plastic or smooth flat vector shapes.
+Composition/framing: single centered compact stack seen from elevated three-quarter angle, fully in frame, square canvas, stack occupies about 85 percent of canvas width. Upper left soft illumination, solid readable silhouette.
+Scene/backdrop: actual transparent background everywhere around the stack and in gaps. No parchment, tile, card, border, badge, ground plane, scenery, text, letters, watermark, cast shadow or checkerboard pattern.
+Constraints: only the finished limestone masonry stack. Preserve true transparency, no solid background.

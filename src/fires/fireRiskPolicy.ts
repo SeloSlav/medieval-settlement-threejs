@@ -186,12 +186,9 @@ export function assessBuildingFireSafety(
       building.kind !== 'well'
       || building.constructionComplete === false
       || fireDisabled.has(building.id)
-      || building.workRadius <= 0
     ) {
       continue;
     }
-    const directDistance = planarDistance(target, building);
-    if (directDistance > building.workRadius + 1e-6) continue;
 
     const readiness = wellReadiness(
       building,
@@ -203,8 +200,8 @@ export function assessBuildingFireSafety(
       target.x,
       target.z,
     );
-    const selectionDistance = roadDistance
-      ?? directDistance / Math.max(OFFROAD_DELIVERY_SPEED_MULTIPLIER, 1e-6);
+    if (roadDistance == null || !Number.isFinite(roadDistance)) continue;
+    const selectionDistance = roadDistance;
     const candidate = { well: building, readiness, selectionDistance };
     if (readiness === 'ready') {
       if (betterWell(candidate, bestReadyWell)) bestReadyWell = candidate;
@@ -280,9 +277,9 @@ export function describePlacementFireSafety(
     return `${risk} · ready well ${Math.round(assessment.responseDistance)} m away · ~${Math.ceil(assessment.firstBucketSeconds)}s to first bucket · ${spread}`;
   }
   if (assessment.coverage === 'unready') {
-    return `${risk} · well extent reaches here but ${wellReadinessLabel(assessment.nearestWellReadiness)} · ${spread}`;
+    return `${risk} · road-linked well available but ${wellReadinessLabel(assessment.nearestWellReadiness)} · ${spread}`;
   }
-  return `${risk} · no ready well extent reaches here · ${spread}`;
+  return `${risk} · no ready road-linked well · ${spread}`;
 }
 
 export function wellReadinessLabel(readiness: FireWellReadiness | null): string {

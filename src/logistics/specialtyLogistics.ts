@@ -11,6 +11,7 @@ import {
   RESIDENCE_POTTERY_CAPACITY,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
+  TAVERN_HOUSEHOLD_CAPACITY,
 } from '../generated/gameBalance.ts';
 import { spoilageAdjustedRunwayDays } from '../economy/foodPreservation.ts';
 import { householdFoodUnitsPerDay } from '../economy/householdBillDemand.ts';
@@ -20,6 +21,7 @@ import { savoryPreservesStock } from '../economy/foodInventory.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   compareStableEntityIds,
+  claimResidencesByNearestSupplier,
   localDeliveryDistance,
   localDeliveryDistancesFrom,
   roadPathDistancesFrom,
@@ -53,6 +55,25 @@ export function isOperationalSpecialtySupplier(building: BuildingState): boolean
 export function isSustainableSpecialtySupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
     && building.assignedLabor > 0;
+}
+
+/** One road-linked, occupied tier-2+ household occupies one Tavern service slot. */
+export function claimResidencesForTaverns(
+  network: RoadNetwork,
+  buildings: readonly BuildingState[],
+  residences: readonly ResidenceState[],
+  requireStock = true,
+): Map<string, string> {
+  return claimResidencesByNearestSupplier(
+    network,
+    buildings.filter((building) => building.kind === 'tavern'
+      && isOperationalSpecialtySupplier(building)
+      && (!requireStock || specialtySupplierStock(building, 'ale') > 1e-6)),
+    residences,
+    (_supplier, residence) => !residence.abandoned && residence.population > 0 && residence.tier >= 2,
+    true,
+    TAVERN_HOUSEHOLD_CAPACITY,
+  );
 }
 
 export function findRoadLinkedSupplierForResidence(

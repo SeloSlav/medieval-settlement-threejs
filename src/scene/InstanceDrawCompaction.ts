@@ -23,6 +23,9 @@ export class InstanceDrawCompaction {
   private readonly layers: number;
   private readonly padding: number | (() => number);
   private readonly skipCollapsed: boolean;
+  private readonly groupVisible?: (group: number) => boolean;
+  private readonly selectionVersion?: () => number;
+  private previousSelectionVersion = -1;
   private matrixVersion = -1;
   private selectedCount = -1;
   private previousCount = -1;
@@ -32,13 +35,14 @@ export class InstanceDrawCompaction {
   private previousCamera: THREE.Camera | null | undefined;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number } = {}) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number; groupVisible?: (group: number) => boolean; selectionVersion?: () => number } = {}) {
     const materials = Array.isArray(source.material) ? source.material : [source.material];
     if (source.geometry.getIndirect() || materials.some(material => material.transparent)) throw new Error('Instance compaction requires opaque materials');
     const attributes = Object.entries(source.geometry.attributes);
     if (attributes.some(([, a]) => (a as THREE.InstancedBufferAttribute).isInstancedBufferAttribute && ((a as THREE.InstancedBufferAttribute).meshPerAttribute !== 1 || a.count < source.instanceMatrix.count))) throw new Error('Instance compaction requires complete per-instance attributes');
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
     this.skipCollapsed = options.skipCollapsed === true;
+    this.groupVisible = options.groupVisible; this.selectionVersion = options.selectionVersion;
     const geometry = new THREE.BufferGeometry();
     inheritExactInstancePrototype(geometry, source.geometry);
     geometry.name = source.geometry.name;
@@ -145,7 +149,9 @@ export class InstanceDrawCompaction {
       this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(source.matrixWorld);
     }
     const padding = typeof this.padding === 'function' ? this.padding() : this.padding;
+    const selectionVersion = this.selectionVersion?.() ?? 0;
     if (!changed && this.previousCount === source.count && this.previousPadding === padding
+      && this.previousSelectionVersion === selectionVersion
       && this.previousCamera === camera
       && (!camera || (this.previousCoordinateSystem === camera.coordinateSystem
         && this.previousReversedDepth === camera.reversedDepth
@@ -155,6 +161,7 @@ export class InstanceDrawCompaction {
       return;
     }
     this.previousCamera = camera;
+    this.previousSelectionVersion = selectionVersion;
     this.previousProjection.copy(this.projection); this.previousCount = source.count; this.previousPadding = padding;
     if (camera) {
       this.previousCoordinateSystem = camera.coordinateSystem; this.previousReversedDepth = camera.reversedDepth;
@@ -171,6 +178,7 @@ export class InstanceDrawCompaction {
       count += length;
     };
     for (let start = 0; start < source.count; start += this.groupSize) {
+      if (this.groupVisible && !this.groupVisible(start / this.groupSize)) continue;
       const end = Math.min(start + this.groupSize, source.count);
       if (this.groupSize > 1) {
         const group = start / this.groupSize, at = group * 4;

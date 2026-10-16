@@ -17,9 +17,6 @@ import {
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 import {
-  applySeedThreeHorizonCardCutout,
-  applySeedThreeOverviewBillboardFade,
-  SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF,
   stabilizeSeedThreeForestCardMaterial,
 } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
 import { planSeedThreeForestInteractionWork } from '../src/vegetation/seedthree/seedThreeForestInteraction.ts';
@@ -79,51 +76,6 @@ assert.equal(
 );
 alphaCutoutMaterial.dispose();
 
-const horizonCutoutMaterial = new THREE.MeshBasicMaterial({
-  alphaTest: 0.35,
-  alphaToCoverage: true,
-  transparent: true,
-  depthWrite: false,
-});
-const horizonCutoutVersion = horizonCutoutMaterial.version;
-assert.equal(
-  applySeedThreeHorizonCardCutout(horizonCutoutMaterial),
-  horizonCutoutMaterial,
-  'horizon cutout should preserve the isolated overview material instance',
-);
-assert.equal(horizonCutoutMaterial.alphaTest, SEEDTHREE_HORIZON_CARD_ALPHA_CUTOFF);
-assert.equal(horizonCutoutMaterial.alphaToCoverage, false);
-assert.equal(horizonCutoutMaterial.transparent, false);
-assert.equal(horizonCutoutMaterial.depthWrite, true);
-assert.equal(
-  horizonCutoutMaterial.version,
-  horizonCutoutVersion + 1,
-  'hardening a horizon card should invalidate its compiled material pipeline',
-);
-horizonCutoutMaterial.dispose();
-
-const overviewFadeMaterial = new THREE.MeshBasicMaterial({
-  alphaTest: 0.35,
-  alphaToCoverage: true,
-  transparent: false,
-  depthWrite: true,
-});
-assert.equal(
-  applySeedThreeOverviewBillboardFade(overviewFadeMaterial),
-  overviewFadeMaterial,
-  'overview fade should preserve the isolated card material instance',
-);
-assert.equal(overviewFadeMaterial.alphaTest, 0);
-assert.equal(overviewFadeMaterial.alphaToCoverage, false);
-assert.equal(overviewFadeMaterial.transparent, true);
-assert.equal(overviewFadeMaterial.depthWrite, false);
-assert.equal(
-  overviewFadeMaterial.userData.seedThreeOverviewHardCutout,
-  true,
-  'fading overview cards must clip atlas margins before the global dissolve',
-);
-overviewFadeMaterial.dispose();
-
 function makeLodSet(capacity: number) {
   const branchGeometry = new THREE.BoxGeometry(1, 1, 1);
   branchGeometry.setAttribute(
@@ -178,24 +130,12 @@ const exactThickness = exactColorSource.cards[0].geometry.getAttribute(
 ) as THREE.InstancedBufferAttribute;
 exactThickness.setX(0, 0.4375);
 exactThickness.setX(1, 0.8125);
-const underlayGeometry = exactColorSource.cards[0].geometry.clone();
-underlayGeometry.userData.crownUnderlay = true;
-const underlay = new THREE.InstancedMesh(
-  underlayGeometry,
-  exactColorSource.cards[0].material,
-  2,
-) as THREE.InstancedMesh & { userData: Record<string, unknown> };
-underlay.userData = {
-  ...exactColorSource.cards[0].userData,
-  crownUnderlay: true,
-};
-exactColorSource.cards.push(underlay);
 const exactShadowClone = createSeedThreeExactShadowLodSet(
   exactColorSource,
   'test exact shadow',
 );
 assert.equal(exactShadowClone.cards.length, 1,
-  'non-casting crown underlays must not allocate a shadow-only mesh');
+  'normal foliage must retain one exact shadow mesh');
 const exactShadowThickness = exactShadowClone.cards[0].geometry.getAttribute(
   'aThickness',
 ) as THREE.InstancedBufferAttribute;
@@ -240,14 +180,30 @@ const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
 });
 const slots = [slot(0, 10), slot(1, 20)];
 
+const stableColor = makeLodSet(2);
+const stableThickness = stableColor.cards[0].geometry.getAttribute('aThickness') as THREE.InstancedBufferAttribute;
+stableThickness.setX(0, 0.25); stableThickness.setX(1, 0.875);
+const repackedShadow = createSeedThreeExactShadowLodSet(stableColor, 'stable color caster repack');
+for (const selected of [[1], [0], [1, 0]]) {
+  const job = createSeedThreeBucketMatrixWriteJob(stableColor, {branches:null,cards:[]}, slots, [0,1], [], {
+    lodSet:repackedShadow, selectedSlotIndices:selected, writeColor:false, writeShadow:true,
+    realignColorAttributes:false, preserveDisabledSlots:true,
+  });
+  runSeedThreeBucketMatrixWriteSlices(job, {deadlineMs:Infinity,maxMatrixWritesPerChunk:Infinity});
+  const shadowThickness = repackedShadow.cards[0].geometry.getAttribute('aThickness');
+  selected.forEach((slotIndex, rank) => assert.equal(shadowThickness.getX(rank), stableThickness.getX(slotIndex),
+    'repacking casters must retain the authored flutter phase of each stable color tree'));
+  assert.deepEqual(Array.from(stableThickness.array), [0.25,0.875], 'caster repacks must leave color data unchanged');
+}
+
 assert.deepEqual(
   createSeedThreeStableColorSlotSelection([
     {},
     { forceOverview: true },
     {},
   ]),
-  { near: [0, 1, 2], overview: [1] },
-  'camera-independent color selection must retain every tree and preserve authored overview cards',
+  { near: [0, 1, 2], overview: [0, 1, 2] },
+  'canonical color pools must retain every gameplay tree for exclusive distance selection',
 );
 assert.deepEqual(
   createSeedThreeStableRtsShadowSlotSelection([
@@ -263,8 +219,8 @@ assert.deepEqual(
     {},
     { forceOverview: true, overviewOnly: true },
   ]),
-  { near: [0], overview: [1] },
-  'terrain-horizon SeedThree slots must submit only through the overview pass',
+  { near: [0], overview: [0] },
+  'terrain-horizon slots must stay out of both nearer canonical pools',
 );
 assert.deepEqual(
   createSeedThreeStableRtsShadowSlotSelection([

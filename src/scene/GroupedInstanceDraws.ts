@@ -45,9 +45,12 @@ export class GroupedInstanceDraws {
   private previousCount = -1;
   private readonly layers: number;
   private disposed = false;
+  private readonly groupVisible?: (group: number) => boolean;
 
-  constructor(source: THREE.InstancedMesh, renderer: WebGPURenderer, padding: () => number) {
+  constructor(source: THREE.InstancedMesh, renderer: WebGPURenderer, padding: () => number,
+    groupVisible?: (group: number) => boolean) {
     this.source = source; this.renderer = renderer; this.padding = padding;
+    this.groupVisible = groupVisible;
     this.groupSize = Math.max(1, Number(source.userData.k) || 1);
     if (source.instanceMatrix.count % this.groupSize || Array.isArray(source.material) || source.material.transparent) throw new Error('Grouped draws require complete opaque crowns');
     const capacity = source.instanceMatrix.count;
@@ -168,6 +171,7 @@ export class GroupedInstanceDraws {
       this.frustum.setFromProjectionMatrix(this.projection,camera.coordinateSystem,camera.reversedDepth);}
     let selected=0;const padding=this.padding(),planes=camera?this.frustum.planes:[];
     for(let group=0;group<this.source.count/this.groupSize;group++){
+      if(this.groupVisible && !this.groupVisible(group))continue;
       const at=group*4,r=this.bounds[at+3]!;if(r<0)continue;
       let visible=true;
       for(const plane of planes)if(plane.normal.x*this.bounds[at]!+plane.normal.y*this.bounds[at+1]!+plane.normal.z*this.bounds[at+2]!+plane.constant<-(r+padding)){visible=false;break;}

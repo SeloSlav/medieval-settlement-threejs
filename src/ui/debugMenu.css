@@ -13,7 +13,7 @@
 .debug-menu-backdrop[hidden] { display: none; }
 
 .debug-menu-performance { margin-top: 13px; }
-.debug-menu-performance[hidden], .debug-performance-meter[hidden] { display: none; }
+.debug-menu-performance[hidden] { display: none; }
 .debug-menu-simulation { margin-top: 14px; font-size: 12px; }
 .debug-menu-simulation summary { cursor: pointer; color: #cfa74f; }
 .debug-render-buildings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
@@ -51,13 +51,6 @@
   border-radius: 5px; font: 11px/1.5 ui-monospace, monospace; pointer-events: auto;
 }
 .debug-menu-performance [data-render-summary] { color: #e4cb8c; font: 12px/1.6 ui-monospace, monospace; }
-.debug-performance-meter {
-  position: fixed; top: 92px; left: 12px; z-index: 184; padding: 7px 10px;
-  border: 1px solid #67604c; border-radius: 4px; color: #f1dfb5; background: #11180fea;
-  font: 11px/1.6 ui-monospace, monospace; white-space: pre-line; pointer-events: none;
-  max-width: calc(100vw - 24px);
-}
-
 .debug-menu-dialog {
   width: min(880px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);

@@ -16,18 +16,12 @@ import {
 } from '../vendor/seedthree/src/core/branch-cards.js';
 import { Rng } from '../vendor/seedthree/src/core/rng.js';
 import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
-import {
-  SEEDTHREE_CROWN_UNDERLAY_MODE,
-  SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE,
-  SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE,
-  SEEDTHREE_FOREST_WIND_SPEED,
-  shouldShowSeedThreeCrownUnderlay,
-} from '../src/vegetation/seedthree/seedThreeCanopyPresentation.ts';
+import { SEEDTHREE_FOREST_WIND_SPEED } from '../src/vegetation/seedthree/seedThreeForestLod.ts';
 import {
   SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY,
-  SEEDTHREE_OVERVIEW_CARD_MOTION,
   applySeedThreeForestCardMotion,
-  createSeedThreeOverviewFadeMaterial,
+  cloneSeedThreeForestMaterial,
+  applySeedThreeWholeCardDormancy,
   resolveSeedThreeForestCardMotion,
   stabilizeSeedThreeForestCardMaterial,
 } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
@@ -47,12 +41,6 @@ import { writeSeedThreeLodMatrices } from '../src/vegetation/seedthree/seedThree
 import { deciduousFoliageForClock } from '../src/world/deciduousFoliagePolicy.ts';
 
 const deciduous = GORSKI_KOTAR_PRESETS.filter(seedThreePresetIsDeciduous);
-const deciduousUnderlayScale = {
-  americanBeech: 1.35,
-  whiteOak: 1.35,
-  redMaple: 1.3,
-  sweetgum: 1.28,
-} as const;
 assert.deepEqual(
   deciduous,
   ['americanBeech', 'whiteOak', 'redMaple', 'sweetgum'],
@@ -76,15 +64,9 @@ assert.equal(
   'White Oak:cards:2:coverage-v4',
   'coverage RNG identity must remain pinned to content revision 4',
 );
-assert.equal(SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE, 112);
-assert.equal(SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE, 128);
-assert.equal(SEEDTHREE_CROWN_UNDERLAY_MODE, 'always');
 assert.equal(SEEDTHREE_FOREST_WIND_SPEED, 0.84);
-assert.equal(SEEDTHREE_OVERVIEW_CARD_MOTION, 'static');
-assert.equal(resolveSeedThreeForestCardMotion(true, false), 'static');
-assert.equal(resolveSeedThreeForestCardMotion(true, true), 'static');
-assert.equal(resolveSeedThreeForestCardMotion(false, true), 'sway');
-assert.equal(resolveSeedThreeForestCardMotion(false, false), 'full');
+assert.equal(resolveSeedThreeForestCardMotion(true), 'sway');
+assert.equal(resolveSeedThreeForestCardMotion(false), 'full');
 const rigidSwayNode = { kind: 'rigid-sway' };
 const sourceCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMaterial & {
   positionNode: unknown;
@@ -94,7 +76,7 @@ const forestCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMate
   positionNode: unknown;
 };
 forestCrownMaterial.positionNode = { kind: 'incorrect-flutter' };
-applySeedThreeForestCardMotion(forestCrownMaterial, 'sway', sourceCrownMaterial);
+applySeedThreeForestCardMotion(forestCrownMaterial, 'sway');
 assert.notEqual(
   forestCrownMaterial.positionNode,
   rigidSwayNode,
@@ -102,52 +84,14 @@ assert.notEqual(
 );
 assert.equal(forestCrownMaterial.userData.seedThreeWindClock, 'world-animation');
 const pauseAwareSwayNode = forestCrownMaterial.positionNode;
-applySeedThreeForestCardMotion(forestCrownMaterial, 'full', sourceCrownMaterial);
+applySeedThreeForestCardMotion(forestCrownMaterial, 'full');
 assert.notEqual(
   forestCrownMaterial.positionNode,
   pauseAwareSwayNode,
   'full foliage motion must retain tip flutter in addition to rigid crown sway',
 );
-applySeedThreeForestCardMotion(forestCrownMaterial, 'static', sourceCrownMaterial);
-assert.equal(forestCrownMaterial.positionNode, null);
 sourceCrownMaterial.dispose();
 forestCrownMaterial.dispose();
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(false, 0, true),
-  true,
-  'the default global mode must keep the extra canopy visible at every zoom level',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 999, false, 'off'),
-  false,
-  'off mode must suppress the extra canopy at every zoom level',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 111.99, false, 'distance'),
-  false,
-  'zooming in must remove strategic crown fill below the inner threshold',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 112, false, 'distance'),
-  true,
-  'visible crown fill must remain stable at the inner hysteresis boundary',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(false, 127.99, false, 'distance'),
-  false,
-  'zooming out must not reveal crown fill before the outer threshold',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(false, 128, false, 'distance'),
-  true,
-  'strategic crown fill must return at the outer threshold',
-);
-assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 999, true, 'distance'),
-  false,
-  'distance mode must hide the crown underlay in first person',
-);
-
 const physicalFoliage = new THREE.MeshPhysicalMaterial({ specularIntensity: 1 });
 stabilizeSeedThreeForestCardMaterial(physicalFoliage);
 assert.equal(physicalFoliage.alphaToCoverage, true);
@@ -173,20 +117,20 @@ for (const preset of deciduous) {
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    true,
-    `${preset} must add a foliage-only crown layer behind detailed branch cards`,
+    undefined,
+    `${preset} must use normal foliage without an additional crown layer`,
   );
   assert.equal(
     species.foliage?.cardCrownUnderlayLateralScale,
-    deciduousUnderlayScale[preset],
-    `${preset} must widen its crown underlay without increasing tree density`,
+    undefined,
+    `${preset} must not request an enlarged crown underlay`,
   );
   const authoredRootCards = 1 + Number(species.params?.baseSplits ?? 0);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, authoredRootCards);
-  assert.equal(crownUnderlay.enabled, true);
-  assert.equal(crownUnderlay.rootCardInstances, authoredRootCards);
-  assert.equal(crownUnderlay.runtimeTrianglesAdded, authoredRootCards * 4);
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
+  assert.equal(crownUnderlay.enabled, false);
+  assert.equal(crownUnderlay.rootCardInstances, 0);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
   const coverage = planBranchCardCoverage(species.foliage, 12);
   assert.equal(coverage.coverageRequested, 1.5);
   assert.ok(coverage.bakeLeafInstances > coverage.sourceLeafInstances);
@@ -197,9 +141,9 @@ for (const preset of deciduous) {
   );
   const cacheKey = seedThreeBranchCardCacheKey(species, true);
   assert.ok(
-    cacheKey.includes(`|r2|u1x${deciduousUnderlayScale[preset]}|`)
+    cacheKey.includes(`|r2|`)
       && cacheKey.endsWith(`|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`),
-    `${preset} cache identity must retain radial coverage, crown underlay, and bake revision`,
+    `${preset} cache identity must retain normal radial coverage and bake revision`,
   );
 }
 for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
@@ -221,18 +165,18 @@ for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    true,
-    `${preset} must add an evergreen crown layer behind exposed branches`,
+    undefined,
+    `${preset} must use normal evergreen foliage without an added crown layer`,
   );
-  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, 1.35);
+  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, undefined);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, 1);
-  assert.equal(crownUnderlay.enabled, true);
-  assert.equal(crownUnderlay.rootCardInstances, 1);
-  assert.equal(crownUnderlay.runtimeTrianglesAdded, 4);
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
+  assert.equal(crownUnderlay.enabled, false);
+  assert.equal(crownUnderlay.rootCardInstances, 0);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
   assert.ok(
-    seedThreeBranchCardCacheKey(species, true).includes('|r1|u1x1.35|'),
-    `${preset} cache identity must retain its crossed evergreen crown underlay`,
+    seedThreeBranchCardCacheKey(species, true).includes('|r1|'),
+    `${preset} cache identity must retain its normal evergreen cards`,
   );
 }
 assert.equal(SEEDTHREE_BRANCH_CARD_BAKE_REVISION, BRANCH_CARD_BAKE_REVISION);
@@ -356,10 +300,7 @@ assert.notEqual(
   seasonalForestMaterial,
   'seasonal and standard forest twins must not alias when they share a source card material',
 );
-const seasonalOverviewFadeMaterial = createSeedThreeOverviewFadeMaterial(
-  seasonalForestMaterial,
-  true,
-);
+const seasonalOverviewFadeMaterial = applySeedThreeWholeCardDormancy(cloneSeedThreeForestMaterial(seasonalForestMaterial));
 assert.ok(
   standardForestMaterial.userData.forestSnowCoverage,
   'evergreen-only materials must expose the settled-snow control',
@@ -413,7 +354,8 @@ const builderSource = readFileSync(
 const forestMaterialSource = readFileSync(
   join(root, 'src/vegetation/seedthree/seedThreeForestMaterial.ts'),
   'utf8',
-);
+).replace(/barkSnowTsl\s*\.\s*/g, 'barkSnowTsl.')
+  .replace(/attribute\(\s*'([^']+)',\s*'([^']+)',?\s*\)/g, "attribute('$1', '$2')");
 const compactionSource = readFileSync(
   join(root, 'src/vegetation/seedthree/seedThreeForestCompaction.ts'),
   'utf8',
@@ -458,7 +400,7 @@ assert.match(
 );
 assert.match(
   builderSource,
-  /const seasonalDeciduous = slots\.some\(\(slot\) => slot\.seasonalDeciduous\)/,
+  /seasonalDeciduous: slots\.some\(\(slot\) => slot\.seasonalDeciduous\)/,
   'mixed larch and fir proxy buckets must enable the seasonal shader when needed',
 );
 assert.match(
@@ -541,11 +483,11 @@ assert.match(
   /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*const anchor = attribute\('aAnchorPos', 'vec3'\)[\s\S]*const cardVariation = attribute\('aThickness', 'float'\)[\s\S]*const phenologyOffset = barkSnowTsl\.sin\([\s\S]*const clusterNoise = barkSnowTsl\.sin\([\s\S]*add\(cardVariation\.mul\(7\.31\)\)[\s\S]*const clusterRetain = tslStep\(effectiveDormancy, clusterNoise\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
   'strategic foliage-volume cards must drop in stable per-anchor clusters for packed deciduous instances',
 );
-assert.match(
-  builderSource,
-  /createSeedThreeOverviewFadeMaterial\(\s*baseForestMaterial,\s*options\.seasonalDeciduous === true[\s\S]*options\.overviewCards === true[\s\S]*applySeedThreeWholeCardDormancy\(fmat\)/,
-  'both crown underlays and zoomed-out overview cards must use stable clustered dormancy',
-);
+
+assert.doesNotMatch(cardAdapterSource, /0:underlay|planBranchCardCrownUnderlay/, 'the game must not bake added crown underlays');
+assert.doesNotMatch(builderSource, /OverviewFadeMaterial|crownUnderlay|OVERVIEW_CANOPY_TONE/, 'all LODs must use normal authored foliage');
+assert.match(builderSource, /options\.lod > 0 && options\.seasonalDeciduous[\s\S]*applySeedThreeWholeCardDormancy/, 'distant normal cards must shed deciduous foliage');
+assert.match(builderSource, /options\.snowCardMaterials\.add\(material\)/, 'all normal foliage and bark materials receive snow');
 const crossedGeometry = new THREE.BufferGeometry();
 crossedGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
   -1, 0, 0, 1, 0, 0, 1, 2, 0, -1, 2, 0,
@@ -564,73 +506,30 @@ const crossedCards = buildCardFoliage(crossedStems, {
   variants: [{ geometry: crossedGeometry, material: crossedMaterial, chordLen: 2 }],
   centerUniform: { value: new THREE.Vector3() },
 }, new Rng('two-plane-cards'), { crossed: true, growScale: 1 });
-assert.equal(crossedCards.children.length, 1, 'two-plane cards remain one draw');
-assert.equal(crossedCards.children[0].count, crossedStems.length,
-  'crossed placement must not duplicate instances when each card already owns two planes');
-assert.equal(crossedCards.children[0].geometry.index.count / 3, 4, 'both authored planes remain present');
-crossedCards.children[0].dispose();
-crossedGeometry.dispose();
-crossedMaterial.dispose();
-assert.match(
-  cardAdapterSource,
-  /planBranchCardCrownUnderlay\(species\.foliage, 1\)[\s\S]*key: '0:underlay'[\s\S]*preserveFoliageLayout: true/,
-  'the game adapter must bake a foliage-only whole-crown underlay when a species opts in',
-);
-assert.match(
-  cardAdapterSource,
-  /`r\$\{foliage\.cardRadialPlanes \?\? 1\}`[\s\S]*`u\$\{crownUnderlay\.enabled \? 1 : 0\}x\$\{crownUnderlay\.lateralScale\}`/,
-  'the game adapter cache must distinguish sparse cards from radial and crown-underlay variants',
-);
+
+
 assert.match(
   cardCacheSource,
   /record\.sets\.map\(async \(cachedSet\)[\s\S]*return \[cachedSet\.key,[\s\S]*new Map<string, BranchCardsSet>\(restoredSets\)[\s\S]*for \(const \[key, set\] of cards\.byLevel\)[\s\S]*sets\.push\(\{\s*key,/,
   'persistent card storage must round-trip ordinary branch-card set names unchanged',
 );
-assert.match(
-  cardCacheSource,
-  /geometry\.userData\.crownUnderlay = cachedSet\.key === '0:underlay'/,
-  'restored crown geometry must retain its strategic-only presentation identity',
-);
-assert.match(
-  cardAdapterSource,
-  /jobKey === '0:underlay'[\s\S]*variant\.geometry\.userData\.crownUnderlay = true/,
-  'freshly baked crown geometry must carry the same strategic-only identity',
-);
-assert.match(
-  builderSource,
-  /shouldShowSeedThreeCrownUnderlay\([\s\S]*forest\.crownUnderlayVisible[\s\S]*for \(const mesh of forest\.crownUnderlayMeshes\) mesh\.visible = visible/,
-  'camera updates must gate only tagged crown-underlay draws without rewriting forest matrices',
-);
-assert.match(
-  compactionSource,
-  /if \(source\.userData\.crownUnderlay === true\) continue;[\s\S]*source\.material[\s\S]*configureSeedThreeForestPassMesh\(mesh, 'shadow', true\)/,
-  'whole-crown filler quads must stay out of the shadow pass while ordinary foliage cards retain authored shadows',
-);
+
+
+
+
 assert.match(
   compactionSource,
   /aThickness[\s\S]*mutable\.has\(name\)[\s\S]*attribute\.clone\(\)[\s\S]*alignColorCardInstanceAttributes/,
   'shadow cards must clone flutter/alpha attributes and realign color by shadow-union identity',
 );
-assert.match(
-  builderSource,
-  /seasonalCardMaterials\?\.add\(fmat as THREE\.Material\)[\s\S]*createSeedThreeExactShadowLodSet\(\s*nearSet/,
-  'seasonal color and shadow cards must share one registered material/uniform graph',
-);
-assert.match(
-  builderSource,
-  /snowCardMaterials\?\.add\(fmat as THREE\.Material\)[\s\S]*setSeedThreeForestSnowCoverage[\s\S]*setForestCardSnowCoverage\(material, next\)/,
-  'every near and overview foliage material must receive the shared snow coverage',
-);
+
+
 assert.match(
   forestMaterialSource,
   /export function applySeedThreeBarkSnow[\s\S]*normalWorldGeometry\.y[\s\S]*const snowAmount = snowCoverage[\s\S]*mix\([\s\S]*0\.92, 0\.955, 0\.98[\s\S]*material\.userData\.forestSnowCoverage = snowCoverage/,
   'real trunk and branch materials must accumulate the same upward-facing settled snow',
 );
-assert.match(
-  builderSource,
-  /const sourceMaterial = applySeedThreeBarkSnow\(\s*applySeedThreeForestBarkMotion\(\s*forestBarkMaterial\(mesh\.material as THREE\.Material\)[\s\S]*?createSeedThreeOverviewBarkFadeMaterial\(sourceMaterial\)[\s\S]*?options\.snowCardMaterials\?\.add\(material\)/,
-  'near and overview bark materials must register with the shared forest snow controller',
-);
+
 assert.match(
   sceneSource,
   /setSnowCoverage\(this\.environment\.snowCoverage\)[\s\S]*setSnowCoverage\(environment\.snowCoverage\)/,
@@ -691,16 +590,8 @@ assert.match(
   /const transmission = dtMap \? texture\(dtMap\)\.r : null;[\s\S]*transmission\.smoothstep[\s\S]*thicknessColorNode = \(transmission \?\? uniform\(1\)\)/,
   'the shared transmission texel must feed both seasonal retention and authored SSS',
 );
-assert.match(
-  builderSource,
-  /findLodLevel\(prototype, 'LOD3'\)[\s\S]*?\?\? findLodLevel\(prototype, 'LOD4'\)/,
-  'overview forests must prefer the branch-bearing authored LOD3 rung over flat LOD4 limbs',
-);
-assert.match(
-  builderSource,
-  /douglasFir: \{ tint: \[0\.44, 0\.59, 0\.49\][\s\S]*loblolly: \{ tint: \[0\.4, 0\.55, 0\.44\][\s\S]*pine: \{ tint: \[0\.47, 0\.61, 0\.45\]/,
-  'overview conifers must retain species-specific dark evergreen tones',
-);
+
+
 assert.doesNotMatch(
   builderSource,
   /forest\.ecology|createForestEdgeEcology|createForestCanopyCompanions|successionSet/,

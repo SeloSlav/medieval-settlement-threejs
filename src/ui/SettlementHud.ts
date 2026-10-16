@@ -284,11 +284,13 @@ const SETTLEMENT_HUD_HTML = `
         tabindex="0"
         data-stat-row="fps"
         data-tooltip-title="Frame rate"
-        data-tooltip="Frames per second. Turns red below 60 and green at 85 or higher."
+        data-tooltip="Frames per second and measured frame time against the 60 FPS budget. Turns red below 60 and green at 85 or higher."
       >
         <span class="settlement-hud__label">FPS</span>
         <strong class="settlement-hud__value settlement-hud__value--fps" data-stat="fps">--</strong>
+        <span class="settlement-hud__perf-shortcut" ${import.meta.env.DEV ? '' : 'hidden'}><kbd>M</kbd> Development menu</span>
       </div>
+      <div class="settlement-hud__perf-details" data-performance-details hidden></div>
     </div>
     <div class="settlement-hud__body settlement-hud__body--civic">
       <div class="settlement-hud__people-card settlement-hud__people-card--labor" data-people-card="labor">
@@ -705,6 +707,8 @@ export class SettlementHud {
   private readonly militaryStoresSummary: HTMLElement;
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
+  private readonly performanceHud: HTMLElement;
+  private readonly performanceDetails: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private readonly nobleEye: HTMLButtonElement;
   private readonly lordReportLedger: LordReportLedger;
@@ -876,8 +880,10 @@ export class SettlementHud {
       });
     }
     this.fpsValue = this.mustElement('[data-stat="fps"]');
+    this.performanceHud = this.mustElement('.settlement-hud__perf');
+    this.performanceDetails = this.mustElement('[data-performance-details]');
     // Fixed positioning must escape the transformed HUD's containing block.
-    document.body.append(this.fpsValue.closest('.settlement-hud__perf')!);
+    document.body.append(this.performanceHud);
     this.zoomValue = this.mustElement('[data-stat="zoom"]');
     this.zoomStat = this.mustElement('[data-stat-row="zoom"]');
     for (const summaryCard of [this.laborStat, this.housingStat]) {
@@ -1683,9 +1689,14 @@ export class SettlementHud {
     const frameMs = fps > 0 ? 1000 / fps : 0;
     this.fpsValue.textContent = `${displayFps} · ${frameMs.toFixed(2)} / 16.67 ms`;
     this.fpsValue.title = 'Measured frame interval / 60 FPS budget. Includes CPU, GPU and presentation pacing.';
-    this.panel.classList.toggle('is-low', displayFps < 60);
-    this.panel.classList.toggle('is-fast', displayFps >= 85);
+    this.performanceHud.classList.toggle('is-low', displayFps < 60);
+    this.performanceHud.classList.toggle('is-fast', displayFps >= 85);
     this.displayedFps = displayFps;
+  }
+
+  setPerformanceDetails(details: string | null): void {
+    this.performanceDetails.textContent = details ?? '';
+    this.performanceDetails.hidden = details === null;
   }
 
   setZoomPercent(zoomPercent: number): void {
@@ -2118,7 +2129,7 @@ export class SettlementHud {
   }
 
   dispose(): void {
-    this.fpsValue.closest('.settlement-hud__perf')?.remove();
+    this.performanceHud.remove();
     this.cancelApprovalClose();
     this.cancelFoodStoresClose();
     this.cancelFuelStoresClose();

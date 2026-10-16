@@ -23,6 +23,7 @@ try {
     const { TREE_SHADOW_CAST_LAYER } = await import('/src/scene/SceneLayers.ts');
     const { setWorldAnimationTime } = await import('/src/scene/worldAnimationTime.ts');
     const { windStrength } = await import('/vendor/seedthree/src/core/wind.js');
+    const { unculledInstanceReference } = await import('/scripts/fixtures/unculledInstanceReference.ts');
     const { renderer } = await createPreferredRenderer();
     renderer.setSize(400, 280); renderer.shadowMap.enabled = true; renderer.info.autoReset = false;
     const scene = new THREE.Scene(); scene.background = new THREE.Color(.15, .19, .23);
@@ -45,10 +46,11 @@ try {
     function assertCompactedCards() {
       if (!compactions.some(c => c.draw.name.includes('cards'))) throw Error('Solo must cull foliage cards through the shared forest path');
     }
+    let references = [];
     const capture = async reference => {
-      for (const c of compactions) {
+      for (const c of references) {
         c.draw.visible = !reference;
-        c.draw.parent.layers.mask = reference ? c.draw.layers.mask : 0;
+        c.reference.visible = reference;
       }
       renderer._nodes.nodeFrame.update(); sun.shadow.needsUpdate = true; renderer.shadowMap.needsUpdate = true;
       renderer.info.reset(); renderer.setRenderTarget(target); renderer.render(scene, camera);
@@ -69,6 +71,25 @@ try {
       controller.commit(); controller.updateCamera(camera, [12, 185, 580][view], view === 0,
         { minX: -130, maxX: 130, minZ: -130, maxZ: 130 }, true, 1 / 60);
       scene.updateMatrixWorld(true);
+      references = compactions.map(unculledInstanceReference);
+      // Distinct rungs may contain several authored card draws, but no tree
+      // may be submitted by two color rungs in the same frame.
+      const owners = new Map(), lodTrees = [new Set(),new Set(),new Set()];
+      for (const c of compactions) {
+        const lod = c.source.userData.seedThreeLod;
+        if (lod === undefined || c.source.userData.seedThreeShadowOnly) continue;
+        const bucket = forest.buckets.find(b => [b.nearSet,b.overviewSet,b.farSet][lod].cards.includes(c.source)
+          || [b.nearSet,b.overviewSet,b.farSet][lod].branches === c.source);
+        const slots = [bucket.nearViewSlotIndices,bucket.overviewViewSlotIndices,bucket.farSlotIndices][lod];
+        const rows = c.selected ? Array.from(c.selected.array.slice(0,c.draw.count/c.groupSize))
+          : c.copyRanges.flatMap((_,i,a)=>i%3 ? [] : Array.from({length:a[i+2]},(_,j)=>a[i]+j));
+        for (const row of rows) {
+          const slot = bucket.slots[slots[row]];
+          if (!slot.enabled) continue;
+          if (owners.has(slot.layoutIndex) && owners.get(slot.layoutIndex)!==lod) throw Error('Stacked color LODs');
+          owners.set(slot.layoutIndex,lod); lodTrees[lod].add(slot.layoutIndex);
+        }
+      }
       const actual = await capture(false), reference = await capture(true);
       let verifiedComponents = 0;
       for (const c of compactions) if (c.draw.userData.gpuInstanceGather) {
@@ -95,12 +116,15 @@ try {
         const difference = Math.abs(actual.pixels[i] - reference.pixels[i]);
         max = Math.max(max, difference); if (difference > 2) changed++;
       }
-      frames.push({ frame, maxDelta: max, channelsOver2: changed, verifiedComponents, culledTriangles: actual.triangles, referenceTriangles: reference.triangles });
+      frames.push({ frame, lodTrees:lodTrees.map(set=>set.size), maxDelta: max, channelsOver2: changed, verifiedComponents, culledTriangles: actual.triangles, referenceTriangles: reference.triangles });
+      for (const ref of references) { ref.draw.visible=true; ref.dispose(); }
     }
     // Multiple edits while a crown is entirely offscreen must survive the
     // skipped dispatches. Exercise sparse+sparse and full+sparse uploads.
     const gather = compactions.find(c => c.draw.userData.gpuInstanceGather && c.source.count >= c.groupSize*2);
     if(!gather)throw Error('No crown draw for deferred-upload regression');
+    // This independent upload test deliberately exposes all canonical groups.
+    gather.groupVisible = undefined;
     const away = camera.clone(); away.position.set(10000,20,10000); away.lookAt(20000,20,10000); away.updateMatrixWorld(true);
     let deferredComponents = 0;
     for(const fullFirst of [false,true]) {
@@ -138,5 +162,6 @@ try {
   assert.ok(result.frames.some(frame => frame.culledTriangles < frame.referenceTriangles));
   assert.ok(result.frames[0].verifiedComponents > 0, 'Read back the GPU-produced authored attributes');
   assert.ok(result.deferredComponents > 0, 'Verify edits accumulated while crowns are offscreen');
+  for(let lod=0;lod<3;lod++)assert.ok(result.frames.some(frame=>frame.lodTrees[lod]>0), `Exercise LOD ${lod}`);
   console.log(JSON.stringify(result));
 } finally { await browser?.close(); await server.close(); }

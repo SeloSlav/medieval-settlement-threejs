@@ -190,14 +190,14 @@ window.__ENVIRONMENT_GAUNTLET__ = {
     const catalog = meshes.map(mesh => {
       let shown = true;
       for (let object = mesh; object; object = object.parent) shown &&= object.visible;
-      return { name: mesh.name, crownUnderlay: mesh.userData.crownUnderlay === true, shown, layerMask: mesh.layers.mask, count: mesh.count ?? 1 };
+      return { name: mesh.name, lod: mesh.userData.seedThreeLod, shown, layerMask: mesh.layers.mask, count: mesh.count ?? 1 };
     });
     const results = {};
     const exclusions = {
       all: () => false,
-      'without-crown-underlay': mesh => mesh.userData.crownUnderlay === true,
-      'without-overview-cards': mesh => mesh.name.includes(' overview '),
-      'without-detail-cards': mesh => mesh.name.endsWith(' cards') && !mesh.name.includes(' overview ') && !mesh.userData.crownUnderlay,
+      'without-near': mesh => mesh.userData.seedThreeLod === 0,
+      'without-middle': mesh => mesh.userData.seedThreeLod === 1,
+      'without-far': mesh => mesh.userData.seedThreeLod === 2,
     };
     try {
       for (const [name, exclude] of Object.entries(exclusions)) {

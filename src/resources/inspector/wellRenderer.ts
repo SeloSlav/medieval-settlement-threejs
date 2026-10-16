@@ -1,6 +1,6 @@
 import {
   BUILDING_STORAGE_CAPS,
-  DROUGHT_WELL_REFILL_MULTIPLIER,
+  WELL_HOUSEHOLD_CAPACITY,
 } from '../../generated/gameBalance.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -9,7 +9,6 @@ import {
   buildingDemolishHint,
   buildingLaborView,
   buildingRoadAccessRow,
-  buildingExtentRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import {
@@ -19,13 +18,11 @@ import {
 } from '../../logistics/deliveryTrips.ts';
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
 import {
-  droughtGroundwaterScore,
   sampleAuthoritativeWellGroundwaterScore,
 } from '../../hydrology/sampleAuthoritativeHydrology.ts';
 import {
   industrialWaterTarget,
   wellRefillPerSecond,
-  wellSustainableHomeCapacity,
 } from '../../logistics/waterLogistics.ts';
 import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { formatCooldown } from './woodcuttersLodgeStatus.ts';
@@ -52,12 +49,7 @@ export function renderWellInspector(
     trip.destinationKind === 'fire' && trip.phase !== 'inbound');
   const activeTrip = respondingTrips[0] ?? activeTrips[0] ?? null;
   const refillPerSec = wellRefillPerSecond(hydrology);
-  const sustainableHomes = wellSustainableHomeCapacity(hydrology);
-  const droughtHomeCapacity = wellSustainableHomeCapacity(
-    droughtGroundwaterScore(hydrology),
-    DROUGHT_WELL_REFILL_MULTIPLIER,
-  );
-  const capacityLabel = `~${sustainableHomes}-home fair-weather yield`;
+  const capacityLabel = `${WELL_HOUSEHOLD_CAPACITY}-home service limit`;
   const industrialPreferenceLabel = nextIndustrialTarget?.kind === 'spinning_retting_house'
     ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
     : '';
@@ -104,7 +96,7 @@ export function renderWellInspector(
     ? `<li><span>Emergency response</span><span>${respondingTrips.length} concurrent bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'}</span></li>
       <li><span>Water committed</span><span>${Math.round(respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0))}</span></li>
       <li><span>Tracked carrier</span><span>${activeTargetLabel} · ${formatTripPhaseLabel(activeTrip!.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>`
-    : `<li><span>Routine delivery</span><span>No cart — homes and workshops draw automatically within this well's radius and road branch</span></li>
+    : `<li><span>Routine delivery</span><span>No cart — homes and workshops draw automatically through road connections</span></li>
       <li><span>Next workshop</span><span>${nextTargetLabel}</span></li>`;
   const workshopDemand = [
     ['brewer', industrialConsumers.filter((item) => item.kind === 'brewery').length],
@@ -130,13 +122,9 @@ export function renderWellInspector(
         ? `${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)`
         : 'Even yield at every site'}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
-      <li data-inspector-secondary data-inspector-detail="${wellAquiferNetworksEnabled
-        ? 'Capacity uses fully occupied four-person homes. Aquifer quality and weather reduce the best-case fifty-home yield, while connected homes retain priority over workshops.'
-        : 'Capacity uses fully occupied four-person homes. Every well site shares the same fair-weather yield; seasonal weather can still reduce refill.'}"><span>Sustainable capacity</span><span>~${sustainableHomes} full homes in fair weather · ~${droughtHomeCapacity} in drought</span></li>
-      ${buildingExtentRow(building.kind)}
-      <li><span>Homes connected now</span><span>${claimedResidences.length === 0 ? 'None' : claimedResidences.length}</span></li>
+      <li data-inspector-detail="The nearest occupied road-linked homes take service slots first; additional homes need another connected well."><span>Household service</span><span>${claimedResidences.length} / ${WELL_HOUSEHOLD_CAPACITY} homes</span></li>
       <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>
-      <li data-inspector-secondary data-inspector-detail="Homes draw water first; nearby workshops with road access take what remains."><span>Distribution</span><span>Automatic in radius · homes first</span></li>
+      <li data-inspector-secondary data-inspector-detail="Homes draw water first; workshops on the same road network take what remains."><span>Distribution</span><span>Automatic by road · homes first</span></li>
       <li data-inspector-secondary data-inspector-detail="Fire calls reserve new water before homes and workshops; all useful free haulers may respond together."><span>Fire priority</span><span>Emergency calls first</span></li>
       ${deliveryRow}
     `,

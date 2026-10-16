@@ -88,8 +88,8 @@ try {
       if (frame === 8) for (const { controller } of chunks[1]) controller.setTreeTransform(7, new THREE.Matrix4().makeRotationZ(.8));
       if (frame === 9) { distance = 32; firstPerson = true; camera.position.set(0, 12, 38); camera.lookAt(0, 17, 0); }
       if (frame === 10) { distance = 580; camera.position.set(240, 350, 370); camera.lookAt(0, 0, 0); }
-      if (frame === 11) each(c => c.setDistantCanopyCardsEnabled(false));
-      if (frame === 12) each(c => c.setDistantCanopyCardsEnabled(true));
+      if (frame === 11) { distance = 70; camera.position.set(0, 20, 64); camera.lookAt(0, 17, 0); }
+      if (frame === 12) { distance = 38; camera.position.set(0, 12, 38); camera.lookAt(0, 17, 0); }
       if (frame === 13) {
         batches.remove(chunks[2][0].forest.group);
         for (const { forest, controller } of chunks[2]) { forest.group.removeFromParent(); controller.dispose(); }

@@ -7,15 +7,13 @@ import {
   residenceHasWaterRoom,
   selectIndustrialWaterCandidate,
   wellRefillPerSecond,
-  wellSustainableHomeCapacity,
 } from '../src/logistics/waterLogistics.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
-  DROUGHT_WELL_REFILL_MULTIPLIER,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_REORDER_FRACTION,
-  RESIDENCE_POPULATION_WIDE,
+  WELL_HOUSEHOLD_CAPACITY,
   WELL_BASE_REFILL_PER_SEC,
   WELL_MINIMUM_REFILL_HYDROLOGY,
   WELL_WATER_PER_DELIVERY,
@@ -82,18 +80,7 @@ assert.ok(normalHouseholdDaysPerWaterRun > 3.7 && normalHouseholdDaysPerWaterRun
 
 assert.equal(WELL_BASE_REFILL_PER_SEC, 2.4);
 assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.15);
-assert.equal(
-  wellSustainableHomeCapacity(
-    1,
-    1,
-    RESIDENCE_POPULATION_WIDE,
-  ),
-  50,
-  'an excellent well in fair weather should top out at 50 fully occupied homes',
-);
-assert.ok(wellSustainableHomeCapacity(0, 1) < 50);
-assert.ok(wellSustainableHomeCapacity(1, DROUGHT_WELL_REFILL_MULTIPLIER) < 50);
-assert.ok(wellSustainableHomeCapacity(0.8, 1) > wellSustainableHomeCapacity(0, 1));
+assert.equal(WELL_HOUSEHOLD_CAPACITY, 50, 'wells have a fixed household service limit');
 
 assert.ok(industrialWaterRequirement('bakery') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
@@ -360,15 +347,15 @@ assert.equal(
 );
 assert.match(
   wellInspector,
-  /No cart — homes and workshops draw automatically within this well's radius and road branch/,
+  /No cart — homes and workshops draw automatically through road connections/,
 );
 assert.doesNotMatch(wellInspector, /staffingPriorityLabel|staffing priority/i);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
 assert.doesNotMatch(wellInspector, /Workshops receive physical cart deliveries/);
-assert.match(wellInspector, /Sustainable capacity/);
-assert.match(wellInspector, /Homes connected now/);
+assert.doesNotMatch(wellInspector, /Sustainable capacity|fair-weather yield/);
+assert.match(wellInspector, /Household service/);
 assert.match(
   wellInspector,
   /nextIndustrialTarget\?\.kind === 'spinning_retting_house'/,
@@ -417,10 +404,7 @@ assert.doesNotMatch(
   /CommodityKind::Water|SPINNING_RETTING_FLAX_WATER_PER_CYCLE|request_connected_commodity/,
   'the Weaver should consume only prepared Yarn or Linen and must remain outside water logistics',
 );
-const smithyStep = expandedEconomy.slice(
-  expandedEconomy.indexOf('pub fn step_smithy'),
-  expandedEconomy.indexOf('pub fn step_potter_kiln'),
-);
+const smithyStep = expandedEconomy.match(/pub fn step_smithy[\s\S]*?\r?\n}/)?.[0] ?? '';
 assert.match(
   smithyStep,
   /CommodityKind::Water,\s*SMITHY_WATER_PER_CYCLE/,

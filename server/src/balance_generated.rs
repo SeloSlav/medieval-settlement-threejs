@@ -430,6 +430,8 @@ pub const REFORESTER_REGROW_PER_SEC: f64 = 0.12;
 pub const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS: f64 = 30.0;
 pub const TREE_REGROWTH_UPDATE_INTERVAL_SEC: f64 = 5.0;
 pub const WELL_BASE_REFILL_PER_SEC: f64 = 2.4;
+pub const WELL_HOUSEHOLD_CAPACITY: usize = 50;
+pub const TAVERN_HOUSEHOLD_CAPACITY: usize = 50;
 pub const WELL_MINIMUM_REFILL_HYDROLOGY: f64 = 0.15;
 pub const WELL_SURGE_CHANCE_PER_TICK: f64 = 0.0022;
 pub const WELL_SURGE_AMOUNT_MIN: f64 = 10.0;
@@ -2117,7 +2119,7 @@ const WELL: BuildingDef = BuildingDef {
     storage_animal_feed: 0.0,
     accepts_labor: false,
     max_labor: 0,
-    work_radius: 90.0,
+    work_radius: 0.0,
     action_interval: 0.0,
     pick_radius: 6.0,
     requires_road: true,

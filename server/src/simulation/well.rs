@@ -18,7 +18,6 @@ use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::delivery_trips::{available_free_haulers, building_has_inbound_supply_trip};
 use crate::simulation::expanded_economy::{processor_accepts_input, processor_requests_input};
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
     distribute_well_water, fire_response_needed_for_well, release_fire_response,
@@ -27,7 +26,7 @@ use crate::simulation::{
 use crate::tables::Building;
 use crate::well_policy::{
     industrial_water_input_preference_rank, industrial_water_requirement, industrial_water_target,
-    position_within_well_service_radius, select_industrial_water_candidate, well_refill_amount,
+    select_industrial_water_candidate, well_refill_amount,
     IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
@@ -116,7 +115,7 @@ pub fn step_well(
         ctx.db.building().id().update(well.clone());
         persisted = well.clone();
     }
-    let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
+    let fire_response_needed = fire_response_needed_for_well(ctx, network, &well, sim_tick);
     if fire_response_needed {
         while available_free_haulers(ctx, well.owner) > 0 {
             let Some(incident) = select_fire_for_well(ctx, tick, network, &well, sim_tick) else {
@@ -202,17 +201,8 @@ fn select_industrial_water_target(
                 if candidate.kind == "spinning_retting_house" && candidate.flax <= 1e-6 {
                     return None;
                 }
-                if !position_within_well_service_radius(
-                    well.x,
-                    well.z,
-                    well.work_radius,
-                    candidate.x,
-                    candidate.z,
-                ) {
-                    return None;
-                }
                 let distance =
-                    local_delivery_distance(network, well.x, well.z, candidate.x, candidate.z)?;
+                    network.road_path_distance(well.x, well.z, candidate.x, candidate.z)?;
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
                     work_priority: CONSTRUCTION_PRIORITY_NORMAL,

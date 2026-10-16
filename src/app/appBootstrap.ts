@@ -1232,9 +1232,6 @@ export async function bootstrapAppSession(
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();
     },
-    onDistantCanopyCardsChange: (enabled) => {
-      sceneManager.setDistantCanopyCardsEnabled(enabled);
-    },
     canOpenMenuFromKeyboard: () =>
       !roadTool.isEnabled()
       && !buildingTool.isEnabled()
@@ -1262,6 +1259,7 @@ export async function bootstrapAppSession(
     };
     debugMenu = new DebugMenu(uiRoot, {
       renderDiagnostics: sceneManager.renderDiagnostics,
+      onPerformanceDetails: (details) => toolbar.setPerformanceDetails(details),
       onStartProfile: bridge.onStartDevelopmentProfile,
       domElement: sceneManager.renderer.domElement,
       getDate: () => {
@@ -1487,11 +1485,6 @@ export async function bootstrapAppSession(
         kind === 'marketplace' ? serviceBuildingId : null,
         residenceIds,
         liveContext.gameState,
-      );
-      buildingMarkers.setWellServiceCoverage(
-        kind === 'well' && serviceBuildingId != null
-          ? liveContext.gameState.buildings.get(serviceBuildingId) ?? null
-          : null,
       );
     },
     onTargetSelected: (target) => {

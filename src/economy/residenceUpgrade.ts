@@ -314,7 +314,7 @@ function promotionOutletReady(
 function promotionNeedBlocker(kind: ResidenceUpgradeServiceKind, label: string): string {
   switch (kind) {
     case 'water':
-      return 'water route missing — connect a completed well within service radius';
+      return 'water route missing — connect a completed well by road with a free household slot';
     case 'church':
       return `${label.toLowerCase()} route missing — staff the required reachable church`;
     case 'foodVariety':

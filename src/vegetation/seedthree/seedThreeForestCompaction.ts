@@ -23,9 +23,9 @@ export type SeedThreeTreeSlot = {
   visibilityCenter: THREE.Vector3;
   visibilityRadius: number;
   enabled: boolean;
-  /** Static low-detail assignment for remote terrain-edge trees. */
+  /** Conservative far classification for spatial shadow selection. */
   forceOverview?: boolean;
-  /** Never submit this visual-only slot to the near or shadow passes. */
+  /** Decorative horizon slot: far color only, never a gameplay shadow caster. */
   overviewOnly?: boolean;
   /** Broadleaf or larch instance eligible for seasonal color and leaf drop. */
   seasonalDeciduous?: boolean;
@@ -81,7 +81,6 @@ export function createSeedThreeExactShadowLodSet(
     shadowSet.branches = mesh;
   }
   for (const source of colorSet.cards) {
-    if (source.userData.crownUnderlay === true) continue;
     const geometry = cloneForestGeometryForIndependentPacking(
       source.geometry,
       ['aThickness', 'aTreeOrigin', 'aWindVec', 'aAnchorPos'],
@@ -97,7 +96,6 @@ export function createSeedThreeExactShadowLodSet(
     mesh.userData.k = source.userData.k;
     mesh.userData.srcMatrices = source.userData.srcMatrices;
     mesh.userData.weights = source.userData.weights;
-    mesh.userData.crownUnderlay = false;
     mesh.userData.seedThreeColorSource = source;
     configureSeedThreeForestPassMesh(mesh, 'shadow', true);
     shadowSet.cards.push(mesh);
@@ -144,14 +142,14 @@ export type SeedThreeLayoutSlotMapping = {
   slotIndex: number;
 };
 
-/** Camera-independent color identities for the world-resident LOD2 layer. */
+/** Stable canonical identities; draw selection assigns exactly one color LOD. */
 export function createSeedThreeStableColorSlotSelection(
   slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview' | 'overviewOnly'>[],
 ): { near: number[]; overview: number[] } {
   const near = slots.flatMap((slot, slotIndex) =>
     slot.overviewOnly ? [] : [slotIndex]);
   const overview = slots.flatMap((slot, slotIndex) =>
-    slot.forceOverview ? [slotIndex] : []);
+    slot.overviewOnly ? [] : [slotIndex]);
   return { near, overview };
 }
 
@@ -159,10 +157,9 @@ export function createSeedThreeStableColorSlotSelection(
 export function createSeedThreeStableRtsShadowSlotSelection(
   slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview' | 'overviewOnly'>[],
 ): { near: number[]; overview: number[] } {
-  const color = createSeedThreeStableColorSlotSelection(slots);
   return {
-    near: color.near,
-    overview: color.overview.filter((slotIndex) => !slots[slotIndex]?.overviewOnly),
+    near: slots.flatMap((slot,index)=>slot.overviewOnly?[]:[index]),
+    overview: slots.flatMap((slot,index)=>slot.forceOverview&&!slot.overviewOnly?[index]:[]),
   };
 }
 
@@ -646,6 +643,7 @@ function snapshotLodAttributeVersions(
 function publishExactLodUploadRanges(job: SeedThreeBucketMatrixWriteJob): void {
   if (job.uploadRangesPublished) return;
   if (job.realignColorAttributes) alignColorCardInstanceAttributes(job);
+  else if (job.writeShadow) alignStableColorShadowThickness(job);
   if (job.writeColor) {
     publishLodSetUploadRanges(job.nearSet, job.attributeVersions);
     publishLodSetUploadRanges(job.overviewSet, job.attributeVersions);
@@ -654,6 +652,28 @@ function publishExactLodUploadRanges(job: SeedThreeBucketMatrixWriteJob): void {
     publishLodSetUploadRanges(job.shadowSet, job.attributeVersions);
   }
   job.uploadRangesPublished = true;
+}
+
+/** Stable color identities keep their authored flutter phase through caster repacks. */
+function alignStableColorShadowThickness(job: SeedThreeBucketMatrixWriteJob): void {
+  for (const mesh of job.shadowSet?.cards ?? []) {
+    const color = mesh.userData.seedThreeColorSource as THREE.InstancedMesh | undefined;
+    const target = mesh.geometry.getAttribute('aThickness') as THREE.InstancedBufferAttribute;
+    if (!color || !target) continue;
+    const canonical = canonicalCardThickness(color);
+    if (!canonical) continue;
+    const cardsPerTree = Math.max(0, Number(mesh.userData.k) || 0);
+    let rank = 0;
+    for (const slotIndex of job.nearResidentSlotIndices) {
+      const slot = job.slots[slotIndex];
+      if (!slot || (!job.preserveDisabledSlots && !slotIsVisible(slot))) continue;
+      target.array.set(canonical.array.subarray(slotIndex * cardsPerTree, (slotIndex + 1) * cardsPerTree), rank * cardsPerTree);
+      rank++;
+    }
+    target.clearUpdateRanges();
+    if (rank) target.addUpdateRange(0, rank * cardsPerTree);
+    target.needsUpdate = true;
+  }
 }
 
 function alignColorCardInstanceAttributes(job: SeedThreeBucketMatrixWriteJob): void {

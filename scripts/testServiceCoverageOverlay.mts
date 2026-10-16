@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
-import { WellServiceCoverage } from '../src/buildings/WellServiceCoverage.ts';
 import { ResourceInspector } from '../src/resources/ResourceInspector.ts';
 import { ResidenceMarkers } from '../src/residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../src/residences/residenceNeedState.ts';
@@ -10,7 +9,7 @@ import {
   marketplaceServiceResidenceIds,
   serviceCoverageLabel,
 } from '../src/resources/serviceCoverage.ts';
-import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
+import type { ResidenceState } from '../src/resources/types.ts';
 
 function residence(
   id: string,
@@ -111,6 +110,10 @@ assert.ok(firstOverlay.geometry.getAttribute('position').count > 100);
 assert.equal(firstOverlay.position.x, homes[0].x);
 assert.equal(firstOverlay.position.y, 2.5);
 assert.equal(firstOverlay.position.z, homes[0].z);
+assert.equal(markers['meshes'].get('home-a')!.layers.mask, 0, 'the opaque source must leave the render layers during coverage');
+assert.equal(markers['meshes'].get('home-a')!.visible, true, 'coverage must preserve first-person collision visibility');
+assert.equal(markers['staticBatches']['batches']['buildingStates'].get('home-a')!.visible, false,
+  'cross-residence batches must also hide the original opaque house');
 
 markers.setServiceCoverageHighlights(
   new Set(['home-a', 'home-b']),
@@ -149,6 +152,8 @@ assert.equal(
 );
 
 markers.setServiceCoverageHighlights(new Set(['home-b']), 'chapel');
+assert.equal(markers['meshes'].get('home-a')!.visible, true, 'leaving coverage must restore the normal house');
+assert.equal(markers['meshes'].get('home-a')!.layers.mask, 1);
 secondOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-b');
 assert.ok(secondOverlay instanceof THREE.Mesh);
 assert.equal(
@@ -176,18 +181,33 @@ assert.equal(
 markers.setServiceCoverageHighlights(new Set(['home-a']), 'well');
 firstOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-a');
 assert.ok(firstOverlay instanceof THREE.Mesh && firstOverlay.visible);
+const priorGeometry = firstOverlay.geometry;
+homes[0].x += 2;
+homes[0].yaw = 0.6;
+homes[0].needs.firewood.stock = 10;
+markers.syncResidences([homes[0]], () => 3);
+firstOverlay = coverageRoot.getObjectByName('Served residence mesh overlay:home-a');
+assert.ok(firstOverlay instanceof THREE.Mesh && firstOverlay.visible);
+assert.equal(firstOverlay.position.x, homes[0].x);
+assert.equal(firstOverlay.position.y, 3);
+assert.ok(Math.abs(new THREE.Euler().setFromQuaternion(firstOverlay.quaternion).y - 0.6) < 1e-6);
+assert.notEqual(firstOverlay.geometry, priorGeometry, 'live stock geometry must refresh while coverage is active');
+const stockedGeometry = firstOverlay.geometry;
+homes[0].needs.firewood.stock = 10.1;
+markers.syncResidences([homes[0]], () => 3);
+assert.equal(firstOverlay.geometry, stockedGeometry, 'inventory changes with identical visible logs must reuse coverage geometry');
+markers.setDestroyedResidenceIds(new Set(['home-a']));
+assert.equal(firstOverlay.visible, false, 'destroyed homes must not remain as coverage ghosts');
+markers.setDestroyedResidenceIds(new Set());
+assert.equal(firstOverlay.visible, true, 'restored homes must regain coverage');
 markers.setServiceCoverageHighlights(new Set(), null);
 assert.equal(firstOverlay.visible, false);
+assert.equal(markers['meshes'].get('home-a')!.visible, true);
+assert.equal(markers['meshes'].get('home-a')!.layers.mask, 1);
+assert.equal(markers['staticBatches']['batches']['buildingStates'].get('home-a')!.visible, true);
 markers.dispose();
 assert.equal(parent.getObjectByName('Residence service coverage'), undefined);
 
-let terrainLift = 0;
-const heightAt = (x: number, z: number) => x * 0.05 + z * 0.02 + terrainLift;
-const wellCoverage = new WellServiceCoverage(parent, { getHeightAt: heightAt });
-const wells = new Map([
-  ['well-a', { id: 'well-a', kind: 'well', x: 25, z: -15, workRadius: 90, constructionComplete: true } as BuildingState],
-  ['well-b', { id: 'well-b', kind: 'well', x: -30, z: 40, workRadius: 75, constructionComplete: true } as BuildingState],
-]);
 const coverageEvents: Array<string | null> = [];
 const coverageInspector = Object.create(ResourceInspector.prototype) as ResourceInspector;
 Object.assign(coverageInspector, {
@@ -196,48 +216,20 @@ Object.assign(coverageInspector, {
   serviceCoverageResidenceIds: new Set(),
   serviceCoverageMarketplaceFulfillment: new Map(),
   options: {
-    onServiceCoverageChange: (_ids: unknown, kind: string | null, _fulfillment: unknown, id: string | null) => {
+    onServiceCoverageChange: (_ids: unknown, _kind: unknown, _fulfillment: unknown, id: string | null) => {
       coverageEvents.push(id);
-      wellCoverage.sync(kind === 'well' && id != null ? wells.get(id)! : null);
     },
   },
 });
 coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
-const waterRing = parent.getObjectByName('Well water service coverage ring');
-assert.ok(waterRing instanceof THREE.Mesh && waterRing.visible);
 assert.deepEqual(coverageEvents, ['well-a'], 'zero served homes must still activate coverage');
-assert.equal((waterRing.material as THREE.MeshBasicMaterial).color.getHex(), 0x57c9ff);
-const ringPositions = waterRing.geometry.getAttribute('position');
-for (let index = 0; index < ringPositions.count; index++) {
-  const x = ringPositions.getX(index);
-  const z = ringPositions.getZ(index);
-  assert.ok(Math.abs(Math.hypot(x - 25, z + 15) - 90) < 0.45, 'the ring must trace the full 90 m service reach');
-  assert.ok(Math.abs(ringPositions.getY(index) - heightAt(x, z) - 0.18) < 1e-5, 'the ring must follow sloping terrain');
-}
 coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
 assert.equal(coverageEvents.length, 1, 'unchanged coverage must not rebuild each inspector refresh');
-assert.equal(waterRing.geometry.getAttribute('position'), ringPositions);
 coverageInspector['clearServiceCoverage']();
-assert.equal(waterRing.visible, false);
-Object.assign(coverageInspector, { serviceCoverageBuildingId: 'well-a' });
-coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
-assert.equal(waterRing.visible, true, 're-enabling an empty well must show its radius again');
+assert.equal(coverageEvents.at(-1), null);
 Object.assign(coverageInspector, { serviceCoverageBuildingId: 'well-b' });
 coverageInspector['refreshServiceCoverage']({ kind: 'well', residenceIds: [] });
-assert.equal(coverageEvents.at(-1), 'well-b', 'switching wells with identical home sets must change the ring');
-const secondPositions = waterRing.geometry.getAttribute('position');
-assert.ok(Math.abs(Math.hypot(secondPositions.getX(0) + 30, secondPositions.getZ(0) - 40) - 75) < 0.45);
-const priorHeight = secondPositions.getY(0);
-terrainLift = 4;
-wellCoverage.sync(wells.get('well-b')!, true);
-assert.ok(Math.abs(waterRing.geometry.getAttribute('position').getY(0) - priorHeight - 4) < 1e-5);
-wellCoverage.sync({ ...wells.get('well-b')!, constructionComplete: false });
-assert.equal(waterRing.visible, false, 'unfinished wells must not advertise active coverage');
-wellCoverage.sync(wells.get('well-b')!);
-wellCoverage.sync(null);
-assert.equal(waterRing.visible, false, 'deselected or removed wells must hide their ring');
-wellCoverage.dispose();
-assert.equal(parent.getObjectByName('Well water service coverage ring'), undefined);
+assert.equal(coverageEvents.at(-1), 'well-b');
 
 const inspectorSource = fs.readFileSync(
   'src/resources/ResourceInspector.ts',
@@ -290,11 +282,8 @@ assert.match(
   /event\.key !== 'Tab'[\s\S]*serviceCoverageTabPreviewBuildingId[\s\S]*endServiceCoverageTabPreview/,
   'the Tab shortcut should be a momentary preview that ends on key release',
 );
-assert.match(
-  appBootstrapSource,
-  /setWellServiceCoverage\([\s\S]*kind === 'well'/,
-  'the water coverage toggle must show the well radius alongside residence mesh highlights',
-);
+assert.doesNotMatch(appBootstrapSource, /setWellServiceCoverage|setServiceCoverageRing/,
+  'road-linked household services must not draw radius rings');
 assert.match(
   appBootstrapSource,
   /setMarketplaceServiceCoverage\([\s\S]*kind === 'marketplace'/,

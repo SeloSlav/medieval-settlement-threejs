@@ -143,7 +143,6 @@ const forest = await createSeedThreeForest(
 );
 const controller = createSeedThreeForestController(forest);
 controller.setShadows(false);
-controller.setDistantCanopyCardsEnabled(false);
 scene.add(forest.group);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 120);

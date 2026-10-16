@@ -433,6 +433,8 @@ export const REFORESTER_REGROW_PER_SEC = 0.12;
 export const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS = 30;
 export const TREE_REGROWTH_UPDATE_INTERVAL_SEC = 5;
 export const WELL_BASE_REFILL_PER_SEC = 2.4;
+export const WELL_HOUSEHOLD_CAPACITY = 50;
+export const TAVERN_HOUSEHOLD_CAPACITY = 50;
 export const WELL_MINIMUM_REFILL_HYDROLOGY = 0.15;
 export const WELL_SURGE_CHANCE_PER_TICK = 0.0022;
 export const WELL_SURGE_AMOUNT_MIN = 10;
@@ -1239,7 +1241,7 @@ export const BUILDING_DEFINITIONS = {
   well: {
     kind: 'well',
     label: "Well",
-    workRadius: 90,
+    workRadius: 0,
     pickRadius: 6,
     harvestInterval: 0,
     regrowRatePerSecond: 0,

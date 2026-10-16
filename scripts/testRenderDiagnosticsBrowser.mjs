@@ -24,8 +24,17 @@ try {
     const { RenderDiagnostics, registerRenderDiagnosticRoot, RENDER_DIAGNOSTIC_CATEGORIES,
       VEGETATION_DIAGNOSTIC_CATEGORIES } = await import('/src/scene/RenderDiagnostics.ts');
     const { DebugMenu } = await import('/src/ui/DebugMenu.ts');
+    const { SettlementHud } = await import('/src/ui/SettlementHud.ts');
     const { FirstPersonController } = await import('/src/camera/FirstPersonController.ts');
-    await import('/src/ui/debugMenu.css');
+    await import('/src/style.css');
+    await import('/src/ui/gameplayCraft.css');
+    const hudHost = document.createElement('div');
+    hudHost.style.display = 'none';
+    const hudParent = document.createElement('div');
+    hudHost.append(hudParent);
+    document.body.append(hudHost);
+    const hud = new SettlementHud(hudParent);
+    hud.setFps(62.09);
     const { createPreferredRenderer } = await import('/src/scene/RendererBackend.ts');
     const { renderer } = await createPreferredRenderer();
     renderer.setSize(1280, 800);
@@ -125,6 +134,7 @@ try {
     });
     menu = new DebugMenu(document.getElementById('app'), {
       domElement: renderer.domElement, renderDiagnostics: diagnostics,
+      onPerformanceDetails: details => hud.setPerformanceDetails(details),
       onStartProfile: async () => {
         diagnostics.profiler.start({ metadata: { source: 'browser-validation' }, toggles: diagnostics.getState(),
           getContext: () => ({ camera: { position: camera.position.toArray(), rotation: camera.quaternion.toArray(),
@@ -146,7 +156,7 @@ try {
     key('F8', 'F8'); invariants.push(!firstPerson.isPlacementActive() && !menu.isOpen());
     key('m', 'KeyM'); invariants.push(menu.isOpen());
     key('~', 'Backquote'); invariants.push(!firstPerson.isPlacementActive());
-    window.__diagnosticProbe = { diagnostics, menu, render, move: () => { moving = true; }, actions, work, originalWork };
+    window.__diagnosticProbe = { diagnostics, menu, hud, render, move: () => { moving = true; }, actions, work, originalWork };
     // Wait past switch settling without starting a competing animation loop.
     await new Promise(resolve => setTimeout(resolve, 1600));
     for (let i = 0; i < 180; i++) diagnostics.recordFrame(i === 179 ? 35 : 16, normal);
@@ -186,8 +196,35 @@ try {
   await page.screenshot({ path: `${output}/development-menu.png` });
   await page.keyboard.press('m');
   assert.ok(await page.locator('.debug-menu-backdrop').isHidden());
+  await page.waitForTimeout(1600);
+  await page.evaluate(() => {
+    const { diagnostics, menu, render } = window.__diagnosticProbe;
+    const stats = render();
+    for (let i = 0; i < 180; i++) diagnostics.recordFrame(i === 179 ? 35 : 16, stats);
+    menu.updatePerformance(performance.now() + 500);
+  });
+  assert.equal(await page.locator('.debug-performance-meter').count(), 0);
+  assert.equal(await page.locator('.settlement-hud__perf').count(), 1);
+  assert.ok(await page.locator('.settlement-hud__perf').isVisible());
+  assert.match(await page.locator('.settlement-hud__perf').innerText(), /FPS.*62.*16\.11 \/ 16\.67 ms/s);
+  assert.match(await page.locator('.settlement-hud__perf-shortcut').innerText(), /M.*Development menu/s);
+  assert.match(await page.locator('[data-performance-details]').innerText(), /ms P95.*draws.*triangles/s);
+  assert.match(await page.locator('[data-performance-details]').innerText(), /Full scene/);
+  await page.screenshot({ path: `${output}/merged-performance-hud.png` });
+  await page.setViewportSize({ width: 480, height: 800 });
+  const hudBounds = await page.locator('.settlement-hud__perf').boundingBox();
+  assert.ok(hudBounds.x >= 0 && hudBounds.x + hudBounds.width <= 480);
+  assert.ok(hudBounds.y > 600 && hudBounds.y + hudBounds.height <= 800);
+  await page.screenshot({ path: `${output}/merged-performance-hud-narrow.png` });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.keyboard.press('m');
+  await page.locator('[data-render-meter]').uncheck();
+  assert.ok(await page.locator('[data-performance-details]').isHidden());
+  assert.ok(await page.locator('[data-stat="fps"]').isVisible());
+  await page.locator('[data-render-meter]').check();
   await page.evaluate(() => window.__diagnosticProbe.menu.updatePerformance(performance.now() + 500));
-  assert.ok(await page.locator('.debug-performance-meter').isVisible());
+  assert.ok(await page.locator('[data-performance-details]').isVisible());
+  await page.keyboard.press('m');
   await page.keyboard.press('Backquote');
   assert.ok(await page.locator('.debug-menu-backdrop').isHidden());
   await page.keyboard.press('Backquote'); // Cancel walk placement before recording.

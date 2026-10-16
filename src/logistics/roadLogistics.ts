@@ -1,6 +1,7 @@
 import {
   OFFROAD_DELIVERY_SPEED_MULTIPLIER,
   RESIDENCE_WATER_CAPACITY,
+  WELL_HOUSEHOLD_CAPACITY,
 } from '../generated/gameBalance.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -10,7 +11,7 @@ import {
   residenceFirewoodRunwaySeconds,
   residenceNeedsPriorityFirewood,
 } from './firewoodLogistics.ts';
-import { isResidenceInWellRange, residenceWaterRunwaySeconds } from './waterLogistics.ts';
+import { residenceWaterRunwaySeconds } from './waterLogistics.ts';
 
 type RoadPoint = { x: number; z: number };
 
@@ -182,8 +183,10 @@ export function claimResidenceRoutesByNearestSupplier(
     effectiveDistance: number,
   ) => boolean,
   requireConnectedRoad = false,
+  householdCapacity = Infinity,
 ): Map<string, ResidenceSupplierRouteClaim> {
   const bestByResidence = new Map<string, ResidenceSupplierRouteClaim>();
+  const candidates: Array<ResidenceSupplierRouteClaim & { residenceId: string }> = [];
   const targets = residences.map((residence) => ({
     x: residence.x,
     z: residence.z,
@@ -198,6 +201,10 @@ export function claimResidenceRoutesByNearestSupplier(
       if (distance == null || !Number.isFinite(distance)) continue;
       const residence = residences[index];
       if (!candidateAllowed(supplier, residence, distance)) continue;
+      if (Number.isFinite(householdCapacity)) {
+        candidates.push({ residenceId: residence.id, supplierId: supplier.id, distance });
+        continue;
+      }
       const current = bestByResidence.get(residence.id);
       if (
         current == null
@@ -215,6 +222,19 @@ export function claimResidenceRoutesByNearestSupplier(
     }
   }
 
+  if (Number.isFinite(householdCapacity)) {
+    candidates.sort((a, b) => a.distance - b.distance
+      || compareStableEntityIds(a.supplierId, b.supplierId)
+      || compareStableEntityIds(a.residenceId, b.residenceId));
+    const counts = new Map<string, number>();
+    for (const candidate of candidates) {
+      const count = counts.get(candidate.supplierId) ?? 0;
+      if (bestByResidence.has(candidate.residenceId) || count >= householdCapacity) continue;
+      bestByResidence.set(candidate.residenceId, { supplierId: candidate.supplierId, distance: candidate.distance });
+      counts.set(candidate.supplierId, count + 1);
+    }
+  }
+
   return bestByResidence;
 }
 
@@ -228,6 +248,7 @@ export function claimResidencesByNearestSupplier(
     effectiveDistance: number,
   ) => boolean,
   requireConnectedRoad = false,
+  householdCapacity = Infinity,
 ): Map<string, string> {
   return new Map(
     [...claimResidenceRoutesByNearestSupplier(
@@ -236,6 +257,7 @@ export function claimResidencesByNearestSupplier(
       residences,
       candidateAllowed,
       requireConnectedRoad,
+      householdCapacity,
     )].map(([residenceId, claim]) => [
       residenceId,
       claim.supplierId,
@@ -280,8 +302,9 @@ export function claimResidencesForWells(
     network,
     activeWells,
     residences,
-    (well, residence) => isResidenceInWellRange(well, residence),
+    (_well, residence) => !residence.abandoned && residence.population > 0 && residence.tier >= 1,
     true,
+    WELL_HOUSEHOLD_CAPACITY,
   );
 }
 

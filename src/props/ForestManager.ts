@@ -324,9 +324,6 @@ export class ForestManager {
     setHarvestStumpSnowCoverage(this.harvestStumps, coverage);
   }
 
-  setDistantCanopyCardsEnabled(enabled: boolean): void {
-    this.seedThreeForest?.setDistantCanopyCardsEnabled(enabled);
-  }
 
   isTreeLayoutActiveForCollision(layoutIndex: number): boolean {
     return layoutIndex >= 0

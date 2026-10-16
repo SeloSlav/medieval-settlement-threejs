@@ -3,6 +3,7 @@
 use crate::balance_generated::{
     HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY, OFFROAD_DELIVERY_SPEED_MULTIPLIER,
     REMEDY_DELIVERY_TARGET_DAYS,
+    WELL_HOUSEHOLD_CAPACITY,
 };
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::supply_policy::{
@@ -10,7 +11,7 @@ use crate::supply_policy::{
     NeedDeliveryCandidate,
 };
 use crate::tables::{Building, Residence};
-use crate::well_policy::position_within_well_service_radius;
+use crate::service_capacity_policy::{claim_service_routes, ServiceRouteCandidate};
 
 #[derive(Debug, Clone)]
 pub struct LocalDeliveryRoute {
@@ -278,7 +279,36 @@ pub fn claim_residences_by_nearest_supplier(
         .collect()
 }
 
-/// Each residence is claimed by the nearest completed well within its service extent.
+/// Assign finite household slots using strict road routes, with overflow to
+/// the next available supplier. One graph solve per supplier covers every home.
+pub fn claim_residences_with_capacity(
+    network: &RoadNetwork,
+    suppliers: &[&Building],
+    residences: &[Residence],
+    candidate_allowed: impl Fn(&Building, &Residence) -> bool,
+    household_capacity: usize,
+) -> std::collections::HashMap<u64, u64> {
+    let positions: Vec<_> = residences.iter().map(|home| (home.x, home.z)).collect();
+    let mut candidates = Vec::new();
+    for supplier in suppliers {
+        let distances = network.road_path_distances_from(supplier.x, supplier.z, &positions);
+        for (residence, distance) in residences.iter().zip(distances) {
+            if !candidate_allowed(supplier, residence) {
+                continue;
+            }
+            if let Some(distance) = distance {
+                candidates.push(ServiceRouteCandidate {
+                    supplier_id: supplier.id,
+                    residence_id: residence.id,
+                    distance,
+                });
+            }
+        }
+    }
+    claim_service_routes(candidates, household_capacity)
+}
+
+/// Every completed well serves at most fifty occupied road-linked households.
 pub fn claim_residences_for_wells(
     network: &RoadNetwork,
     wells: &[Building],
@@ -294,14 +324,11 @@ pub fn claim_residences_for_wells(
             )
         })
         .collect();
-    claim_residences_by_nearest_supplier(network, &operational, residences, |well, residence, _| {
-        network.road_connected(well.x, well.z, residence.x, residence.z)
-            && position_within_well_service_radius(
-                well.x,
-                well.z,
-                well.work_radius,
-                residence.x,
-                residence.z,
-            )
-    })
+    claim_residences_with_capacity(
+        network,
+        &operational,
+        residences,
+        |_, residence| !residence.abandoned && residence.population > 0 && residence.tier >= 1,
+        WELL_HOUSEHOLD_CAPACITY,
+    )
 }

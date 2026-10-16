@@ -10,7 +10,7 @@ try {
   browser=await chromium.launch({channel:'msedge',headless:true,args:['--enable-unsafe-webgpu']});
   const page=await browser.newPage({viewport:{width:1400,height:900},deviceScaleFactor:1});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/mason-probe',r=>r.fulfill({contentType:'text/html',body:`<html><body style="margin:0;background:#27332f;color:#eee7d1;font:18px sans-serif"><div style="position:absolute;left:24px;top:20px;z-index:2">Stonemason’s Yard · rough stone → dressed stone</div><img src="/assets/ui/build-menu/cards/stone-mason.webp" style="position:absolute;right:24px;top:24px;width:160px;border-radius:12px;z-index:2"><img src="/assets/ui/icons/materials/dressed-stone.svg" style="position:absolute;right:78px;top:280px;width:56px;z-index:2"></body></html>`}));
+  await page.route('**/mason-probe',r=>r.fulfill({contentType:'text/html',body:`<html><body style="margin:0;background:#27332f;color:#eee7d1;font:18px sans-serif"><div style="position:absolute;left:24px;top:20px;z-index:2">Stonemason’s Yard · rough stone → dressed stone</div><img src="/assets/ui/build-menu/cards/stone-mason.webp" style="position:absolute;right:24px;top:24px;width:160px;border-radius:12px;z-index:2"><img src="/assets/ui/icons/materials/dressed-stone.png" style="position:absolute;right:78px;top:280px;width:56px;z-index:2"></body></html>`}));
   await page.goto(new URL('mason-probe',server.resolvedUrls.local[0]).href);
   const stats=await page.evaluate(async()=>{
     const THREE=await import('/node_modules/three/build/three.module.js');

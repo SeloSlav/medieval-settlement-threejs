@@ -42,8 +42,8 @@ export type SeedThreeForestProfileBreakdown = {
   criticalProjectedColor: SeedThreeForestSubmissionStats;
   submittedPasses: {
     near: SeedThreeForestSubmissionStats;
-    crownUnderlay: SeedThreeForestSubmissionStats;
-    overview: SeedThreeForestSubmissionStats;
+    middle: SeedThreeForestSubmissionStats;
+    far: SeedThreeForestSubmissionStats;
   };
 };
 
@@ -70,7 +70,6 @@ export type SeedThreeForestController = {
   getProfileBreakdown(): SeedThreeForestProfileBreakdown;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
   setSnowCoverage(coverage: number): void;
-  setDistantCanopyCardsEnabled(enabled: boolean): void;
   setShadows(enabled: boolean): void;
   dispose(): void;
 };

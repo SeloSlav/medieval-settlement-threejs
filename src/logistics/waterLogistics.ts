@@ -7,7 +7,6 @@ import {
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_REORDER_FRACTION,
-  RESIDENCE_POPULATION_WIDE,
   SMITHY_WATER_PER_CYCLE,
   SPINNING_RETTING_FLAX_WATER_PER_CYCLE,
   WELL_BASE_REFILL_PER_SEC,
@@ -39,16 +38,6 @@ export function wellRefillPerSecond(
   return WELL_BASE_REFILL_PER_SEC
     * effectiveHydrology
     * Math.max(0, weatherMultiplier);
-}
-
-export function wellSustainableHomeCapacity(
-  hydrology: number,
-  weatherMultiplier = 1,
-  residentsPerHome = RESIDENCE_POPULATION_WIDE,
-): number {
-  const demandPerHome = Math.max(0, residentsPerHome) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
-  if (demandPerHome <= 0) return 0;
-  return Math.floor(wellRefillPerSecond(hydrology, weatherMultiplier) / demandPerHome + 1e-9);
 }
 
 export type IndustrialWaterCandidate = {
@@ -216,17 +205,4 @@ export function formatWaterRunwayDays(days: number): string {
   if (runwaySeconds >= 3600) return `~${(runwaySeconds / 3600).toFixed(1)} h`;
   const minutes = runwaySeconds / 60;
   return `~${Math.max(1, Math.round(minutes))} min`;
-}
-
-export function isWithinWellServiceRadius(
-  well: BuildingState,
-  target: Pick<BuildingState | ResidenceState, 'x' | 'z'>,
-): boolean {
-  if (well.workRadius <= 0) return false;
-  const distance = Math.hypot(target.x - well.x, target.z - well.z);
-  return distance <= well.workRadius;
-}
-
-export function isResidenceInWellRange(well: BuildingState, residence: ResidenceState): boolean {
-  return isWithinWellServiceRadius(well, residence);
 }
