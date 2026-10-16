@@ -12,7 +12,7 @@ const polishedGameStyles = readFileSync('src/ui/polishedGameUi.css', 'utf8');
 assert.match(
   controller,
   /if \(this\.active\) this\.deactivate\(\);[\s\S]{0,240}else if \(this\.isPlacementActive\(\)\) this\.endPlacement\(\);[\s\S]{0,240}else this\.beginPlacement\(\);/,
-  'the tilde toggle must exit active walking, cancel pending placement, or begin placement from RTS',
+  'the walk toggle must exit active walking, cancel pending placement, or begin placement from RTS',
 );
 assert.doesNotMatch(
   controller,
@@ -131,6 +131,8 @@ assert.doesNotMatch(
   'Escape must be allowed to open settings while first-person is active',
 );
 assert.match(controls, /Toggle walk mode', keys: '~'/);
+assert.match(controller, /event\.code === 'Backquote'/);
+assert.doesNotMatch(controller, /event\.code === 'F8'/);
 assert.match(controls, /Settings', keys: 'Esc'/);
 assert.doesNotMatch(controls, /Exit walk mode', keys: 'Esc'/);
 

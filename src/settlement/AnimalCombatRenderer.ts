@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CombatAgentState } from '../security/combatAgents.ts';
@@ -54,6 +55,7 @@ export class AnimalCombatRenderer {
 
   constructor(parent: THREE.Group) {
     this.group.name = 'Selectable guard dogs and hostile wildlife';
+    registerRenderDiagnosticRoot(this.group, 'animals');
     parent.add(this.group);
     this.ready = this.loadAssets();
   }

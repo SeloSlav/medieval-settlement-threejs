@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { trailerClock } from '../app/trailerClock.ts';
 import {
   deliveryLegRemainingMeters,
@@ -111,6 +112,7 @@ export class DeliveryAgentRenderer {
   private readonly getRoadDeckY: ((x: number, z: number) => number | null) | null;
   private readonly isOnRoadSurface: ((x: number, z: number) => boolean) | null;
   private readonly group = new THREE.Group();
+  private readonly workerDiagnosticRoot = new THREE.Group();
   private readonly cartBatches: ExactMountedAttachmentBatch;
   private readonly cargoCatalog = new DeliveryCargoCatalog();
   private readonly visuals = new Map<string, TripVisual>();
@@ -133,10 +135,13 @@ export class DeliveryAgentRenderer {
     this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.isOnRoadSurface = options.isOnRoadSurface ?? null;
     this.group.name = 'Delivery agents';
+    this.group.add(this.workerDiagnosticRoot);
+    registerRenderDiagnosticRoot(this.workerDiagnosticRoot, 'people');
     this.selectedRoute = createSelectedAgentRoute('Selected delivery destination route');
     this.group.add(this.selectedRoute);
     options.parent.add(this.group);
     this.cartBatches = new ExactMountedAttachmentBatch(this.group, { name: 'Exact delivery carts and cargo', separateShadows: true });
+    registerRenderDiagnosticRoot(this.cartBatches.group, 'carts');
     void this.loadCartSource();
     void this.loadWorkerSources();
   }
@@ -519,10 +524,13 @@ export class DeliveryAgentRenderer {
         root.userData.ownedCartMaterials = [rope.material];
         root.add(rope);
       }
+      for (const child of root.children) registerRenderDiagnosticRoot(child, 'carts');
       return root;
     }
     if (trip.destinationKind === 'fire') {
-      return createFireBucketCarrierMesh();
+      const mesh = createFireBucketCarrierMesh();
+      for (const child of mesh.children) registerRenderDiagnosticRoot(child, 'carts');
+      return mesh;
     }
     const mesh = createDeliveryCartMesh(trip.cargoKind, {
       appearanceSeed: hashStringSeed(`delivery-cart:${trip.id}`),
@@ -535,6 +543,7 @@ export class DeliveryAgentRenderer {
     if (model) this.cartBatches.registerTool(model);
     const cargo = mesh.userData.deliveryCartCargo as THREE.Group | undefined;
     if (cargo) this.cartBatches.registerTool(cargo);
+    for (const child of mesh.children) registerRenderDiagnosticRoot(child, 'carts');
     return mesh;
   }
 
@@ -570,6 +579,7 @@ export class DeliveryAgentRenderer {
       );
       visual.workers.push(worker);
       visual.mesh.add(worker.root);
+      registerRenderDiagnosticRoot(worker.root, 'people');
       this.workerBatches?.register(worker);
     }
   }
@@ -674,7 +684,7 @@ export class DeliveryAgentRenderer {
         return;
       }
       this.workerSources = sources;
-      this.workerBatches = new DeliveryWorkerBatches(this.group, sources);
+      this.workerBatches = new DeliveryWorkerBatches(this.workerDiagnosticRoot, sources);
       for (const [id, trip] of this.latestTrips) {
         const visual = this.visuals.get(id);
         if (visual) this.ensureWorkerCrew(visual, trip);

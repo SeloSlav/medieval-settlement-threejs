@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type {
@@ -198,6 +199,7 @@ export class LivestockVisuals {
   ) {
     this.getHeightAt = getHeightAt;
     this.root.name = 'Animated livestock herds';
+    registerRenderDiagnosticRoot(this.root, 'animals');
     parent.add(this.root);
     void this.loadSources();
   }

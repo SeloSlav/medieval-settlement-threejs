@@ -468,8 +468,22 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 | Crouch toggle | `C` |
 | Free look (walk mode) | Hold `Alt` |
 | Exit walk mode | Backtick (`~`) |
+| Development menu (local dev) | `M`; building placeholders, model visibility switches, frame meter and baseline comparison |
 | Open game menu | Click the menu button (top-left) or `Escape` (RTS or walk mode) |
 | Start a new world | Game menu → **New world…** (resets the server database when connected; always clears local settings and player identity) |
+
+Press `M` to open the development menu. It can replace buildings and homes with one simple box each,
+or hide buildings, people, carts/cargo, oxen, other animals, trees, vegetation,
+and sky independently. All vegetation also hides trees. Simulation and CPU
+animation continue, so these controls isolate rendering cost. Save a baseline,
+change one switch, close the menu, and compare the persistent frame meter with
+the camera fixed. **Restore all models** resets every rendering switch.
+
+Run `npm run test:render-diagnostics-browser` for the browser control/render
+checks. `node scripts/profileCityRuntime.mjs solo-building-isolation --large
+--normal --isolation` runs a repeated full-model/box comparison in the solo
+visual fixture (100 workplaces, 100 homes, 500 civilians, 100 dogs, 30 oxen).
+This fixture measures presentation, not a complete settlement economy.
 
 ## Production build
 

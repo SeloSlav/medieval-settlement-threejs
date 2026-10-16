@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../../scene/RenderDiagnostics.ts';
 import { sharedBuildingDetailMaterial } from '../../buildings/buildingMaterials.ts';
 import type { RendererBackendKind } from '../../scene/RendererBackend.ts';
 import type { SeedThreeGroundCoverTextures } from './seedThreeGroundCover.ts';
@@ -119,6 +120,7 @@ export function createSeedThreeVineyardVines(
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = 'SeedThree cultivated grapevines';
+  registerRenderDiagnosticRoot(group, 'vegetation');
 
   const capacity = Math.max(placements.length, 1);
   const leafGeometry = createVineyardCardClumpGeometry({

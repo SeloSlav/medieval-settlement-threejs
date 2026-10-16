@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { MeshStandardNodeMaterial } from 'three/webgpu';
 import { attribute, normalMap, texture, uniform, vec2 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -1146,6 +1147,7 @@ function addFruitTree(
   const anchor = new THREE.Group();
   const label = plantKind === 'apple' ? 'AppleTree' : plantKind === 'cherry' ? 'CherryTree' : 'PearTree';
   anchor.name = `${label}:${variant}`;
+  registerRenderDiagnosticRoot(anchor, 'trees');
   anchor.position.set(x, 0, z);
   anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
   // Backyard orchards are managed semi-dwarf standards. SeedThree species
@@ -1254,6 +1256,7 @@ function addFruitBush(
 ): void {
   const anchor = new THREE.Group();
   anchor.name = `${plantKind === 'aronia' ? 'AroniaBush' : 'RosehipBush'}:${variant}`;
+  registerRenderDiagnosticRoot(anchor, 'vegetation');
   anchor.position.set(x, 0, z);
   anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
   anchor.userData.backyardMaturityAnchor = true;
@@ -1483,6 +1486,7 @@ function addVegetableGarden(
     if (!cropDefinition || !crop) continue;
     const cropGroup = new THREE.Group();
     cropGroup.name = `${cropDefinition.name}:${bed + 1}`;
+    registerRenderDiagnosticRoot(cropGroup, 'vegetation');
     cropGroup.userData.backyardCropKind = crop;
     group.add(cropGroup);
     const spacing = cropDefinition.spacing;
@@ -1546,6 +1550,7 @@ function addRoseShrub(
 ): void {
   const anchor = new THREE.Group();
   anchor.name = `RoseBush:${index}`;
+  registerRenderDiagnosticRoot(anchor, 'vegetation');
   anchor.position.set(x, 0, z);
   anchor.rotation.y = mulberry32(seed)() * Math.PI * 2;
   group.add(anchor);
@@ -1606,6 +1611,7 @@ function addLuxuryFlowerTable(
   for (let index = 0; index < 3; index++) {
     const bouquet = new THREE.Group();
     bouquet.name = `Arranged luxury bouquet ${index + 1}`;
+    registerRenderDiagnosticRoot(bouquet, 'vegetation');
     bouquet.position.set((index - 1) * 0.38, 0.81, 0);
     bouquet.rotation.z = (index - 1) * 0.12;
     table.add(bouquet);
@@ -1651,6 +1657,7 @@ function addFlowerGarden(
     const h = 0.18 + rng() * 0.22;
     const wildflower = new THREE.Group();
     wildflower.name = `Swaying cottage flower ${i + 1}`;
+    registerRenderDiagnosticRoot(wildflower, 'vegetation');
     wildflower.position.set(x, 0.08, z);
     wildflower.rotation.y = rng() * Math.PI * 2;
     group.add(wildflower);
@@ -1719,6 +1726,7 @@ function addHerbClump(group: THREE.Group, x: number, z: number, kind: number, se
   }[herbKind];
   const clump = new THREE.Group();
   clump.name = `Textured ${herbKind} clump`;
+  registerRenderDiagnosticRoot(clump, 'vegetation');
   clump.userData.backyardHerbKind = herbKind;
   clump.position.set(x, 0.06, z);
   clump.rotation.y = rng() * Math.PI;
@@ -2144,6 +2152,7 @@ function addBackyardApiary(group: THREE.Group, width: number, depth: number, see
   }
   for (let index = 0; index < 16; index++) {
     const flower = new THREE.Group();
+    registerRenderDiagnosticRoot(flower, 'vegetation');
     flower.position.set((rng() - 0.5) * width * 0.78, 0.04, depth * (0.18 + rng() * 0.22));
     addMesh(flower, new THREE.CylinderGeometry(0.005, 0.007, 0.28, 5), MATERIALS.flowerStem, 0, 0.14, 0);
     addMesh(flower, new THREE.SphereGeometry(0.045, 8, 5), FLOWER_MATERIALS[index % FLOWER_MATERIALS.length]!, 0, 0.3, 0, undefined, new THREE.Vector3(1, 0.45, 1));

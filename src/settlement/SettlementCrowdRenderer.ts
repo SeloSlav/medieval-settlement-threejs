@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { AuthoredRigEvaluatorGroup } from '../scene/AuthoredRigEvaluatorGroup.ts';
 import { createAuthoredCharacterDetail, selectCharacterDetail, type CharacterDetail, type CharacterDetailGeometry } from '../scene/AuthoredCharacterDetail.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -446,6 +447,7 @@ export class SettlementCrowdRenderer {
 
   constructor(options: SettlementCrowdRendererOptions) {
     this.group.name = 'Villagers';
+    registerRenderDiagnosticRoot(this.group, 'people');
     this.animatedGroup.name = 'Animated villagers';
     this.group.add(this.animatedGroup);
     this.animatedGroup.add(this.evaluatorGroup);

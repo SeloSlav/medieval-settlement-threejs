@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingFootprint.ts';
 import {
   installStaticTransformBoundary,
   invalidateStaticTransformBoundary,
@@ -172,6 +174,14 @@ export class BuildingMarkers {
     this.getRoadNetwork = options.getRoadNetwork;
     this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
+    registerRenderDiagnosticRoot(this.group, 'buildings', (visit) => {
+      for (const [id, marker] of this.buildingMeshes) {
+        const state = this.buildingStates.get(id);
+        if (!state) continue;
+        const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(state.kind);
+        visit(marker, halfWidth * 2, Math.max(2, Math.min(12, halfWidth)), halfDepth * 2);
+      }
+    });
     this.campStandards = new CampStandardRenderer(this.group, (x, z) => this.terrain.getHeightAt(x, z));
     this.staticBatches = new BuildingStaticBatches(this.group, { mergeDraws: true });
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(

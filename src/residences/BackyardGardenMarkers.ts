@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { backyardGardenPlacement } from './backyardPosition.ts';
 import {
   createBackyardChickenModel,
@@ -101,6 +102,7 @@ type ReplayableGardenSyncInput = Omit<GardenSyncInput, 'residences' | 'zones'> &
 
 export class BackyardGardenMarkers {
   private readonly root = new THREE.Group();
+  private readonly animalDiagnosticRoot = new THREE.Group();
   private readonly meshes = new Map<string, THREE.Group>();
   private readonly chickens = new Map<string, ChickenVisual[]>();
   private readonly goats = new Map<string, GoatVisual[]>();
@@ -120,6 +122,8 @@ export class BackyardGardenMarkers {
 
   constructor(parent: THREE.Group, options: BackyardGardenMarkerOptions = {}) {
     this.root.name = 'Backyard gardens';
+    this.root.add(this.animalDiagnosticRoot);
+    registerRenderDiagnosticRoot(this.animalDiagnosticRoot, 'animals');
     parent.add(this.root);
 
     void loadBackyardChickenSource().then(
@@ -472,6 +476,7 @@ export class BackyardGardenMarkers {
       );
       const root = new THREE.Group();
       root.name = 'Rigged roaming hen';
+      registerRenderDiagnosticRoot(root, 'animals');
       root.add(model);
       setAuthoredAnimalEvaluatorOnly(model, this.chickenBatch !== null);
       marker.add(root);
@@ -535,6 +540,7 @@ export class BackyardGardenMarkers {
       );
       const root = new THREE.Group();
       root.name = 'Rigged backyard goat';
+      registerRenderDiagnosticRoot(root, 'animals');
       root.position.set(
         THREE.MathUtils.lerp(-width * 0.18, width * 0.32, random()),
         0,
@@ -585,6 +591,7 @@ export class BackyardGardenMarkers {
       );
       const root = new THREE.Group();
       root.name = 'Rigged backyard pig';
+      registerRenderDiagnosticRoot(root, 'animals');
       root.position.set(
         THREE.MathUtils.lerp(-width * 0.16, width * 0.32, random()),
         0,
@@ -658,7 +665,7 @@ export class BackyardGardenMarkers {
   ): AuthoredAnimalInstanceBatch | null {
     try {
       return new AuthoredAnimalInstanceBatch({
-        parent: this.root,
+        parent: this.animalDiagnosticRoot,
         sourceRoot,
         animations,
         capacity: 32,

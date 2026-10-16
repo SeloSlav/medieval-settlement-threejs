@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RenderDiagnostics, registerRenderDiagnosticRoot } from './RenderDiagnostics.ts';
 import { FireLighting } from '../fires/FireLighting.ts';
 import { beginCloseGroundGpuPrewarm, type CloseGroundGpuPrewarm } from './CloseGroundGpuPrewarm.ts';
 import { SceneAtmosphere } from './SceneAtmosphere.ts';
@@ -204,6 +205,7 @@ const fishVisualModulePromise = import('../foraging/FishWildlifeVisuals.ts');
 export class SceneManager {
   private readonly container: HTMLElement;
   readonly scene: THREE.Scene;
+  readonly renderDiagnostics: RenderDiagnostics;
   readonly camera: THREE.PerspectiveCamera;
   readonly renderer: SupportedRenderer;
   readonly rendererBackend: RendererBackendKind;
@@ -383,6 +385,7 @@ export class SceneManager {
     );
     this.materials = materials;
     this.scene = new THREE.Scene();
+    this.renderDiagnostics = new RenderDiagnostics(this.scene, () => this.invalidateStaticShadows());
     // World transforms are committed once after simulation/visual updates.
     // Nested shadow and color passes consume that same completed snapshot.
     this.scene.matrixWorldAutoUpdate = false;
@@ -482,6 +485,8 @@ export class SceneManager {
       this.selectionGroup,
     );
     this.precipitation = new PrecipitationRenderer(this.camera, this.scene);
+    registerRenderDiagnosticRoot(this.sky, 'sky');
+    registerRenderDiagnosticRoot(this.riverSystem.reedsGroup, 'vegetation');
     this.addLighting();
     this.postProcessor = createPostProcessor(
       backend,
@@ -815,18 +820,23 @@ export class SceneManager {
     this.berryPatchVisuals = await berryPatchPromise;
     if (this.environment) this.berryPatchVisuals.setEnvironment(this.environment);
     this.scene.add(this.berryPatchVisuals.group);
+    registerRenderDiagnosticRoot(this.berryPatchVisuals.group, 'vegetation');
     this.mushroomPatchVisuals = await mushroomPatchPromise;
     this.scene.add(this.mushroomPatchVisuals.group);
+    registerRenderDiagnosticRoot(this.mushroomPatchVisuals.group, 'vegetation');
     this.deerWildlifeVisuals = await deerVisualsPromise;
     if (this.deerWildlifeVisuals) this.scene.add(this.deerWildlifeVisuals.group);
+    if (this.deerWildlifeVisuals) registerRenderDiagnosticRoot(this.deerWildlifeVisuals.group, 'animals');
     this.fishWildlifeVisuals = await fishVisualsPromise;
     if (this.fishWildlifeVisuals) this.scene.add(this.fishWildlifeVisuals.group);
+    if (this.fishWildlifeVisuals) registerRenderDiagnosticRoot(this.fishWildlifeVisuals.group, 'animals');
     this.applyForagingVisualState();
     if (GRASS_BLADES_ENABLED) {
       this.grassField = await grassFieldPromise;
       if (this.grassField) {
         if (this.environment) this.grassField.setEnvironment(this.environment);
         this.scene.add(this.grassField.group);
+        registerRenderDiagnosticRoot(this.grassField.group, 'vegetation');
       }
       // Keep reeds at the scene root; their explicit render order lets the
       // water film veil submerged stems while the grass-blocked shore band
@@ -1276,32 +1286,37 @@ export class SceneManager {
       : [];
     this.scene.updateMatrixWorld();
     if (prepareOnly) return;
-    if (import.meta.env.VITE_E2E_TEST === '1') {
-      // The smoke test exercises the real node-material terrain through the
-      // required WebGPU backend. It does not need to spend minutes raymarching
-      // the sky and bloom pipeline to prove startup and gameplay compatibility.
-      const skyVisible = this.sky.visible;
-      const precipitationVisible = this.precipitation.group.visible;
-      this.sky.visible = false;
-      this.precipitation.group.visible = false;
-      this.renderer.render(this.scene, this.camera);
+    this.renderDiagnostics.beginRender();
+    try {
+      if (import.meta.env.VITE_E2E_TEST === '1') {
+        // The smoke test exercises the real node-material terrain through the
+        // required WebGPU backend. It does not need to spend minutes raymarching
+        // the sky and bloom pipeline to prove startup and gameplay compatibility.
+        const skyVisible = this.sky.visible;
+        const precipitationVisible = this.precipitation.group.visible;
+        this.sky.visible = false;
+        this.precipitation.group.visible = false;
+        this.renderer.render(this.scene, this.camera);
+        this.commitDirectionalShadowFrame(shadowRefreshRequested, shadowRefreshReasons);
+        this.sky.visible = skyVisible;
+        this.precipitation.group.visible = precipitationVisible;
+        this.completedRenderFrames++;
+        this.lastRendererFrameStats = readRendererFrameStats(
+          rendererInfo,
+          rendererFrameBoundary,
+        );
+        return;
+      }
+      this.postProcessor.render(dt);
       this.commitDirectionalShadowFrame(shadowRefreshRequested, shadowRefreshReasons);
-      this.sky.visible = skyVisible;
-      this.precipitation.group.visible = precipitationVisible;
-      this.completedRenderFrames++;
-      this.lastRendererFrameStats = readRendererFrameStats(
-        rendererInfo,
-        rendererFrameBoundary,
-      );
-      return;
+        this.completedRenderFrames++;
+        this.lastRendererFrameStats = readRendererFrameStats(
+          rendererInfo,
+          rendererFrameBoundary,
+        );
+    } finally {
+      this.renderDiagnostics.endRender();
     }
-    this.postProcessor.render(dt);
-    this.commitDirectionalShadowFrame(shadowRefreshRequested, shadowRefreshReasons);
-    this.completedRenderFrames++;
-    this.lastRendererFrameStats = readRendererFrameStats(
-      rendererInfo,
-      rendererFrameBoundary,
-    );
   }
 
   private shouldRefitShadowMap(
@@ -1908,6 +1923,7 @@ export class SceneManager {
     this.mineralDepositSystem.dispose();
     setActiveClayDepositLayout(null);
     this.precipitation.dispose();
+    this.renderDiagnostics.dispose();
     this.sky.dispose();
     this.illustratedMapOpacityTransition.dispose();
     this.illustratedMap.dispose();

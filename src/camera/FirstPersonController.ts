@@ -557,20 +557,21 @@ export class FirstPersonController {
   }
 
   private isToggleKey(event: KeyboardEvent): boolean {
-    return event.code === 'Backquote' || event.key === '`' || event.key === '~';
+    return (event.code === 'Backquote' || event.key === '`' || event.key === '~')
+      && !event.altKey && !event.ctrlKey && !event.metaKey;
   }
 
   private isTextInputFocused(): boolean {
     const target = document.activeElement as HTMLElement | null;
     const tag = target?.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(target?.isContentEditable);
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean(target?.isContentEditable);
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (this.isTextInputFocused()) return;
 
     if (this.isToggleKey(event)) {
-      if (!this.config.isSessionReady?.()) return;
+      if (event.repeat || this.config.isMenuOpen?.() || !this.config.isSessionReady?.()) return;
       event.preventDefault();
       event.stopPropagation();
       this.toggle();

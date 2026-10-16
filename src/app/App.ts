@@ -1102,6 +1102,10 @@ export class App {
     );
     this.startBattleCaptureIfRequested();
     this.updateFps(time, rawDt);
+    if (this.sceneManager && this.debugMenu?.isPerformanceMonitoring()) {
+      this.sceneManager.renderDiagnostics.recordFrame(rawDt * 1000, this.sceneManager.getPerformanceStats());
+      this.debugMenu.updatePerformance(time);
+    }
     this.villagerInspector?.tick();
     this.ambientAudio?.setWorldPaused(gameSpeed === 0);
     // Audio fades and playback stay on wall-clock time at every simulation speed.

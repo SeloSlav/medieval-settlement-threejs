@@ -1259,6 +1259,7 @@ export async function bootstrapAppSession(
       company: 3,
     };
     debugMenu = new DebugMenu(uiRoot, {
+      renderDiagnostics: sceneManager.renderDiagnostics,
       domElement: sceneManager.renderer.domElement,
       getDate: () => {
         const clock = gameClock(spacetimeStore.snapshot.simTick);
@@ -1322,7 +1323,6 @@ export async function bootstrapAppSession(
       },
       canOpenFromKeyboard: () =>
         !toolbar.isGameMenuOpen()
-        && !firstPersonController.isActive()
         && !roadTool.isEnabled()
         && !buildingTool.isEnabled()
         && !burgageTool.isEnabled()

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import type { WebGPURenderer } from 'three/webgpu';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -266,6 +267,7 @@ export async function createForestProps(
       rng,
     );
     forest.add((realmForest ?? seedThreeForest!).group);
+    registerRenderDiagnosticRoot((realmForest ?? seedThreeForest!).group, 'trees');
     forest.add(rockField.group);
     forest.add(undergrowth.group);
     forest.add(forestFloorIvy.group);

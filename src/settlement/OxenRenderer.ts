@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { ExactMountedAttachmentBatch } from './ExactMountedAttachmentBatch.ts';
 import { trailerClock } from '../app/trailerClock.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -200,6 +201,7 @@ export class OxenRenderer {
     this.getWorkerRoute = options.getWorkerRoute ?? (() => []);
     this.getDeliveryRoute = options.getDeliveryRoute ?? (() => []);
     this.root.name = 'Stable draft oxen';
+    registerRenderDiagnosticRoot(this.root, 'oxen');
     options.parent.add(this.root);
     this.ready = this.loadSource();
   }

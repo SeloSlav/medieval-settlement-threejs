@@ -8,6 +8,7 @@ const large = process.argv.includes('--large');
 const normalFrames = process.argv.includes('--normal');
 const includeFields = process.argv.includes('--fields');
 const includeDeliveries = process.argv.includes('--deliveries');
+const isolateBuildings = process.argv.includes('--isolation');
 mkdirSync(output, { recursive: true });
 const server = await createServer({
   cacheDir: 'artifacts/city-performance/vite-cache',
@@ -79,7 +80,7 @@ try {
   await page.screenshot({ path: `${output}/initial-runtime.png` });
   await page.evaluate(() => window.__visualPerf?.stopFrameCollection());
   console.log('ready', JSON.stringify({ stats: state.stats, buildings: state.buildings.length, residences: state.residences.length, errors }));
-  const measured = await page.evaluate(async ({large,includeFields,includeDeliveries}) => {
+  const measured = await page.evaluate(async ({large,includeFields,includeDeliveries,isolateBuildings}) => {
     const app = window.__cityApp;
     const manager = app.sceneManager;
     const phases = {};
@@ -127,8 +128,12 @@ try {
     const baseRender=manager.render;
     manager.render=function(dt,...args){const begin=performance.now();dogs.sync(dogPoses,undefined,dt);phases.dogs=performance.now()-begin;return baseRender.call(this,dt,...args);};
     const reports=[];
-    for(const arm of ['terrain-and-camp','buildings','populated',...(large?['populated-stationary','populated-camera-sweep','populated-cleared-stationary','populated-cleared-camera-sweep']:[])]) {
+    const arms = ['terrain-and-camp','buildings','populated',...(isolateBuildings
+      ? ['isolation-full','isolation-boxes','isolation-full-return','isolation-boxes-return']
+      : large ? ['populated-stationary','populated-camera-sweep','populated-cleared-stationary','populated-cleared-camera-sweep'] : [])];
+    for(const arm of arms) {
       await window.__cityProbeProgress({arm,phase:'prepare'});
+      if(arm.startsWith('isolation-'))manager.renderDiagnostics.setBuildingMode(arm.includes('boxes')?'placeholder':'full');
       if(arm==='buildings') {
         app.buildingMarkers.syncBuildings([camp,...buildings]);
         app.residenceMarkers.syncResidences(residences,(x,z)=>manager.terrain.getHeightAt(x,z));
@@ -169,14 +174,14 @@ try {
       await window.__cityProbeProgress({arm,phase:'complete',meanFrameMs:samples.reduce((sum,sample)=>sum+sample.intervalMs,0)/samples.length});
     }
     return reports;
-  }, {large,includeFields,includeDeliveries});
+  }, {large,includeFields,includeDeliveries,isolateBuildings});
   writeFileSync(`${output}/gameplay-phases.json`,JSON.stringify({ measured, errors },null,2));
   const summary=measured.map(({arm,samples,stats})=>{
     const times=samples.map(s=>s.intervalMs).sort((a,b)=>a-b);
     const mean=times.reduce((a,b)=>a+b,0)/times.length;
     return {arm,meanFrameMs:mean,averageFps:1000/mean,medianFrameMs:times[Math.floor(times.length*.5)],p95FrameMs:times[Math.floor(times.length*.95)],meanRenderCpuMs:samples.reduce((a,b)=>a+b.render,0)/samples.length,stats};
   });
-  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,fields:includeFields?{count:large?12:4,replicaChangesEveryFrames:30,presentationOnly:true}:null,
+  writeFileSync(`${output}/summary.json`,JSON.stringify({viewport:[1280,720],pixelRatio:1,frameProfiling:!normalFrames,isolateBuildings,fields:includeFields?{count:large?12:4,replicaChangesEveryFrames:30,presentationOnly:true}:null,
     deliveries:includeDeliveries?{count:large?48:6,crewPerCart:2,phase:'unloading',presentationOnly:true}:null,
     requested:large?{workplaces:100,homes:100,civilians:500,dogs:100,oxen:30}:{workplaces:6,homes:5,civilians:30,dogs:0,oxen:3},summary,errors},null,2));
   await page.screenshot({path:`${output}/populated-gameplay.png`});

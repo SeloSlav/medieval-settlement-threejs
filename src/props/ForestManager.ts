@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { treeFallAngle, treeFallDirection, timberLogDimensions, type ForestrySoundEvent } from '../forestry/forestry.ts';
 import { TimberLogVisuals, registerTimberLogMaterials, registerTimberLogLayout } from '../forestry/TimberLogVisuals.ts';
 import type { TimberLogState } from '../resources/types.ts';
@@ -244,6 +245,13 @@ export class ForestManager {
     this.group.add(this.harvestStumps.group);
     this.timberLogs = new TimberLogVisuals((x, z) => terrain.getHeightAt(x, z));
     this.group.add(this.timberLogs.group);
+    for (const treeRoot of [this.trunkMesh, this.coniferFoliageMesh, this.broadleafFoliageMesh,
+      this.coniferShadowMesh, this.broadleafShadowMesh, this.harvestStumps.group, this.timberLogs.group]) {
+      registerRenderDiagnosticRoot(treeRoot, 'trees');
+    }
+    for (const vegetationRoot of this.getCloseGroundGpuPrewarmRoots()) {
+      registerRenderDiagnosticRoot(vegetationRoot, 'vegetation');
+    }
     for (let index = 0; index < this.placements.length; index++) {
       const stumpMaterials = this.harvestStumps.slots[index].mesh.material;
       registerTimberLogMaterials(this.placements[index].species, Array.isArray(stumpMaterials)

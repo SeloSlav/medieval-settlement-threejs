@@ -30,7 +30,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Military', keys: 'V' },
       { action: 'Map overlays (water, wind, fertility)', keys: 'O' },
       ...(import.meta.env.DEV
-        ? [{ action: 'Debug menu', keys: 'M' }]
+        ? [{ action: 'Development menu', keys: 'M' }]
         : []),
       { action: 'Select Town Hall administration', keys: 'I' },
       { action: 'Settings', keys: 'Esc' },

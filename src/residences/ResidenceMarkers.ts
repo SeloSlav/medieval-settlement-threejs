@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerRenderDiagnosticRoot } from '../scene/RenderDiagnostics.ts';
 import { installStaticTransformBoundary, invalidateStaticTransformBoundary } from '../scene/StaticTransformBoundary.ts';
 import { VisibleUpdateGroup } from '../scene/VisibleUpdateGroup.ts';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -3407,6 +3408,12 @@ export class ResidenceMarkers {
     this.onShadowCastersChanged = onShadowCastersChanged;
     this.root = new THREE.Group();
     this.root.name = 'Residences';
+    registerRenderDiagnosticRoot(this.root, 'buildings', (visit) => {
+      for (const [id, marker] of this.meshes) {
+        const tier = this.residenceStates.get(id)?.tier ?? 1;
+        visit(marker, 5 + tier, 3 + tier, 7 + tier);
+      }
+    });
     this.staticBatches = new ResidenceStaticBatches(this.root);
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(
       this.root,

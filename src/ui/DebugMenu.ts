@@ -1,3 +1,5 @@
+import type { RenderDiagnostics, RenderDiagnosticCategory } from '../scene/RenderDiagnostics.ts';
+
 export type DebugMapAction = 'wildlife' | 'bandits' | 'raiders' | 'company';
 
 export type DebugCalendarDate = {
@@ -7,6 +9,7 @@ export type DebugCalendarDate = {
 };
 
 type DebugMenuOptions = {
+  renderDiagnostics?: RenderDiagnostics;
   domElement: HTMLElement;
   getDate: () => DebugCalendarDate;
   pickMapPoint: (clientX: number, clientY: number) => { x: number; z: number } | null;
@@ -46,6 +49,9 @@ export class DebugMenu {
   private open = false;
   private armedAction: DebugMapAction | null = null;
   private actionPending = false;
+  private readonly performanceMeter = document.createElement('div');
+  private lastPerformanceUpdate = 0;
+  private meterVisible = false;
 
   constructor(parent: HTMLElement, options: DebugMenuOptions) {
     this.options = options;
@@ -56,12 +62,40 @@ export class DebugMenu {
         <header class="debug-menu-header">
           <div>
             <p class="debug-menu-eyebrow">Development tools · M</p>
-            <h2 id="debug-menu-title">Debug menu</h2>
+            <h2 id="debug-menu-title">Development menu</h2>
           </div>
           <button type="button" class="debug-menu-close" data-debug-close aria-label="Close debug menu">×</button>
         </header>
 
-        <div class="debug-menu-grid">
+        <section class="debug-menu-section debug-menu-performance" data-render-diagnostics ${options.renderDiagnostics ? '' : 'hidden'}>
+          <header><h3>Rendering isolation</h3><p>Keep the camera fixed and change one switch at a time. Simulation and CPU animation keep running. Switches affect this client only.</p></header>
+          <div class="debug-render-buildings"><strong>Buildings &amp; homes</strong><div>
+            <button type="button" data-render-buildings="full" aria-pressed="true">Full models</button>
+            <button type="button" data-render-buildings="placeholder" aria-pressed="false">Single boxes</button>
+            <button type="button" data-render-buildings="hidden" aria-pressed="false">Hidden</button>
+          </div></div>
+          <p>Single boxes: one 12-triangle mesh per building, including homes and construction sites; simple material and shadows.</p>
+          <div class="debug-render-toggles">
+            ${([
+              ['people', 'People', 'Villagers, soldiers & cart crews'],
+              ['carts', 'Carts & cargo', 'Includes log hauls'],
+              ['oxen', 'Oxen', 'Includes yokes & ploughs'],
+              ['animals', 'Animals', 'Dogs, wildlife, livestock & horses'],
+              ['trees', 'All trees', 'Includes horizon trees & stumps'],
+              ['vegetation', 'All vegetation', 'Trees, grass, shrubs, crops & reeds'],
+              ['sky', 'Sky & clouds', 'Keeps world lighting unchanged'],
+            ] as const).map(([category, label, description]) => `<button type="button" data-render-category="${category}" aria-pressed="false"><strong>${label}: <span data-render-state>ON</span></strong><small>${description}</small></button>`).join('')}
+          </div>
+          <div class="debug-render-actions">
+            <button type="button" data-render-actors>Hide all actors</button>
+            <button type="button" data-render-baseline>Save baseline</button>
+            <button type="button" data-render-reset>Restore all models</button>
+            <label><input type="checkbox" data-render-meter checked /> Keep frame meter visible</label>
+          </div>
+          <p data-render-summary>Collecting frame samples…</p>
+          <p data-render-comparison>Save a baseline before changing switches. Frame times are measured between animation frames, not GPU execution time.</p>
+        </section>
+        <details class="debug-menu-simulation"><summary>Simulation tools</summary><div class="debug-menu-grid">
           <section class="debug-menu-section">
             <header><h3>Resources</h3><p>Top up every physical or treasury commodity.</p></header>
             <label class="debug-menu-field debug-menu-field--wide">
@@ -110,8 +144,8 @@ export class DebugMenu {
             </label>
             <button type="button" class="debug-menu-primary" data-debug-action="company">Deploy on map</button>
           </section>
-        </div>
-        <p class="debug-menu-status" data-debug-status aria-live="polite">Debug tools write authoritative simulation state.</p>
+        </div></details>
+        <p class="debug-menu-status" data-debug-status aria-live="polite">Rendering controls are local. Simulation tools change the current world.</p>
       </div>
     `;
     this.dialog = this.backdrop.querySelector<HTMLElement>('.debug-menu-dialog')!;
@@ -127,6 +161,43 @@ export class DebugMenu {
     this.placementHint.className = 'debug-placement-hint';
     this.placementHint.hidden = true;
     parent.append(this.backdrop, this.placementHint);
+    this.performanceMeter.className = 'debug-performance-meter';
+    this.performanceMeter.hidden = true;
+    parent.append(this.performanceMeter);
+    for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-category]')) {
+      button.addEventListener('click', () => {
+        const diagnostics = this.options.renderDiagnostics;
+        const category = button.dataset.renderCategory as RenderDiagnosticCategory;
+        diagnostics?.setHidden(category, !diagnostics.isHidden(category));
+        this.syncPerformanceControls();
+      });
+    }
+    for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-buildings]')) {
+      button.addEventListener('click', () => {
+        this.options.renderDiagnostics?.setBuildingMode(button.dataset.renderBuildings as 'full' | 'placeholder' | 'hidden');
+        this.syncPerformanceControls();
+      });
+    }
+    this.backdrop.querySelector('[data-render-reset]')?.addEventListener('click', () => {
+      this.options.renderDiagnostics?.reset();
+      this.syncPerformanceControls();
+    });
+    this.backdrop.querySelector('[data-render-baseline]')?.addEventListener('click', () => {
+      this.options.renderDiagnostics?.captureBaseline();
+      this.lastPerformanceUpdate = 0;
+    });
+    this.backdrop.querySelector('[data-render-actors]')?.addEventListener('click', () => {
+      const diagnostics = this.options.renderDiagnostics;
+      if (!diagnostics) return;
+      const categories = ['people', 'carts', 'oxen', 'animals'] as const;
+      const hide = !categories.every(category => diagnostics.isHidden(category));
+      for (const category of categories) diagnostics.setHidden(category, hide);
+      this.syncPerformanceControls();
+    });
+    this.backdrop.querySelector<HTMLInputElement>('[data-render-meter]')?.addEventListener('change', (event) => {
+      this.meterVisible = (event.target as HTMLInputElement).checked;
+      this.lastPerformanceUpdate = 0;
+    });
 
     this.backdrop.querySelector<HTMLButtonElement>('[data-debug-close]')!
       .addEventListener('click', () => this.close());
@@ -149,6 +220,55 @@ export class DebugMenu {
     return this.open;
   }
 
+  isPerformanceMonitoring(): boolean {
+    return Boolean(this.options.renderDiagnostics) && (this.open || this.meterVisible);
+  }
+
+  updatePerformance(time: number): void {
+    const diagnostics = this.options.renderDiagnostics;
+    if (!diagnostics || time - this.lastPerformanceUpdate < 400) return;
+    this.lastPerformanceUpdate = time;
+    this.performanceMeter.hidden = !this.meterVisible || this.open;
+    if (!this.open && !this.meterVisible) return;
+    const sample = diagnostics.getSample();
+    const summary = sample
+      ? `${sample.fps.toFixed(1)} FPS · ${sample.meanMs.toFixed(2)} ms avg · ${sample.p95Ms.toFixed(2)} ms P95 · ${Math.round(sample.calls).toLocaleString()} draws · ${(sample.triangles / 1e6).toFixed(2)}M triangles`
+      : 'Settling after switch / collecting frames…';
+    const modes = [diagnostics.buildingMode === 'full' ? '' : `buildings: ${diagnostics.buildingMode}`,
+      ...(['people', 'carts', 'oxen', 'animals', 'trees', 'vegetation', 'sky'] as const)
+        .filter(category => diagnostics.isHidden(category)).map(category => `${category}: OFF`)].filter(Boolean);
+    const baseline = diagnostics.baseline;
+    const delta = baseline && sample ? ` · ${(sample.meanMs - baseline.meanMs).toFixed(2)} ms vs baseline` : '';
+    this.performanceMeter.textContent = `${summary}\n${modes.join(' · ') || 'Full scene'}${delta} · M development menu`;
+    if (!this.open) return;
+    this.backdrop.querySelector('[data-render-summary]')!.textContent = summary;
+    this.backdrop.querySelector<HTMLButtonElement>('[data-render-baseline]')!.disabled = !sample;
+    this.backdrop.querySelector('[data-render-comparison]')!.textContent = baseline && sample
+      ? `Baseline: ${baseline.fps.toFixed(1)} FPS / ${baseline.meanMs.toFixed(2)} ms · change: ${(sample.meanMs - baseline.meanMs).toFixed(2)} ms (${((sample.meanMs / baseline.meanMs - 1) * 100).toFixed(1)}%). Lower frame time is better.`
+      : 'Save a baseline before changing switches. Frame times are animation-frame intervals, not GPU execution time.';
+  }
+
+  private syncPerformanceControls(): void {
+    const diagnostics = this.options.renderDiagnostics;
+    if (!diagnostics) return;
+    for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-category]')) {
+      const category = button.dataset.renderCategory as RenderDiagnosticCategory;
+      const off = diagnostics.isHidden(category);
+      button.setAttribute('aria-pressed', String(off));
+      button.querySelector('[data-render-state]')!.textContent = off ? 'OFF' : 'ON';
+      // All-vegetation includes trees, without discarding the independent tree switch.
+      if (category === 'trees' && diagnostics.isHidden('vegetation')) {
+        button.querySelector('[data-render-state]')!.textContent = 'OFF (vegetation)';
+      }
+    }
+    for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-render-buildings]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.renderBuildings === diagnostics.buildingMode));
+    }
+    const actorsHidden = (['people', 'carts', 'oxen', 'animals'] as const).every(category => diagnostics.isHidden(category));
+    this.backdrop.querySelector('[data-render-actors]')!.textContent = actorsHidden ? 'Show all actors' : 'Hide all actors';
+    this.lastPerformanceUpdate = 0;
+  }
+
   isPlacementActive(): boolean {
     return this.armedAction !== null || this.actionPending;
   }
@@ -161,6 +281,7 @@ export class DebugMenu {
     this.options.domElement.removeEventListener('pointerdown', this.onMapPointerDown, true);
     this.backdrop.remove();
     this.placementHint.remove();
+    this.performanceMeter.remove();
   }
 
   private openMenu(): void {
@@ -168,6 +289,8 @@ export class DebugMenu {
     this.cancelPlacement();
     this.syncDate();
     this.open = true;
+    this.meterVisible = this.backdrop.querySelector<HTMLInputElement>('[data-render-meter]')?.checked ?? false;
+    this.syncPerformanceControls();
     this.backdrop.hidden = false;
     this.options.onOpenChange?.(true);
     this.backdrop.querySelector<HTMLButtonElement>('[data-debug-close]')?.focus({ preventScroll: true });
