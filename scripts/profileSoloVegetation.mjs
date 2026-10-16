@@ -202,6 +202,9 @@ try {
           for(let object=helper.draw;object;object=object.parent)if(!object.visible)return false;
           return true;
         }).length;
+        const grassDraws = gpuGround.filter(helper=>/^SeedThree grass (meadow|clump)$/.test(helper.source.name));
+        const grass = grassDraws.map(helper=>({name:helper.source.name,visible:helper.source.visible,
+          canonicalSlots:helper.source.count,submitted:helper.source.visible?helper.draw.count:0}));
         pairs = helpers.map(unculledInstanceReference);
         const owners = new Map(), lodTrees = [new Set(),new Set(),new Set()];
         let edgeNearTrees = 0;
@@ -252,7 +255,7 @@ try {
         images.push({ name:`${imageLabel}-optimized`,png:png(actual) }, { name:`${imageLabel}-reference`,png:png(full) },
           { name:`${imageLabel}-difference`,png:png(differences) });
         const isolated = [];
-        if(changed) for(const [name,pattern] of [ ['trees',/cards|branches/], ['flowers',/^SeedThree streamed /],
+        if(changed) for(const [name,pattern] of [ ['trees',/cards|branches/], ['grass',/^SeedThree grass (meadow|clump)$/], ['flowers',/^SeedThree streamed /],
           ['ivy',/rooted instanced forest-floor ivy/],['nettles',/stinging nettle prototype/],['shrubs',/real (dogwood|bush|fern|juniper) prototype/] ]) {
           const pixels = await capture(source=>pattern.test(source.name));
           let changed=0,max=0;
@@ -291,7 +294,7 @@ try {
         if(finalColoredPixels<1024)throw Error('Final pipeline capture is empty');
         images.push({name:`${imageLabel}-final-optimized`,png:png(finalActual)},{name:`${imageLabel}-final-reference`,png:png(finalReference)});
         scene.sky.visible=false;scene.precipitation.group.visible=false;scene.riverSystem.group.visible=false;
-        poses.push({x,z,distance,gpuGroundDraws:visibleGpuGroundDraws,cameraOnlyUploads,lodTrees:lodTrees.map(set=>set.size),edgeNearTrees,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
+        poses.push({x,z,distance,gpuGroundDraws:visibleGpuGroundDraws,grass,cameraOnlyUploads,lodTrees:lodTrees.map(set=>set.size),edgeNearTrees,channelsOver2:changed,maxDelta:max,stabilityChannelsOver2,isolated,
           stream:{mode:stream.mode,pendingSlots:stream.pendingSlots,liveInstances:stream.liveInstances,wildflowerLiveInstances:stream.wildflowerLiveInstances},
           finalPipeline:{channelsOver2:finalChannelsOver2,maxDelta:finalMaxDelta,stabilityChannelsOver2:finalStabilityChannelsOver2,coloredPixels:finalColoredPixels}});
         for (const pair of pairs) { pair.draw.visible=true; pair.dispose(); }
@@ -306,6 +309,7 @@ try {
     assert.ok(parity.poses.every(pose => pose.channelsOver2 === 0 && pose.stabilityChannelsOver2 === 0
       && pose.finalPipeline.channelsOver2 === 0 && pose.finalPipeline.stabilityChannelsOver2 === 0), JSON.stringify(parity));
     assert.ok(parity.poses.some(pose => pose.edgeNearTrees > 0), 'Playable edge trees must upgrade to normal nearby detail');
+    assert.ok(parity.poses.some(pose => pose.grass.some(draw=>draw.submitted>100)), 'Compare actual grass in the full game');
   }
   assert.deepEqual(errors, []);
 } finally {

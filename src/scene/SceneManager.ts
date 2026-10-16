@@ -1579,7 +1579,7 @@ export class SceneManager {
       [this.forestManager, 'syncRoadClearance', 'forest.road-clearance'],
       [this.forestManager, 'syncPlacementClearance', 'forest.placement-clearance'],
       [this.grassField, 'updateCameraState', 'grass.camera+streaming'],
-      [this.grassField, 'prepareRender', 'flowers.camera-culling'],
+      [this.grassField, 'prepareRender', 'groundcover.camera-culling'],
       [this.sky, 'updateTime', 'sky.update'],
       [this.riverSystem, 'updateCameraState', 'water.camera'],
       [this.riverSystem, 'tick', 'water.simulation'],

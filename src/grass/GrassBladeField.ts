@@ -297,6 +297,9 @@ export async function createGrassBladeField(
     geometry.setAttribute('aTint', tintAttr);
     geometry.setAttribute('aAnchorPos', anchorAttr);
     const mesh = new THREE.InstancedMesh(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES);
+    // The material tint and instance color carry the same authored RGB. Share
+    // their canonical buffer (and GPU gather) instead of writing/uploading twice.
+    mesh.instanceColor = tintAttr;
     mesh.name = index === 0 ? 'SeedThree grass meadow' : 'SeedThree grass clump';
     mesh.count = 0;
     applyGroundCoverShadowPolicy(mesh, { terrainReceivesShadow: true });
@@ -393,7 +396,7 @@ export async function createGrassBladeField(
   }
   displayMaterials = [grassMaterial, wildflowerMaterial];
   disposeResources = () => {
-    for (const compaction of flowerCompactions) compaction.dispose();
+    for (const compaction of [...grassCompactions, ...flowerCompactions]) compaction.dispose();
     const geometries = new Set<THREE.BufferGeometry>();
     for (const entry of streamMeshes) {
       geometries.add(entry.mesh.geometry);
@@ -496,6 +499,20 @@ export async function createGrassBladeField(
     compactData: Array.from({ length: streamMeshes.length }, () => null),
     wildflowerGeometryLod: 'footprint',
   }));
+  let grassSelectionVersion = 0;
+  const grassCompactions = streamMeshes.flatMap((entry, meshIndex) => entry.variant
+    ? [new InstanceDrawCompaction(
+      entry.mesh,
+      // Rooted sway <= .16 * 1.18 locally. Tuft scales stay below 1.61;
+      // include that scale and a small margin in the camera-edge bounds.
+      () => .01 + .32 * Math.abs(windStrength.value),
+      {
+        renderer: options?.renderer,
+        instanceGroupSize: entry.slotCapacity,
+        groupInstanceCount: slot => slotRecords[slot]!.meshCounts[meshIndex]!,
+        selectionVersion: () => grassSelectionVersion,
+      },
+    )] : []);
 
   let anchorChunkX = Number.NaN;
   let anchorChunkZ = Number.NaN;
@@ -895,8 +912,6 @@ export async function createGrassBladeField(
         if (entry.variant) {
           const grass = instance as GeneratedGrassInstance;
           entry.tintAttr?.setXYZ(instanceIndex, ...grass.tint);
-          writeColor.setRGB(...grass.tint);
-          entry.mesh.setColorAt(instanceIndex, writeColor);
           entry.anchorAttr?.setXYZ(instanceIndex, ...grass.anchor);
         }
         written += 1;
@@ -906,6 +921,7 @@ export async function createGrassBladeField(
     }
     record.worldChunkX = worldChunkX;
     record.worldChunkZ = worldChunkZ;
+    grassSelectionVersion++;
     const slotLod = Number.isFinite(wildflowerLodFocus.x)
       ? resolveWildflowerGeometryLod(
           'footprint',
@@ -1292,6 +1308,10 @@ export async function createGrassBladeField(
     },
     prepareRender(camera) {
       if (!grassZoomVisible) return;
+      for (const compaction of grassCompactions) {
+        compaction.syncRenderState();
+        compaction.prepare(camera);
+      }
       let submittedInstances = 0, submittedTriangles = 0;
       for (const compaction of flowerCompactions) {
         compaction.syncRenderState();
@@ -1391,12 +1411,12 @@ function applyStreamMeshUpdateRanges(
   for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
     const entry = streamMeshes[meshIndex]!;
     if (entry.compactLivePrefix) continue;
-    const attributes = [
+    const attributes = new Set([
       entry.mesh.instanceMatrix,
       entry.mesh.instanceColor,
       entry.tintAttr,
       entry.anchorAttr,
-    ].filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute);
+    ].filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute));
     for (const attribute of attributes) {
       const bytesPerElement = attribute.array.BYTES_PER_ELEMENT;
       const plan = planGroundcoverAttributeUpdateRanges(
@@ -1462,7 +1482,6 @@ const writeQuaternion = new THREE.Quaternion();
 const writePosition = new THREE.Vector3();
 const writeScale = new THREE.Vector3();
 const writeEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-const writeColor = new THREE.Color();
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 function sampleForestFloorBlend(

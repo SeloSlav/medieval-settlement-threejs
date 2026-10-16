@@ -26,6 +26,7 @@ export class InstanceDrawCompaction {
   private readonly padding: number | (() => number);
   private readonly skipCollapsed: boolean;
   private readonly groupVisible?: (group: number) => boolean;
+  private readonly groupInstanceCount?: (group: number) => number;
   private readonly selectionVersion?: () => number;
   private readonly gather?: InstanceAttributeGather;
   private boundedCount = 0;
@@ -39,7 +40,15 @@ export class InstanceDrawCompaction {
   private previousCamera: THREE.Camera | null | undefined;
   private disposed = false;
 
-  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: { skipCollapsed?: boolean; instanceGroupSize?: number; groupVisible?: (group: number) => boolean; selectionVersion?: () => number; renderer?: SupportedRenderer } = {}) {
+  constructor(source: THREE.InstancedMesh, padding: number | (() => number), options: {
+    skipCollapsed?: boolean;
+    instanceGroupSize?: number;
+    groupVisible?: (group: number) => boolean;
+    /** Live prefix of each fixed allocation, e.g. a streamed grass chunk. */
+    groupInstanceCount?: (group: number) => number;
+    selectionVersion?: () => number;
+    renderer?: SupportedRenderer;
+  } = {}) {
     const materials = Array.isArray(source.material) ? source.material : [source.material];
     if (source.geometry.getIndirect() || materials.some(material => material.transparent)) throw new Error('Instance compaction requires opaque materials');
     const attributes = Object.entries(source.geometry.attributes);
@@ -47,6 +56,7 @@ export class InstanceDrawCompaction {
     this.source = source; this.padding = padding; this.layers = source.layers.mask;
     this.skipCollapsed = options.skipCollapsed === true;
     this.groupVisible = options.groupVisible; this.selectionVersion = options.selectionVersion;
+    this.groupInstanceCount = options.groupInstanceCount;
     const gpuRenderer = InstanceAttributeGather.supports(source, options.renderer) ? options.renderer : undefined;
     const geometry = new THREE.BufferGeometry();
     inheritExactInstancePrototype(geometry, source.geometry);
@@ -98,6 +108,11 @@ export class InstanceDrawCompaction {
 
   get submittedInstances(): number { return Math.max(0, this.selectedCount); }
 
+  private groupEnd(start: number): number {
+    const count = this.groupInstanceCount?.(start / this.groupSize) ?? this.groupSize;
+    return Math.min(start + Math.max(0, Math.min(this.groupSize, Math.floor(count))), this.source.count);
+  }
+
   syncRenderState(): void {
     this.draw.castShadow = this.source.castShadow;
     this.draw.receiveShadow = this.source.receiveShadow;
@@ -117,42 +132,53 @@ export class InstanceDrawCompaction {
     for (const pair of this.pairs) {
       if (pair.version !== pair.source.version) { pair.version = pair.source.version; changed = true; }
     }
-    if (source.instanceMatrix.version !== this.matrixVersion || source.count > this.boundedCount) {
+    const selectionVersion = this.selectionVersion?.() ?? 0;
+    const boundsChanged = source.instanceMatrix.version !== this.matrixVersion || source.count > this.boundedCount;
+    if (boundsChanged) {
       // A skipped version can contain a sparse edit whose upload range has
       // already been consumed. Rebuild the bounds rather than retaining it.
       const matrixChanged = source.instanceMatrix.version !== this.matrixVersion;
       const ranges = source.instanceMatrix.version === this.matrixVersion + 1
         && this.matrixVersion >= 0 ? source.instanceMatrix.updateRanges : [];
       this.matrixVersion = source.instanceMatrix.version;
-      for (let i = 0; i < source.count; i++) {
-        if (i < this.boundedCount && (!matrixChanged || (ranges.length && !ranges.some(range => range.start < (i + 1) * 16 && range.start + range.count > i * 16)))) continue;
-        source.getMatrixAt(i, this.matrix); this.sphere.copy(source.geometry.boundingSphere!).applyMatrix4(this.matrix);
-        const p = this.sphere.center, offset = i * 4;
-        this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
-      }
-      if (this.groupSize > 1) {
-        // Forest cards are contiguous per tree. Reject a whole crown, or accept
-        // an entirely visible crown, before inspecting cards on its boundary.
-        for (let start = 0, group = 0; start < source.count; start += this.groupSize, group++) {
-          let minX = Infinity, minY = Infinity, minZ = Infinity;
-          let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity, live = 0;
-          for (let i = start; i < Math.min(start + this.groupSize, source.count); i++) {
-            const at = i * 4, r = this.bounds[at + 3]!;
-            if (this.skipCollapsed && r === 0) continue;
-            live++;
-            minX = Math.min(minX, this.bounds[at]! - r); maxX = Math.max(maxX, this.bounds[at]! + r);
-            minY = Math.min(minY, this.bounds[at + 1]! - r); maxY = Math.max(maxY, this.bounds[at + 1]! + r);
-            minZ = Math.min(minZ, this.bounds[at + 2]! - r); maxZ = Math.max(maxZ, this.bounds[at + 2]! + r);
-          }
-          const at = group * 4;
-          this.groupLiveCounts[group] = live;
-          this.groupBounds[at] = live ? (minX + maxX) / 2 : 0;
-          this.groupBounds[at + 1] = live ? (minY + maxY) / 2 : 0;
-          this.groupBounds[at + 2] = live ? (minZ + maxZ) / 2 : 0;
-          this.groupBounds[at + 3] = live ? Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2 : 0;
+      const updateBounds = (start: number, end: number): void => {
+        for (let i = start; i < end; i++) {
+          source.getMatrixAt(i, this.matrix); this.sphere.copy(source.geometry.boundingSphere!).applyMatrix4(this.matrix);
+          const p = this.sphere.center, offset = i * 4;
+          this.bounds[offset] = p.x; this.bounds[offset + 1] = p.y; this.bounds[offset + 2] = p.z; this.bounds[offset + 3] = this.sphere.radius;
         }
+      };
+      if (matrixChanged && !ranges.length) updateBounds(0, source.count);
+      else {
+        // Visit changed rows directly instead of scanning the entire toroidal
+        // allocation for each small streamed-chunk edit.
+        for (const range of ranges) updateBounds(Math.floor(range.start / 16), Math.min(source.count, Math.ceil((range.start + range.count) / 16)));
+        if (source.count > this.boundedCount) updateBounds(this.boundedCount, source.count);
       }
       this.boundedCount = source.count;
+    }
+    if (this.groupSize > 1 && (boundsChanged || this.previousCount !== source.count || this.previousSelectionVersion !== selectionVersion)) {
+      // Reject whole crowns/chunks first. Unused tails of sparse allocations
+      // must not enlarge their bounds or enter the submitted prefix.
+      for (let start = 0, group = 0; start < source.count; start += this.groupSize, group++) {
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity, live = 0;
+        const end = this.groupEnd(start);
+        for (let i = start; i < end; i++) {
+          const at = i * 4, r = this.bounds[at + 3]!;
+          if (this.skipCollapsed && r === 0) continue;
+          live++;
+          minX = Math.min(minX, this.bounds[at]! - r); maxX = Math.max(maxX, this.bounds[at]! + r);
+          minY = Math.min(minY, this.bounds[at + 1]! - r); maxY = Math.max(maxY, this.bounds[at + 1]! + r);
+          minZ = Math.min(minZ, this.bounds[at + 2]! - r); maxZ = Math.max(maxZ, this.bounds[at + 2]! + r);
+        }
+        const at = group * 4;
+        this.groupLiveCounts[group] = live;
+        this.groupBounds[at] = live ? (minX + maxX) / 2 : 0;
+        this.groupBounds[at + 1] = live ? (minY + maxY) / 2 : 0;
+        this.groupBounds[at + 2] = live ? (minZ + maxZ) / 2 : 0;
+        this.groupBounds[at + 3] = live ? Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2 : 0;
+      }
     }
     if (camera) {
       camera.updateWorldMatrix(true, false);
@@ -160,7 +186,6 @@ export class InstanceDrawCompaction {
       this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(source.matrixWorld);
     }
     const padding = typeof this.padding === 'function' ? this.padding() : this.padding;
-    const selectionVersion = this.selectionVersion?.() ?? 0;
     if (!changed && this.previousCount === source.count && this.previousPadding === padding
       && this.previousSelectionVersion === selectionVersion
       && this.previousCamera === camera
@@ -190,7 +215,8 @@ export class InstanceDrawCompaction {
     };
     for (let start = 0; start < source.count; start += this.groupSize) {
       if (this.groupVisible && !this.groupVisible(start / this.groupSize)) continue;
-      const end = Math.min(start + this.groupSize, source.count);
+      const end = this.groupEnd(start);
+      if (end <= start) continue;
       if (this.groupSize > 1) {
         const group = start / this.groupSize, at = group * 4;
         if (!this.groupLiveCounts[group]) continue;
@@ -204,8 +230,7 @@ export class InstanceDrawCompaction {
           if (distance < radius) inside = false;
         }
         if (outside) continue;
-        const allocated = Math.min(this.groupSize, source.instanceMatrix.count - start);
-        if (inside && this.groupLiveCounts[group] === allocated) { append(start, end - start); continue; }
+        if (inside && this.groupLiveCounts[group] === end - start) { append(start, end - start); continue; }
       }
       for (let i = start; i < end; i++) {
         const at = i * 4, x = this.bounds[at]!, y = this.bounds[at + 1]!, z = this.bounds[at + 2]!, radius = this.bounds[at + 3]! + padding;
